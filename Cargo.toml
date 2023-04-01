@@ -1,0 +1,23 @@
+[package]
+name = "netbench-orch"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[[bin]]
+name = "netbench-runner"
+path = "src/runner.rs"
+
+[[bin]]
+name = "netbench-orch"
+path = "src/main.rs"
+
+[dependencies]
+aws-config = "0.54.1"
+aws-sdk-sqs = "0.24.0"
+tokio = { version = "1.26.0", features = ["full"] }
+structopt = { version = "0.3.26", default-features = false }
+tracing-subscriber = { version = "0.3.16", features = ["env-filter"] }
+aws-sdk-ec2 = "0.24.0"
+base64 = "0.21.0"
