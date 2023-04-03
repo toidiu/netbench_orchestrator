@@ -3,6 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0.
  */
 #![allow(clippy::result_large_err)]
+
+fn main() {}
+/*
 use aws_config::meta::region::ProvideRegion;
 use aws_sdk_sqs::{Region, PKG_VERSION, Client, Error};
 
@@ -78,3 +81,4 @@ async fn main() -> Result<(), Error> {
 
     Ok(())
 }
+*/

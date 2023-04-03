@@ -9,15 +9,12 @@ edition = "2021"
 name = "netbench-runner"
 path = "src/runner.rs"
 
-[[bin]]
-name = "netbench-orch"
-path = "src/main.rs"
-
 [dependencies]
-aws-config = "0.54.1"
-aws-sdk-sqs = "0.24.0"
+aws-config = "0.55.0"
+aws-sdk-sqs = "0.25.0"
 tokio = { version = "1.26.0", features = ["full"] }
 structopt = { version = "0.3.26", default-features = false }
 tracing-subscriber = { version = "0.3.16", features = ["env-filter"] }
-aws-sdk-ec2 = "0.24.0"
+aws-sdk-ec2 = "0.25.0"
 base64 = "0.21.0"
+aws-sdk-iam = "0.25.0"
