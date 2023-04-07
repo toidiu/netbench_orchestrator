@@ -18,3 +18,7 @@ tracing-subscriber = { version = "0.3.16", features = ["env-filter"] }
 aws-sdk-ec2 = "0.25.0"
 base64 = "0.21.0"
 aws-sdk-iam = "0.25.0"
+openssh = "0.9.9"
+aws-sdk-ec2instanceconnect = "0.25.0"
+aws-sdk-ssm = "0.25.0"
+aws-types = "0.55.0"
