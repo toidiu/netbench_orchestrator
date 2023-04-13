@@ -4,6 +4,8 @@
  */
 #![allow(dead_code)]
 #![allow(unused_imports)]
+use tempdir::TempDir;
+
 use std::{collections::HashMap, fmt::format, thread::sleep, time::Duration};
 
 use std::{
@@ -25,6 +27,7 @@ use aws_sdk_ssm as ssm;
 use aws_types::region::Region;
 use base64::{engine::general_purpose, Engine as _};
 use ec2::types::Filter;
+use iam::types::StatusType;
 use ssm::operation::send_command::SendCommandOutput;
 
 const ORCH_REGION: &str = "us-west-1";
@@ -37,7 +40,10 @@ async fn main() -> Result<(), String> {
      */
     tracing_subscriber::fmt::init();
 
-    let unique_id = std::time::SystemTime::now().duration_since(std::time::SystemTime::UNIX_EPOCH).unwrap().as_nanos();
+    let unique_id = format!("test-{}", std::time::SystemTime::now()
+        .duration_since(std::time::SystemTime::UNIX_EPOCH)
+        .unwrap()
+        .as_nanos());
 
     //let region_provider = RegionProviderChain::default_provider().or_else("us-west-2");
     let orch_provider = Region::new(ORCH_REGION);
@@ -78,10 +84,7 @@ async fn main() -> Result<(), String> {
     // Create a security group
     let security_group_id: String = ec2_vpc
         .create_security_group()
-        .group_name(format!(
-            "generated_group_{:?}",
-            unique_id
-        ))
+        .group_name(format!("generated_group_{}", unique_id))
         .description("This is a security group for a single run of netbench.")
         .vpc_id(vpc_id)
         .send()
@@ -277,7 +280,7 @@ async fn main() -> Result<(), String> {
         "cd /home/ec2-user",
         "echo su finished > /home/ec2-user/working",
         "yum upgrade -y",
-        "yum install cargo git perl openssl-devel -y",
+        "yum install cargo git perl openssl-devel bpftrace perf tree -y",
         "echo yum finished > /home/ec2-user/working",
         "runuser -u ec2-user -- git clone --branch netbench_sync https://github.com/harrisonkaiser/s2n-quic.git",
         "runuser -u ec2-user -- echo git finished > /home/ec2-user/working",
@@ -288,18 +291,21 @@ async fn main() -> Result<(), String> {
         "runuser -u ec2-user -- mkdir -p target/netbench",
         "runuser -u ec2-user -- cp /home/ec2-user/request_response.json target/netbench/request_response.json",
         "runuser -u ec2-user -- echo build finished > /home/ec2-user/working",
-        format!("runuser -u ec2-user -- env SERVER_0={}:4433 SERVER_0={}:8080 ./scripts/netbench-client.sh", server_ip, server_ip).as_str(),
+        format!("env SERVER_0={}:4433 COORD_SERVER_0={}:8080 ./scripts/netbench-client.sh", server_ip, server_ip).as_str(),
+        "chown ec2-user: -R .",
         "runuser -u ec2-user -- echo build finished > /home/ec2-user/working",
         "runuser -u ec2-user -- cd target/netbench",
-        format!("runuser -u ec2-user -- aws s3 sync . s3://netbenchrunnerlogs/{}", unique_id).as_str(),
+        format!("runuser -u ec2-user -- aws s3 sync /home/ec2-user/s2n-quic/netbench/target/netbench s3://netbenchrunnerlogs/{}", unique_id).as_str(),
+        "shutdown -h +1",
+        "exit 0"
     ].into_iter().map(String::from).collect()).await.expect("Timed out");
 
-    let send_command_output_server = send_command(&ssm_client, server_instance_id, vec![
+    let send_command_output_server = send_command(&ssm_client, server_instance_id.clone(), vec![
         "runuser -u ec2-user -- echo starting > /home/ec2-user/working",
         "cd /home/ec2-user",
         "runuser -u ec2-user -- echo su finished > /home/ec2-user/working",
         "yum upgrade -y",
-        "yum install cargo git perl openssl-devel -y",
+        "yum install cargo git perl openssl-devel bpftrace perf tree -y",
         "runuser -u ec2-user -- echo yum finished > /home/ec2-user/working",
         "runuser -u ec2-user -- git clone --branch netbench_sync https://github.com/harrisonkaiser/s2n-quic.git",
         "runuser -u ec2-user -- echo git finished > /home/ec2-user/working",
@@ -310,15 +316,63 @@ async fn main() -> Result<(), String> {
         "runuser -u ec2-user -- mkdir -p target/netbench",
         "runuser -u ec2-user -- cp /home/ec2-user/request_response.json target/netbench/request_response.json",
         "runuser -u ec2-user -- echo build finished > /home/ec2-user/working",
-        format!("runuser -u ec2-user -- env CLIENT_0={}:8080 ./scripts/netbench-server.sh", client_ip).as_str(),
+        format!("env COORD_CLIENT_0={}:8080 ./scripts/netbench-server.sh", client_ip).as_str(),
+        "chown ec2-user: -R .",
         "runuser -u ec2-user -- echo build finished > /home/ec2-user/working",
-        "runuser -u ec2-user -- cd target/netbench",
-        format!("runuser -u ec2-user -- aws s3 sync . s3://netbenchrunnerlogs/{}", unique_id).as_str(),
+        format!("runuser -u ec2-user -- aws s3 sync /home/ec2-user/s2n-quic/netbench/target/netbench s3://netbenchrunnerlogs/{}", unique_id).as_str(),
+        "exit 0",
     ].into_iter().map(String::from).collect()).await.expect("Timed out");
+    let ssm_command_result_client = wait_for_ssm_results(
+        &ssm_client,
+        send_command_output_client
+            .command()
+            .unwrap()
+            .command_id()
+            .unwrap()
+            .into(),
+    )
+    .await;
+    println!("Client Finished!: Successful: {}", ssm_command_result_client);
+    let ssm_command_result_server = wait_for_ssm_results(
+        &ssm_client,
+        send_command_output_server
+            .command()
+            .unwrap()
+            .command_id()
+            .unwrap()
+            .into(),
+    ).await;
+    println!("Server Finished!: Successful: {}", ssm_command_result_server);
 
     /*
      * Copy results back
      */
+    let generate_report = dbg!(send_command(&ssm_client, server_instance_id, vec![
+        "runuser -u ec2-user -- tree /home/ec2-user/s2n-quic/netbench/target/netbench > /home/ec2-user/before-sync",
+        format!("runuser -u ec2-user -- aws s3 sync s3://netbenchrunnerlogs/{} /home/ec2-user/s2n-quic/netbench/target/netbench", unique_id).as_str(),
+        "runuser -u ec2-user -- tree /home/ec2-user/s2n-quic/netbench/target/netbench > /home/ec2-user/after-sync",
+        "cd /home/ec2-user/s2n-quic/netbench/",
+        "runuser -u ec2-user -- ./target/release/netbench-cli report-tree ./target/netbench/results ./target/netbench/report",
+        "runuser -u ec2-user -- tree /home/ec2-user/s2n-quic/netbench/target/netbench > /home/ec2-user/after-report",
+        format!("runuser -u ec2-user -- aws s3 sync /home/ec2-user/s2n-quic/netbench/target/netbench s3://netbenchrunnerlogs/{}", unique_id).as_str(),
+        "runuser -u ec2-user -- tree /home/ec2-user/s2n-quic/netbench/target/netbench > /home/ec2-user/after-sync-back",
+        "shutdown -h +1",
+        "exit 0",
+    ].into_iter().map(String::from).collect()).await.expect("Timed out"));
+    let report_result = wait_for_ssm_results(
+        &ssm_client,
+        generate_report
+            .command()
+            .unwrap()
+            .command_id()
+            .unwrap()
+            .into(),
+    ).await;
+    println!("Report Finished!: Successful: {}", report_result);
+
+    println!("URL: http://d2jusruq1ilhjs.cloudfront.net/{}/report/index.html", unique_id);
+
+
     Ok(())
 }
 
@@ -469,7 +523,12 @@ async fn send_command(
             .document_name("AWS-RunShellScript")
             .document_version("$LATEST")
             .parameters("commands", commands.clone())
-            .cloud_watch_output_config(ssm::types::CloudWatchOutputConfig::builder().cloud_watch_log_group_name("hello").cloud_watch_output_enabled(true).build())
+            .cloud_watch_output_config(
+                ssm::types::CloudWatchOutputConfig::builder()
+                    .cloud_watch_log_group_name("hello")
+                    .cloud_watch_output_enabled(true)
+                    .build(),
+            )
             .send()
             .await
             .map_err(|x| format!("{:#?}", x))
@@ -488,6 +547,41 @@ async fn send_command(
                     return None;
                 }
             }
+        };
+    }
+}
+
+async fn wait_for_ssm_results(ssm_client: &ssm::Client, command_id: String) -> bool {
+    loop {
+        let o_status = ssm_client
+            .list_command_invocations()
+            .command_id(command_id.clone())
+            .send()
+            .await
+            .unwrap()
+            .command_invocations()
+            .unwrap()
+            .iter()
+            .filter_map(|command| command.status())
+            .next().cloned();
+        let status = match o_status {
+            Some(s) => s,
+            None => return true,
+        };
+        match status {
+            ssm::types::CommandInvocationStatus::Cancelled
+            | ssm::types::CommandInvocationStatus::Cancelling
+            | ssm::types::CommandInvocationStatus::Failed
+            | ssm::types::CommandInvocationStatus::TimedOut => break false,
+            ssm::types::CommandInvocationStatus::Delayed
+            | ssm::types::CommandInvocationStatus::InProgress
+            | ssm::types::CommandInvocationStatus::Pending => {
+                dbg!(status);
+                sleep(Duration::from_secs(30));
+                continue;
+            }
+            ssm::types::CommandInvocationStatus::Success => break true,
+            _ => panic!("Unhandled Status"),
         };
     }
 }
