@@ -7,7 +7,7 @@
 #![allow(unused_imports)]
 #![allow(unused_variables)]
 use std::fmt::format;
-
+/*
 use aws_config::meta::region::RegionProviderChain;
 use aws_sdk_ec2 as ec2;
 use aws_sdk_ec2instanceconnect as ec2ic;
@@ -285,9 +285,6 @@ async fn main() -> Result<(), RunnerError> {
         .map(|instance| instance.instance_id().unwrap().into())
         .collect();
 
-    let public_key = include_str!("id_rsa.pub");
-    let private_key = include_str!("id_rsa");
-
     for id in instance_ids.iter() {
         loop {
             let result = ec2ic_client
@@ -324,3 +321,4 @@ async fn main() -> Result<(), RunnerError> {
     //new_instance_profile(client);
     Ok(())
 }
+*/
