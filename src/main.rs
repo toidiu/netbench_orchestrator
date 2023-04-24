@@ -4,8 +4,10 @@
  */
 #![allow(dead_code)]
 #![allow(unused_imports)]
+use bytes::Bytes;
 use tempdir::TempDir;
 
+use std::borrow::BorrowMut;
 use std::{collections::HashMap, fmt::format, thread::sleep, time::Duration};
 
 use std::{
@@ -22,8 +24,10 @@ use aws_config::meta::region::RegionProviderChain;
 use aws_sdk_ec2 as ec2;
 use aws_sdk_ec2instanceconnect as ec2ic;
 use aws_sdk_iam as iam;
+use aws_sdk_s3 as s3;
 use aws_sdk_sqs as sqs;
 use aws_sdk_ssm as ssm;
+
 use aws_types::region::Region;
 use base64::{engine::general_purpose, Engine as _};
 use ec2::types::Filter;
@@ -40,19 +44,165 @@ async fn main() -> Result<(), String> {
      */
     tracing_subscriber::fmt::init();
 
-    let unique_id = format!("test-{}", std::time::SystemTime::now()
-        .duration_since(std::time::SystemTime::UNIX_EPOCH)
-        .unwrap()
-        .as_nanos());
+    let unique_id = format!(
+        "test-{}",
+        std::time::SystemTime::now()
+            .duration_since(std::time::SystemTime::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    );
+    let status = format!(
+        "http://d2jusruq1ilhjs.cloudfront.net/{}/index.html",
+        unique_id
+    );
+    let status_server_prefix = format!(
+        "http://d2jusruq1ilhjs.cloudfront.net/{}/server-step-",
+        unique_id
+    );
+    let status_client_prefix = format!(
+        "http://d2jusruq1ilhjs.cloudfront.net/{}/client-step-",
+        unique_id
+    );
+    let status_finished_prefix = format!(
+        "http://d2jusruq1ilhjs.cloudfront.net/{}/finished-step-",
+        unique_id
+    );
+
+    // Upload a status file to s3:
+    let index_file = format!(
+        r##"
+        <!DOCTYPE html>
+        <html lang="en">
+          <head>
+            <title>Netbench Runner Status Page</title>
+            <!-- Bootstrap CSS https://getbootstrap.com/docs/3.4/getting-started/ -->
+            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@3.4.1/dist/css/bootstrap.min.css" integrity="sha384-HSMxcRTRxnN+Bdg0JdbxYKrThecOKuH5zCYotlSAcp1+c8xmyTe9GYg1l9a69psu" crossorigin="anonymous">
+          </head>
+          <body onload="load()">
+            <main class="container" role="main">
+                <h1>Netbench Runner Status Page: test-1681434707070214000</h1>
+                <h2>Finished: <span id="finished-0">Not Yet...</span></h2>
+                <p>
+                    This is the landing page for your Netbench Run.
+                    The current status for the server and client are shown below.
+                </p>
+                <h2>Server Status</h2>
+                <ul>
+                    <li id="server-0">...</li>
+                    <li id="server-1">...</li>
+                    <li id="server-2">...</li>
+                    <li id="server-3">...</li>
+                    <li id="server-4">...</li>
+                    <li id="server-5">...</li>
+                    <li id="server-6">...</li>
+                    <li id="server-7">...</li>
+                </ul>
+                <h2>Client Status</h2>
+                <ul>
+                    <li id="client-0">...</li>
+                    <li id="client-1">...</li>
+                    <li id="client-2">...</li>
+                    <li id="client-3">...</li>
+                    <li id="client-4">...</li>
+                    <li id="client-5">...</li>
+                    <li id="client-6">...</li>
+                    <li id="client-7">...</li>
+                </ul>
+
+                <button onclick="updateAll()">Update</button>
+            </main>
+            <script>
+            function httpGetAsync(theUrl, callback)
+            {{
+                var xmlHttp = new XMLHttpRequest();
+                xmlHttp.onreadystatechange = function() {{
+                    if (xmlHttp.readyState == 4 && xmlHttp.status == 200)
+                        callback(xmlHttp.responseText);
+                }}
+                xmlHttp.open("GET", theUrl, true); // true for asynchronous
+                xmlHttp.send(null);
+            }}
+            function updateElement(id) {{
+                return function (text) {{
+                    document.getElementById(id).innerHTML = text;
+                }}
+            }}
+            function update(prefix, id) {{
+                return function (step) {{
+                    httpGetAsync(prefix + step, updateElement(id + "-" + step));
+                }};
+            }}
+            function updateAll() {{
+                console.log("Updating All");
+                let update_server_at_step = update("{status_server_prefix}", "server");
+                for (let i = 0; i < 8; i++) {{
+                    update_server_at_step(i);
+                }}
+                let update_client_at_step = update("{status_client_prefix}", "client");
+                for (let i = 0; i < 8; i++) {{
+                    update_client_at_step(i);
+                }}
+                let update_finished = update("{status_finished_prefix}", "finished")(0);
+            }}
+            function load() {{
+                setInterval(updateAll(), 30000);
+            }}
+            </script>
+          </body>
+        </html>
+    "##
+    );
 
     //let region_provider = RegionProviderChain::default_provider().or_else("us-west-2");
     let orch_provider = Region::new(ORCH_REGION);
     let shared_config = aws_config::from_env().region(orch_provider).load().await;
 
+
     let ec2_client = ec2::Client::new(&shared_config);
     //let _sqs_client = sqs::Client::new(&shared_config);
     let iam_client = iam::Client::new(&shared_config);
     //let ec2ic_client = ec2ic::Client::new(&shared_config);
+    let s3_client = s3::Client::new(&shared_config);
+
+    let _ = s3_client
+        .put_object()
+        .body(s3::primitives::ByteStream::from(Bytes::from(index_file)).into())
+        .bucket("netbenchrunnerlogs")
+        .key(format!("{unique_id}/index.html"))
+        .content_type("text/html")
+        .send()
+        .await
+        .unwrap();
+    let _ = s3_client
+        .put_object()
+        .body(
+            s3::primitives::ByteStream::from(Bytes::from(
+                "Waiting on EC2 Server Runner to come up",
+            ))
+            .into(),
+        )
+        .bucket("netbenchrunnerlogs")
+        .key(format!("{unique_id}/server-step-0"))
+        .content_type("text/html")
+        .send()
+        .await
+        .unwrap();
+    let _ = s3_client
+        .put_object()
+        .body(
+            s3::primitives::ByteStream::from(Bytes::from(
+                "Waiting on EC2 Client Runner to come up",
+            ))
+            .into(),
+        )
+        .bucket("netbenchrunnerlogs")
+        .key(format!("{unique_id}/client-step-0"))
+        .content_type("text/html")
+        .send()
+        .await
+        .unwrap();
+
+    println!("Status: URL: {status}");
 
     let iam_role: String = iam_client
         .get_instance_profile()
@@ -268,58 +418,58 @@ async fn main() -> Result<(), String> {
         .instance_id()
         .map(String::from)
         .ok_or(String::from("No server id"))?;
-    //let client_instance_id = String::from("i-07b0a35b017f5370b");
-    //let server_instance_id = String::from("i-07eda896bf2f7e38c");
+
     let instance_ids = vec![client_instance_id.clone(), server_instance_id.clone()];
 
-    //let instance_ids: Vec<String> = vec!["i-053182c418b960f50", "i-0fcf5bec9f49422a4"].into_iter().map(String::from).collect();
     println!("{:?}", instance_ids);
 
     let send_command_output_client = send_command(&ssm_client, client_instance_id, vec![
-        "echo starting > /home/ec2-user/working",
+        format!("runuser -u ec2-user -- echo ec2 up > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html s3://netbenchrunnerlogs/{}/client-step-1", unique_id).as_str(),
         "cd /home/ec2-user",
-        "echo su finished > /home/ec2-user/working",
         "yum upgrade -y",
-        "yum install cargo git perl openssl-devel bpftrace perf tree -y",
-        "echo yum finished > /home/ec2-user/working",
+        format!("runuser -u ec2-user -- echo yum upgrade finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html s3://netbenchrunnerlogs/{}/client-step-2", unique_id).as_str(),
+        format!("timeout 1h bash -c 'until yum install cargo git perl openssl-devel bpftrace perf tree -y; do sleep 60; done' || (echo yum failed > /home/ec2-user/index.html; aws s3 cp /home/ec2-user/index.html s3://netbenchrunnerlogs/{}/client-step-3; exit 1)", unique_id).as_str(),
+        format!("echo yum finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html s3://netbenchrunnerlogs/{}/client-step-3", unique_id).as_str(),
         "runuser -u ec2-user -- git clone --branch netbench_sync https://github.com/harrisonkaiser/s2n-quic.git",
-        "runuser -u ec2-user -- echo git finished > /home/ec2-user/working",
-        format!("runuser -u ec2-user -- cat <<- \"HEREDOC\"  > /home/ec2-user/request_response.json \n{}\nHEREDOC", include_str!("request_response.json")).as_str(),
-        "runuser -u ec2-user -- echo heredoc finished > /home/ec2-user/working",
+        format!("runuser -u ec2-user -- echo git finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html s3://netbenchrunnerlogs/{}/client-step-4", unique_id).as_str(),
+        "runuser -u ec2-user -- aws s3 cp s3://netbenchrunnerlogs/TS/request_response.json /home/ec2-user/request_response.json",
+        format!("runuser -u ec2-user -- echo SCENARIO finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html s3://netbenchrunnerlogs/{}/client-step-5", unique_id).as_str(),
         "cd s2n-quic/netbench",
         "runuser -u ec2-user -- cargo build --release",
         "runuser -u ec2-user -- mkdir -p target/netbench",
         "runuser -u ec2-user -- cp /home/ec2-user/request_response.json target/netbench/request_response.json",
-        "runuser -u ec2-user -- echo build finished > /home/ec2-user/working",
-        format!("env SERVER_0={}:4433 COORD_SERVER_0={}:8080 ./scripts/netbench-client.sh", server_ip, server_ip).as_str(),
+        format!("runuser -u ec2-user -- echo cargo build finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html s3://netbenchrunnerlogs/{}/client-step-6", unique_id).as_str(),
+        format!("env SERVER_0={}:4433 COORD_SERVER_0={}:8080 ./scripts/netbench-test-player-as-client.sh", server_ip, server_ip).as_str(),
         "chown ec2-user: -R .",
-        "runuser -u ec2-user -- echo build finished > /home/ec2-user/working",
+        format!("runuser -u ec2-user -- echo run finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html s3://netbenchrunnerlogs/{}/client-step-7", unique_id).as_str(),
         "runuser -u ec2-user -- cd target/netbench",
         format!("runuser -u ec2-user -- aws s3 sync /home/ec2-user/s2n-quic/netbench/target/netbench s3://netbenchrunnerlogs/{}", unique_id).as_str(),
+        format!("runuser -u ec2-user -- echo report upload finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html s3://netbenchrunnerlogs/{}/client-step-8", unique_id).as_str(),
         "shutdown -h +1",
         "exit 0"
     ].into_iter().map(String::from).collect()).await.expect("Timed out");
 
     let send_command_output_server = send_command(&ssm_client, server_instance_id.clone(), vec![
-        "runuser -u ec2-user -- echo starting > /home/ec2-user/working",
+        format!("runuser -u ec2-user -- echo starting > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html s3://netbenchrunnerlogs/{}/server-step-1", unique_id).as_str(),
         "cd /home/ec2-user",
-        "runuser -u ec2-user -- echo su finished > /home/ec2-user/working",
         "yum upgrade -y",
-        "yum install cargo git perl openssl-devel bpftrace perf tree -y",
-        "runuser -u ec2-user -- echo yum finished > /home/ec2-user/working",
+        format!("runuser -u ec2-user -- echo yum upgrade finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html s3://netbenchrunnerlogs/{}/server-step-2", unique_id).as_str(),
+        format!("timeout 1h bash -c 'until yum install cargo git perl openssl-devel bpftrace perf tree -y; do sleep 60; done' || (echo yum failed > /home/ec2-user/index.html; aws s3 cp /home/ec2-user/index.html s3://netbenchrunnerlogs/{}/client-step-3; exit 1)", unique_id).as_str(),
+        format!("runuser -u ec2-user -- echo yum install finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html s3://netbenchrunnerlogs/{}/server-step-3", unique_id).as_str(),
         "runuser -u ec2-user -- git clone --branch netbench_sync https://github.com/harrisonkaiser/s2n-quic.git",
-        "runuser -u ec2-user -- echo git finished > /home/ec2-user/working",
-        format!("runuser -u ec2-user -- cat <<- \"HEREDOC\"  > /home/ec2-user/request_response.json \n{}\nHEREDOC", include_str!("request_response.json")).as_str(),
-        "runuser -u ec2-user -- echo heredoc finished > /home/ec2-user/working",
+        format!("runuser -u ec2-user -- echo git clone finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html s3://netbenchrunnerlogs/{}/server-step-4", unique_id).as_str(),
+        "runuser -u ec2-user -- aws s3 cp s3://netbenchrunnerlogs/TS/request_response.json /home/ec2-user/request_response.json",
+        format!("runuser -u ec2-user -- echo SCENARIO finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html s3://netbenchrunnerlogs/{}/server-step-5", unique_id).as_str(),
         "cd s2n-quic/netbench",
         "runuser -u ec2-user -- cargo build --release",
         "runuser -u ec2-user -- mkdir -p target/netbench",
         "runuser -u ec2-user -- cp /home/ec2-user/request_response.json target/netbench/request_response.json",
-        "runuser -u ec2-user -- echo build finished > /home/ec2-user/working",
-        format!("env COORD_CLIENT_0={}:8080 ./scripts/netbench-server.sh", client_ip).as_str(),
+        format!("runuser -u ec2-user -- echo cargo build finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html s3://netbenchrunnerlogs/{}/server-step-6", unique_id).as_str(),
+        format!("env COORD_CLIENT_0={}:8080 ./scripts/netbench-test-player-as-server.sh", client_ip).as_str(),
         "chown ec2-user: -R .",
-        "runuser -u ec2-user -- echo build finished > /home/ec2-user/working",
+        format!("runuser -u ec2-user -- echo run finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html s3://netbenchrunnerlogs/{}/server-step-7", unique_id).as_str(),
         format!("runuser -u ec2-user -- aws s3 sync /home/ec2-user/s2n-quic/netbench/target/netbench s3://netbenchrunnerlogs/{}", unique_id).as_str(),
+        format!("runuser -u ec2-user -- echo report upload finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html s3://netbenchrunnerlogs/{}/client-step-8", unique_id).as_str(),
         "exit 0",
     ].into_iter().map(String::from).collect()).await.expect("Timed out");
     let ssm_command_result_client = wait_for_ssm_results(
@@ -332,7 +482,10 @@ async fn main() -> Result<(), String> {
             .into(),
     )
     .await;
-    println!("Client Finished!: Successful: {}", ssm_command_result_client);
+    println!(
+        "Client Finished!: Successful: {}",
+        ssm_command_result_client
+    );
     let ssm_command_result_server = wait_for_ssm_results(
         &ssm_client,
         send_command_output_server
@@ -341,8 +494,12 @@ async fn main() -> Result<(), String> {
             .command_id()
             .unwrap()
             .into(),
-    ).await;
-    println!("Server Finished!: Successful: {}", ssm_command_result_server);
+    )
+    .await;
+    println!(
+        "Server Finished!: Successful: {}",
+        ssm_command_result_server
+    );
 
     /*
      * Copy results back
@@ -356,6 +513,7 @@ async fn main() -> Result<(), String> {
         "runuser -u ec2-user -- tree /home/ec2-user/s2n-quic/netbench/target/netbench > /home/ec2-user/after-report",
         format!("runuser -u ec2-user -- aws s3 sync /home/ec2-user/s2n-quic/netbench/target/netbench s3://netbenchrunnerlogs/{}", unique_id).as_str(),
         "runuser -u ec2-user -- tree /home/ec2-user/s2n-quic/netbench/target/netbench > /home/ec2-user/after-sync-back",
+        format!(r#"runuser -u ec2-user -- echo \<a href=\"http://d2jusruq1ilhjs.cloudfront.net/{}/report/index.html\"\>Final Report\</a\> > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html s3://netbenchrunnerlogs/{}/finished-step-0"#, unique_id, unique_id).as_str(),
         "shutdown -h +1",
         "exit 0",
     ].into_iter().map(String::from).collect()).await.expect("Timed out"));
@@ -367,11 +525,24 @@ async fn main() -> Result<(), String> {
             .command_id()
             .unwrap()
             .into(),
-    ).await;
+    )
+    .await;
+
     println!("Report Finished!: Successful: {}", report_result);
 
-    println!("URL: http://d2jusruq1ilhjs.cloudfront.net/{}/report/index.html", unique_id);
+    let mut deleted_sec_group = ec2_vpc.delete_security_group().group_id(security_group_id.clone()).send().await;
+    sleep(Duration::from_secs(60));
 
+    while let Err(_) = deleted_sec_group {
+        sleep(Duration::from_secs(30));
+        deleted_sec_group = ec2_vpc.delete_security_group().group_id(security_group_id.clone()).send().await;
+    }
+    println!("Deleted Security Group: {:#?}", deleted_sec_group);
+
+    println!(
+        "URL: http://d2jusruq1ilhjs.cloudfront.net/{}/report/index.html",
+        unique_id
+    );
 
     Ok(())
 }
@@ -510,6 +681,62 @@ async fn launch(
         .clone())
 }
 
+struct InstanceDetailsCluster {
+    subnet_id: String,
+    security_group_id: String,
+    ami_id: String,
+    iam_role: String,
+    placement: ec2::types::Placement,
+}
+
+// Find placement group in infrastructure and use here
+async fn launch_cluster(client: &ec2::Client, instance_details: InstanceDetailsCluster) -> Result<ec2::types::Instance, String> {
+    let run_result = client.run_instances()
+        .iam_instance_profile(
+            ec2::types::IamInstanceProfileSpecification::builder()
+                .arn(instance_details.iam_role)
+                .build(),
+        )
+        .instance_type(ec2::types::InstanceType::C5n18xlarge)
+        .image_id(instance_details.ami_id)
+        .instance_initiated_shutdown_behavior(ec2::types::ShutdownBehavior::Terminate)
+        .user_data(general_purpose::STANDARD.encode("sudo shutdown -P +240"))
+        .block_device_mappings(
+            ec2::types::BlockDeviceMapping::builder()
+                .device_name("/dev/xvda")
+                .ebs(
+                    ec2::types::EbsBlockDevice::builder()
+                        .delete_on_termination(true)
+                        .volume_size(50)
+                        .build(),
+                )
+                .build(),
+        )
+        .network_interfaces(
+            ec2::types::InstanceNetworkInterfaceSpecification::builder()
+                .associate_public_ip_address(true)
+                .delete_on_termination(true)
+                .device_index(0)
+                .subnet_id(instance_details.subnet_id)
+                .groups(instance_details.security_group_id)
+                .build(),
+        ).placement(instance_details.placement)
+        .min_count(1)
+        .max_count(1)
+        .dry_run(false)
+        .send()
+        .await
+        .map_err(|r| format!("{:#?}", r))?;
+    Ok(run_result
+        .instances()
+        .ok_or::<String>("Couldn't find instances in run result".into())?
+        .get(0)
+        .ok_or::<String>("Couldn't find instances in run result".into())?.clone())
+
+}
+
+
+
 async fn send_command(
     ssm_client: &ssm::Client,
     instance_id: String,
@@ -563,7 +790,8 @@ async fn wait_for_ssm_results(ssm_client: &ssm::Client, command_id: String) -> b
             .unwrap()
             .iter()
             .filter_map(|command| command.status())
-            .next().cloned();
+            .next()
+            .cloned();
         let status = match o_status {
             Some(s) => s,
             None => return true,
