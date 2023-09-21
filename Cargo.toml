@@ -5,9 +5,9 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[[bin]]
-name = "netbench-runner"
-path = "src/runner.rs"
+#[[bin]]
+#name = "netbench-runner"
+#path = "src/runner.rs"
 
 [dependencies]
 aws-config = "0.55.0"
