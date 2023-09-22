@@ -34,8 +34,8 @@ use ec2::types::Filter;
 use iam::types::StatusType;
 use ssm::operation::send_command::SendCommandOutput;
 
-const ORCH_REGION: &str = "us-west-2";
-const VPC_REGIONS: [&str; 1] = ["us-west-2"];
+const ORCH_REGION: &str = "us-west-1";
+const VPC_REGIONS: [&str; 2] = ["us-east-1", "us-west-2"];
 const CLOUDFRONT: &str = "http://d2jusruq1ilhjs.cloudfront.net/";
 
 #[tokio::main]
@@ -643,10 +643,10 @@ async fn launch(
                 .arn(instance_details.iam_role)
                 .build(),
         )
-        .instance_type(ec2::types::InstanceType::M416xlarge)
+        .instance_type(ec2::types::InstanceType::C6gMedium)
         .image_id(instance_details.ami_id)
         .instance_initiated_shutdown_behavior(ec2::types::ShutdownBehavior::Terminate)
-        .user_data(general_purpose::STANDARD.encode("sudo shutdown -P +240"))
+        .user_data(general_purpose::STANDARD.encode("sudo shutdown -P +600"))
         .block_device_mappings(
             ec2::types::BlockDeviceMapping::builder()
                 .device_name("/dev/xvda")
