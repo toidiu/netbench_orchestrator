@@ -643,10 +643,10 @@ async fn launch(
                 .arn(instance_details.iam_role)
                 .build(),
         )
-        .instance_type(ec2::types::InstanceType::C6gMedium)
+        .instance_type(ec2::types::InstanceType::C54xlarge)
         .image_id(instance_details.ami_id)
         .instance_initiated_shutdown_behavior(ec2::types::ShutdownBehavior::Terminate)
-        .user_data(general_purpose::STANDARD.encode("sudo shutdown -P +600"))
+        .user_data(general_purpose::STANDARD.encode("sudo shutdown -P +7200"))
         .block_device_mappings(
             ec2::types::BlockDeviceMapping::builder()
                 .device_name("/dev/xvda")
