@@ -38,6 +38,16 @@ const ORCH_REGION: &str = "us-west-1";
 const VPC_REGIONS: [&str; 2] = ["us-east-1", "us-west-2"];
 const CLOUDFRONT: &str = "http://d2jusruq1ilhjs.cloudfront.net/";
 
+struct State {
+    log_bucket: &'static str,
+    cf_url: &'static str,
+}
+
+const STATE: State = State {
+    log_bucket: "netbenchrunnerlogs",
+    cf_url: "http://d2jusruq1ilhjs.cloudfront.net/",
+};
+
 #[tokio::main]
 async fn main() -> Result<(), String> {
     /*
@@ -168,7 +178,7 @@ async fn main() -> Result<(), String> {
     let _ = s3_client
         .put_object()
         .body(s3::primitives::ByteStream::from(Bytes::from(index_file)).into())
-        .bucket("netbenchrunnerlogs")
+        .bucket(STATE.log_bucket)
         .key(format!("{unique_id}/index.html"))
         .content_type("text/html")
         .send()
@@ -182,7 +192,7 @@ async fn main() -> Result<(), String> {
             ))
             .into(),
         )
-        .bucket("netbenchrunnerlogs")
+        .bucket(STATE.log_bucket)
         .key(format!("{unique_id}/server-step-0"))
         .content_type("text/html")
         .send()
@@ -196,7 +206,7 @@ async fn main() -> Result<(), String> {
             ))
             .into(),
         )
-        .bucket("netbenchrunnerlogs")
+        .bucket(STATE.log_bucket)
         .key(format!("{unique_id}/client-step-0"))
         .content_type("text/html")
         .send()
