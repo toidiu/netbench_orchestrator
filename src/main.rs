@@ -43,6 +43,7 @@ struct State {
     cf_url: &'static str,
     repo: &'static str,
     branch: &'static str,
+    shutdown_time: &'static str,
 }
 
 const STATE: State = State {
@@ -50,6 +51,7 @@ const STATE: State = State {
     cf_url: "http://d2jusruq1ilhjs.cloudfront.net/", // TODO use in code
     repo: "https://github.com/aws/s2n-quic.git",
     branch: "ak-netbench_sync",
+    shutdown_time: "7200", // 2 hrs
 };
 
 #[tokio::main]
@@ -286,7 +288,7 @@ async fn main() -> Result<(), String> {
         security_group_id: security_group_id.clone(),
         iam_role: iam_role.clone(),
     };
-    let server = launch(&ec2_vpc, server_details).await?;
+    let server = launch_instance(&ec2_vpc, server_details).await?;
 
     let client_details = InstanceDetails {
         ami_id: ami_id.clone(),
@@ -294,7 +296,7 @@ async fn main() -> Result<(), String> {
         security_group_id: security_group_id.clone(),
         iam_role: iam_role.clone(),
     };
-    let client = launch(&ec2_vpc, client_details).await?;
+    let client = launch_instance(&ec2_vpc, client_details).await?;
     println!("-----Client----");
     //println!("{:#?}", client);
     println!("-----Server----");
@@ -460,7 +462,7 @@ async fn main() -> Result<(), String> {
         "runuser -u ec2-user -- cd target/netbench",
         format!("runuser -u ec2-user -- aws s3 sync /home/ec2-user/s2n-quic/netbench/target/netbench s3://netbenchrunnerlogs-dougch/{}", unique_id).as_str(),
         format!("runuser -u ec2-user -- echo report upload finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html s3://netbenchrunnerlogs/{}/client-step-8", unique_id).as_str(),
-        "shutdown -h +1",
+        // "shutdown -h +1",
         "exit 0"
     ].into_iter().map(String::from).collect()).await.expect("Timed out");
 
@@ -529,7 +531,7 @@ async fn main() -> Result<(), String> {
         format!("runuser -u ec2-user -- aws s3 sync /home/ec2-user/s2n-quic/netbench/target/netbench s3://netbenchrunnerlogs/{}", unique_id).as_str(),
         "runuser -u ec2-user -- tree /home/ec2-user/s2n-quic/netbench/target/netbench > /home/ec2-user/after-sync-back",
         format!(r#"runuser -u ec2-user -- echo \<a href=\"http://d2jusruq1ilhjs.cloudfront.net/{}/report/index.html\"\>Final Report\</a\> > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html s3://netbenchrunnerlogs/{}/finished-step-0"#, unique_id, unique_id).as_str(),
-        "shutdown -h +1",
+        // "shutdown -h +1",
         "exit 0",
     ].into_iter().map(String::from).collect()).await.expect("Timed out"));
     let report_result = wait_for_ssm_results(
@@ -646,7 +648,7 @@ struct InstanceDetails {
     ami_id: String,
     iam_role: String,
 }
-async fn launch(
+async fn launch_instance(
     ec2_client: &ec2::Client,
     instance_details: InstanceDetails,
 ) -> Result<ec2::types::Instance, String> {
@@ -660,7 +662,7 @@ async fn launch(
         .instance_type(ec2::types::InstanceType::C54xlarge)
         .image_id(instance_details.ami_id)
         .instance_initiated_shutdown_behavior(ec2::types::ShutdownBehavior::Terminate)
-        .user_data(general_purpose::STANDARD.encode("sudo shutdown -P +7200"))
+        .user_data(general_purpose::STANDARD.encode(format!("sudo shutdown -P +{}", STATE.shutdown_time)))
         .block_device_mappings(
             ec2::types::BlockDeviceMapping::builder()
                 .device_name("/dev/xvda")
@@ -715,7 +717,7 @@ async fn launch_cluster(client: &ec2::Client, instance_details: InstanceDetailsC
         .instance_type(ec2::types::InstanceType::C5n18xlarge)
         .image_id(instance_details.ami_id)
         .instance_initiated_shutdown_behavior(ec2::types::ShutdownBehavior::Terminate)
-        .user_data(general_purpose::STANDARD.encode("sudo shutdown -P +240"))
+        .user_data(general_purpose::STANDARD.encode(format!("sudo shutdown -P +{}", STATE.shutdown_time)))
         .block_device_mappings(
             ec2::types::BlockDeviceMapping::builder()
                 .device_name("/dev/xvda")
