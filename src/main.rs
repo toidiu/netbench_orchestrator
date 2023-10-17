@@ -41,11 +41,15 @@ const CLOUDFRONT: &str = "http://d2jusruq1ilhjs.cloudfront.net/";
 struct State {
     log_bucket: &'static str,
     cf_url: &'static str,
+    repo: &'static str,
+    branch: &'static str,
 }
 
 const STATE: State = State {
     log_bucket: "netbenchrunnerlogs",
-    cf_url: "http://d2jusruq1ilhjs.cloudfront.net/",
+    cf_url: "http://d2jusruq1ilhjs.cloudfront.net/", // TODO use in code
+    repo: "https://github.com/aws/s2n-quic.git",
+    branch: "ak-netbench_sync",
 };
 
 #[tokio::main]
@@ -441,7 +445,7 @@ async fn main() -> Result<(), String> {
         format!("runuser -u ec2-user -- echo yum upgrade finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html s3://netbenchrunnerlogs/{}/client-step-2", unique_id).as_str(),
         format!("timeout 1h bash -c 'until yum install cargo git perl openssl-devel bpftrace perf tree -y; do sleep 60; done' || (echo yum failed > /home/ec2-user/index.html; aws s3 cp /home/ec2-user/index.html s3://netbenchrunnerlogs/{}/client-step-3; exit 1)", unique_id).as_str(),
         format!("echo yum finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html s3://netbenchrunnerlogs/{}/client-step-3", unique_id).as_str(),
-        "runuser -u ec2-user -- git clone --branch netbench_sync https://github.com/harrisonkaiser/s2n-quic.git",
+        format!("runuser -u ec2-user -- git clone --branch {} {}", STATE.branch, STATE.repo).as_str(),
         format!("runuser -u ec2-user -- echo git finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html s3://netbenchrunnerlogs/{}/client-step-4", unique_id).as_str(),
         "runuser -u ec2-user -- aws s3 cp s3://netbenchrunnerlogs-dougch/TS/request_response.json /home/ec2-user/request_response.json",
         format!("runuser -u ec2-user -- echo SCENARIO finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html s3://netbenchrunnerlogs/{}/client-step-5", unique_id).as_str(),
@@ -467,7 +471,7 @@ async fn main() -> Result<(), String> {
         format!("runuser -u ec2-user -- echo yum upgrade finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html s3://netbenchrunnerlogs-dougch/{}/server-step-2", unique_id).as_str(),
         format!("timeout 1h bash -c 'until yum install cargo git perl openssl-devel bpftrace perf tree -y; do sleep 60; done' || (echo yum failed > /home/ec2-user/index.html; aws s3 cp /home/ec2-user/index.html s3://netbenchrunnerlogs/{}/client-step-3; exit 1)", unique_id).as_str(),
         format!("runuser -u ec2-user -- echo yum install finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html s3://netbenchrunnerlogs/{}/server-step-3", unique_id).as_str(),
-        "runuser -u ec2-user -- git clone --branch netbench_sync https://github.com/harrisonkaiser/s2n-quic.git",
+        format!("runuser -u ec2-user -- git clone --branch {} {}", STATE.branch, STATE.repo).as_str(),
         format!("runuser -u ec2-user -- echo git clone finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html s3://netbenchrunnerlogs/{}/server-step-4", unique_id).as_str(),
         "runuser -u ec2-user -- aws s3 cp s3://netbenchrunnerlogs/TS/request_response.json /home/ec2-user/request_response.json",
         format!("runuser -u ec2-user -- echo SCENARIO finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html s3://netbenchrunnerlogs/{}/server-step-5", unique_id).as_str(),
