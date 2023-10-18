@@ -48,8 +48,12 @@ struct State {
 const STATE: State = State {
     log_bucket: "netbenchrunnerlogs",
     cf_url: "http://d2jusruq1ilhjs.cloudfront.net/", // TODO use in code
-    repo: "https://github.com/aws/s2n-quic.git",
-    branch: "ak-netbench_sync",
+    // harrison
+    repo: "https://github.com/harrisonkaiser/s2n-quic.git",
+    branch: "netbench_sync",
+    // aws
+    // repo: "https://github.com/aws/s2n-quic.git",
+    // branch: "ak-netbench_sync",
     shutdown_time: "7200", // 2 hrs
 };
 
@@ -62,10 +66,7 @@ async fn main() -> Result<(), String> {
 
     let unique_id = format!(
         "{}",
-        std::time::SystemTime::now()
-            .duration_since(std::time::SystemTime::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
+        humantime::format_rfc3339_seconds(std::time::SystemTime::now()).to_string()
     );
 
     let status = format!(
