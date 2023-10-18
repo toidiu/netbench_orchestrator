@@ -5,16 +5,14 @@
 #![allow(dead_code)]
 #![allow(unused_imports)]
 use bytes::Bytes;
-use tempdir::TempDir;
-
 use std::borrow::BorrowMut;
 use std::{collections::HashMap, fmt::format, thread::sleep, time::Duration};
-
 use std::{
     fs::File,
     io::{self, BufRead, BufReader},
     path::Path,
 };
+use tempdir::TempDir;
 
 fn lines_from_file(filename: impl AsRef<Path>) -> io::Result<Vec<String>> {
     BufReader::new(File::open(filename)?).lines().collect()
@@ -22,6 +20,7 @@ fn lines_from_file(filename: impl AsRef<Path>) -> io::Result<Vec<String>> {
 
 use aws_config::meta::region::RegionProviderChain;
 use aws_sdk_ec2 as ec2;
+use aws_sdk_ec2::types::InstanceStateName;
 use aws_sdk_ec2instanceconnect as ec2ic;
 use aws_sdk_iam as iam;
 use aws_sdk_s3 as s3;
@@ -62,12 +61,13 @@ async fn main() -> Result<(), String> {
     tracing_subscriber::fmt::init();
 
     let unique_id = format!(
-        "test-{}",
+        "{}",
         std::time::SystemTime::now()
             .duration_since(std::time::SystemTime::UNIX_EPOCH)
             .unwrap()
             .as_nanos()
     );
+
     let status = format!(
         "http://d2jusruq1ilhjs.cloudfront.net/{}/index.html",
         unique_id
@@ -97,7 +97,7 @@ async fn main() -> Result<(), String> {
           </head>
           <body onload="load()">
             <main class="container" role="main">
-                <h1>Netbench Runner Status Page: test-1681434707070214000</h1>
+                <h1>Netbench Runner Status Page: {}</h1>
                 <h2>Finished: <span id="finished-0">Not Yet...</span></h2>
                 <p>
                     This is the landing page for your Netbench Run.
@@ -167,13 +167,13 @@ async fn main() -> Result<(), String> {
             </script>
           </body>
         </html>
-    "##
+    "##,
+        unique_id
     );
 
     //let region_provider = RegionProviderChain::default_provider().or_else("us-west-2");
     let orch_provider = Region::new(ORCH_REGION);
     let shared_config = aws_config::from_env().region(orch_provider).load().await;
-
 
     let ec2_client = ec2::Client::new(&shared_config);
     //let _sqs_client = sqs::Client::new(&shared_config);
@@ -288,7 +288,12 @@ async fn main() -> Result<(), String> {
         security_group_id: security_group_id.clone(),
         iam_role: iam_role.clone(),
     };
-    let server = launch_instance(&ec2_vpc, server_details).await?;
+    let server = launch_instance(
+        &ec2_vpc,
+        server_details,
+        format!("server-{}", unique_id).as_str(),
+    )
+    .await?;
 
     let client_details = InstanceDetails {
         ami_id: ami_id.clone(),
@@ -296,7 +301,12 @@ async fn main() -> Result<(), String> {
         security_group_id: security_group_id.clone(),
         iam_role: iam_role.clone(),
     };
-    let client = launch_instance(&ec2_vpc, client_details).await?;
+    let client = launch_instance(
+        &ec2_vpc,
+        client_details,
+        format!("client-{}", unique_id).as_str(),
+    )
+    .await?;
     println!("-----Client----");
     //println!("{:#?}", client);
     println!("-----Server----");
@@ -305,9 +315,9 @@ async fn main() -> Result<(), String> {
     /*
      * Wait for running state
      */
-    let mut client_code = 0;
+    let mut client_code = InstanceStateName::Pending;
     let mut ip_client = None;
-    while dbg!(client_code != 16) {
+    while dbg!(client_code != InstanceStateName::Running) {
         sleep(Duration::from_secs(30));
         let result = ec2_vpc
             .describe_instances()
@@ -328,14 +338,15 @@ async fn main() -> Result<(), String> {
         client_code = res.get(0).unwrap().instances().unwrap()[0]
             .state()
             .unwrap()
-            .code()
+            .name()
             .unwrap()
+            .clone()
     }
     assert_ne!(ip_client, None);
 
-    let mut server_code = 0;
+    let mut server_code = InstanceStateName::Pending;
     let mut ip_server = None;
-    while dbg!(server_code != 16) {
+    while dbg!(server_code != InstanceStateName::Running) {
         sleep(Duration::from_secs(30));
         let result = ec2_vpc
             .describe_instances()
@@ -356,8 +367,9 @@ async fn main() -> Result<(), String> {
         server_code = res.get(0).unwrap().instances().unwrap()[0]
             .state()
             .unwrap()
-            .code()
+            .name()
             .unwrap()
+            .clone()
     }
     assert_ne!(ip_server, None);
 
@@ -462,7 +474,7 @@ async fn main() -> Result<(), String> {
         "runuser -u ec2-user -- cd target/netbench",
         format!("runuser -u ec2-user -- aws s3 sync /home/ec2-user/s2n-quic/netbench/target/netbench s3://netbenchrunnerlogs-dougch/{}", unique_id).as_str(),
         format!("runuser -u ec2-user -- echo report upload finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html s3://netbenchrunnerlogs/{}/client-step-8", unique_id).as_str(),
-        // "shutdown -h +1",
+        "shutdown -h +1",
         "exit 0"
     ].into_iter().map(String::from).collect()).await.expect("Timed out");
 
@@ -531,7 +543,7 @@ async fn main() -> Result<(), String> {
         format!("runuser -u ec2-user -- aws s3 sync /home/ec2-user/s2n-quic/netbench/target/netbench s3://netbenchrunnerlogs/{}", unique_id).as_str(),
         "runuser -u ec2-user -- tree /home/ec2-user/s2n-quic/netbench/target/netbench > /home/ec2-user/after-sync-back",
         format!(r#"runuser -u ec2-user -- echo \<a href=\"http://d2jusruq1ilhjs.cloudfront.net/{}/report/index.html\"\>Final Report\</a\> > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html s3://netbenchrunnerlogs/{}/finished-step-0"#, unique_id, unique_id).as_str(),
-        // "shutdown -h +1",
+        "shutdown -h +1",
         "exit 0",
     ].into_iter().map(String::from).collect()).await.expect("Timed out"));
     let report_result = wait_for_ssm_results(
@@ -547,12 +559,20 @@ async fn main() -> Result<(), String> {
 
     println!("Report Finished!: Successful: {}", report_result);
 
-    let mut deleted_sec_group = ec2_vpc.delete_security_group().group_id(security_group_id.clone()).send().await;
+    let mut deleted_sec_group = ec2_vpc
+        .delete_security_group()
+        .group_id(security_group_id.clone())
+        .send()
+        .await;
     sleep(Duration::from_secs(60));
 
     while let Err(_) = deleted_sec_group {
         sleep(Duration::from_secs(30));
-        deleted_sec_group = ec2_vpc.delete_security_group().group_id(security_group_id.clone()).send().await;
+        deleted_sec_group = ec2_vpc
+            .delete_security_group()
+            .group_id(security_group_id.clone())
+            .send()
+            .await;
     }
     println!("Deleted Security Group: {:#?}", deleted_sec_group);
 
@@ -651,6 +671,7 @@ struct InstanceDetails {
 async fn launch_instance(
     ec2_client: &ec2::Client,
     instance_details: InstanceDetails,
+    name: &str,
 ) -> Result<ec2::types::Instance, String> {
     let run_result = ec2_client
         .run_instances()
@@ -662,7 +683,15 @@ async fn launch_instance(
         .instance_type(ec2::types::InstanceType::C54xlarge)
         .image_id(instance_details.ami_id)
         .instance_initiated_shutdown_behavior(ec2::types::ShutdownBehavior::Terminate)
-        .user_data(general_purpose::STANDARD.encode(format!("sudo shutdown -P +{}", STATE.shutdown_time)))
+        .user_data(
+            general_purpose::STANDARD.encode(format!("sudo shutdown -P +{}", STATE.shutdown_time)),
+        )
+        .tag_specifications(
+            ec2::types::TagSpecification::builder()
+                .resource_type(ec2::types::ResourceType::Instance)
+                .tags(ec2::types::Tag::builder().key("Name").value(name).build())
+                .build(),
+        )
         .block_device_mappings(
             ec2::types::BlockDeviceMapping::builder()
                 .device_name("/dev/xvda")
@@ -707,8 +736,12 @@ struct InstanceDetailsCluster {
 }
 
 // Find placement group in infrastructure and use here
-async fn launch_cluster(client: &ec2::Client, instance_details: InstanceDetailsCluster) -> Result<ec2::types::Instance, String> {
-    let run_result = client.run_instances()
+async fn launch_cluster(
+    client: &ec2::Client,
+    instance_details: InstanceDetailsCluster,
+) -> Result<ec2::types::Instance, String> {
+    let run_result = client
+        .run_instances()
         .iam_instance_profile(
             ec2::types::IamInstanceProfileSpecification::builder()
                 .arn(instance_details.iam_role)
@@ -717,7 +750,9 @@ async fn launch_cluster(client: &ec2::Client, instance_details: InstanceDetailsC
         .instance_type(ec2::types::InstanceType::C5n18xlarge)
         .image_id(instance_details.ami_id)
         .instance_initiated_shutdown_behavior(ec2::types::ShutdownBehavior::Terminate)
-        .user_data(general_purpose::STANDARD.encode(format!("sudo shutdown -P +{}", STATE.shutdown_time)))
+        .user_data(
+            general_purpose::STANDARD.encode(format!("sudo shutdown -P +{}", STATE.shutdown_time)),
+        )
         .block_device_mappings(
             ec2::types::BlockDeviceMapping::builder()
                 .device_name("/dev/xvda")
@@ -737,7 +772,8 @@ async fn launch_cluster(client: &ec2::Client, instance_details: InstanceDetailsC
                 .subnet_id(instance_details.subnet_id)
                 .groups(instance_details.security_group_id)
                 .build(),
-        ).placement(instance_details.placement)
+        )
+        .placement(instance_details.placement)
         .min_count(1)
         .max_count(1)
         .dry_run(false)
@@ -748,11 +784,9 @@ async fn launch_cluster(client: &ec2::Client, instance_details: InstanceDetailsC
         .instances()
         .ok_or::<String>("Couldn't find instances in run result".into())?
         .get(0)
-        .ok_or::<String>("Couldn't find instances in run result".into())?.clone())
-
+        .ok_or::<String>("Couldn't find instances in run result".into())?
+        .clone())
 }
-
-
 
 async fn send_command(
     ssm_client: &ssm::Client,
