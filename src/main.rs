@@ -176,7 +176,7 @@ async fn main() -> Result<(), String> {
     let orch_provider = Region::new(ORCH_REGION);
     let shared_config = aws_config::from_env().region(orch_provider).load().await;
 
-    let ec2_client = ec2::Client::new(&shared_config);
+    // let ec2_client = ec2::Client::new(&shared_config);
     //let _sqs_client = sqs::Client::new(&shared_config);
     let iam_client = iam::Client::new(&shared_config);
     //let ec2ic_client = ec2ic::Client::new(&shared_config);
@@ -382,7 +382,7 @@ async fn main() -> Result<(), String> {
     let server_ip: String = ip_server.unwrap();
     println!("server ip: {:#?}", server_ip);
 
-    let x = ec2_vpc
+    let _network_perms = ec2_vpc
         .authorize_security_group_egress()
         .group_id(security_group_id.clone())
         .ip_permissions(
@@ -405,7 +405,7 @@ async fn main() -> Result<(), String> {
         .send()
         .await
         .expect("error");
-    let x = ec2_vpc
+    let _network_perms = ec2_vpc
         .authorize_security_group_ingress()
         .group_id(security_group_id.clone())
         .ip_permissions(
