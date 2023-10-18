@@ -43,18 +43,20 @@ struct State {
     repo: &'static str,
     branch: &'static str,
     shutdown_time: &'static str,
+    cloud_watch_group: &'static str,
 }
 
 const STATE: State = State {
     log_bucket: "netbenchrunnerlogs",
     cf_url: "http://d2jusruq1ilhjs.cloudfront.net/", // TODO use in code
     // harrison
-    repo: "https://github.com/harrisonkaiser/s2n-quic.git",
-    branch: "netbench_sync",
+    // repo: "https://github.com/harrisonkaiser/s2n-quic.git",
+    // branch: "netbench_sync",
     // aws
-    // repo: "https://github.com/aws/s2n-quic.git",
-    // branch: "ak-netbench_sync",
+    repo: "https://github.com/aws/s2n-quic.git",
+    branch: "ak-netbench_sync",
     shutdown_time: "7200", // 2 hrs
+    cloud_watch_group: "netbench_runner_logs",
 };
 
 #[tokio::main]
@@ -191,34 +193,34 @@ async fn main() -> Result<(), String> {
         .send()
         .await
         .unwrap();
-    let _ = s3_client
-        .put_object()
-        .body(
-            s3::primitives::ByteStream::from(Bytes::from(
-                "Waiting on EC2 Server Runner to come up",
-            ))
-            .into(),
-        )
-        .bucket(STATE.log_bucket)
-        .key(format!("{unique_id}/server-step-0"))
-        .content_type("text/html")
-        .send()
-        .await
-        .unwrap();
-    let _ = s3_client
-        .put_object()
-        .body(
-            s3::primitives::ByteStream::from(Bytes::from(
-                "Waiting on EC2 Client Runner to come up",
-            ))
-            .into(),
-        )
-        .bucket(STATE.log_bucket)
-        .key(format!("{unique_id}/client-step-0"))
-        .content_type("text/html")
-        .send()
-        .await
-        .unwrap();
+    // let _ = s3_client
+    //     .put_object()
+    //     .body(
+    //         s3::primitives::ByteStream::from(Bytes::from(
+    //             "Waiting on EC2 Server Runner to come up",
+    //         ))
+    //         .into(),
+    //     )
+    //     .bucket(STATE.log_bucket)
+    //     .key(format!("{unique_id}/server-step-0"))
+    //     .content_type("text/html")
+    //     .send()
+    //     .await
+    //     .unwrap();
+    // let _ = s3_client
+    //     .put_object()
+    //     .body(
+    //         s3::primitives::ByteStream::from(Bytes::from(
+    //             "Waiting on EC2 Client Runner to come up",
+    //         ))
+    //         .into(),
+    //     )
+    //     .bucket(STATE.log_bucket)
+    //     .key(format!("{unique_id}/client-step-0"))
+    //     .content_type("text/html")
+    //     .send()
+    //     .await
+    //     .unwrap();
 
     println!("Status: URL: {status}");
 
@@ -451,9 +453,40 @@ async fn main() -> Result<(), String> {
 
     let instance_ids = vec![client_instance_id.clone(), server_instance_id.clone()];
 
+    let _ = s3_client
+        .put_object()
+        .body(
+            s3::primitives::ByteStream::from(Bytes::from(format!(
+                "EC2 Server Runner up: {}",
+                server_instance_id.clone()
+            )))
+            .into(),
+        )
+        .bucket(STATE.log_bucket)
+        .key(format!("{unique_id}/server-step-0"))
+        .content_type("text/html")
+        .send()
+        .await
+        .unwrap();
+    let _ = s3_client
+        .put_object()
+        .body(
+            s3::primitives::ByteStream::from(Bytes::from(format!(
+                "EC2 Client Runner up: {}",
+                client_instance_id.clone()
+            )))
+            .into(),
+        )
+        .bucket(STATE.log_bucket)
+        .key(format!("{unique_id}/client-step-0"))
+        .content_type("text/html")
+        .send()
+        .await
+        .unwrap();
+
     println!("{:?}", instance_ids);
 
-    let send_command_output_client = send_command(&ssm_client, client_instance_id, vec![
+    let send_command_output_client = send_command("client", &ssm_client, client_instance_id, vec![
         format!("runuser -u ec2-user -- echo ec2 up > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html s3://netbenchrunnerlogs/{}/client-step-1", unique_id).as_str(),
         "cd /home/ec2-user",
         "yum upgrade -y",
@@ -480,7 +513,7 @@ async fn main() -> Result<(), String> {
         "exit 0"
     ].into_iter().map(String::from).collect()).await.expect("Timed out");
 
-    let send_command_output_server = send_command(&ssm_client, server_instance_id.clone(), vec![
+    let send_command_output_server = send_command("server", &ssm_client, server_instance_id.clone(), vec![
         format!("runuser -u ec2-user -- echo starting > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html s3://netbenchrunnerlogs/{}/server-step-1", unique_id).as_str(),
         "cd /home/ec2-user",
         "yum upgrade -y",
@@ -505,6 +538,7 @@ async fn main() -> Result<(), String> {
         "exit 0",
     ].into_iter().map(String::from).collect()).await.expect("Timed out");
     let ssm_command_result_client = wait_for_ssm_results(
+        "client",
         &ssm_client,
         send_command_output_client
             .command()
@@ -519,6 +553,7 @@ async fn main() -> Result<(), String> {
         ssm_command_result_client
     );
     let ssm_command_result_server = wait_for_ssm_results(
+        "server",
         &ssm_client,
         send_command_output_server
             .command()
@@ -536,7 +571,7 @@ async fn main() -> Result<(), String> {
     /*
      * Copy results back
      */
-    let generate_report = dbg!(send_command(&ssm_client, server_instance_id, vec![
+    let generate_report = dbg!(send_command("server", &ssm_client, server_instance_id, vec![
         "runuser -u ec2-user -- tree /home/ec2-user/s2n-quic/netbench/target/netbench > /home/ec2-user/before-sync",
         format!("runuser -u ec2-user -- aws s3 sync s3://netbenchrunnerlogs/{} /home/ec2-user/s2n-quic/netbench/target/netbench", unique_id).as_str(),
         "runuser -u ec2-user -- tree /home/ec2-user/s2n-quic/netbench/target/netbench > /home/ec2-user/after-sync",
@@ -550,6 +585,7 @@ async fn main() -> Result<(), String> {
         "exit 0",
     ].into_iter().map(String::from).collect()).await.expect("Timed out"));
     let report_result = wait_for_ssm_results(
+        "server",
         &ssm_client,
         generate_report
             .command()
@@ -561,7 +597,12 @@ async fn main() -> Result<(), String> {
     .await;
 
     println!("Report Finished!: Successful: {}", report_result);
+    println!(
+        "URL: http://d2jusruq1ilhjs.cloudfront.net/{}/report/index.html",
+        unique_id
+    );
 
+    println!("Start: deleting security groups");
     let mut deleted_sec_group = ec2_vpc
         .delete_security_group()
         .group_id(security_group_id.clone())
@@ -578,11 +619,7 @@ async fn main() -> Result<(), String> {
             .await;
     }
     println!("Deleted Security Group: {:#?}", deleted_sec_group);
-
-    println!(
-        "URL: http://d2jusruq1ilhjs.cloudfront.net/{}/report/index.html",
-        unique_id
-    );
+    println!("Done: deleting security groups");
 
     Ok(())
 }
@@ -689,6 +726,7 @@ async fn launch_instance(
         .user_data(
             general_purpose::STANDARD.encode(format!("sudo shutdown -P +{}", STATE.shutdown_time)),
         )
+        // give the instances human readable names. name is set via tags
         .tag_specifications(
             ec2::types::TagSpecification::builder()
                 .resource_type(ec2::types::ResourceType::Instance)
@@ -792,6 +830,7 @@ async fn launch_cluster(
 }
 
 async fn send_command(
+    endpoint: &str,
     ssm_client: &ssm::Client,
     instance_id: String,
     commands: Vec<String>,
@@ -806,7 +845,7 @@ async fn send_command(
             .parameters("commands", commands.clone())
             .cloud_watch_output_config(
                 ssm::types::CloudWatchOutputConfig::builder()
-                    .cloud_watch_log_group_name("hello")
+                    .cloud_watch_log_group_name(STATE.cloud_watch_group)
                     .cloud_watch_output_enabled(true)
                     .build(),
             )
@@ -832,7 +871,11 @@ async fn send_command(
     }
 }
 
-async fn wait_for_ssm_results(ssm_client: &ssm::Client, command_id: String) -> bool {
+async fn wait_for_ssm_results(
+    endpoint: &str,
+    ssm_client: &ssm::Client,
+    command_id: String,
+) -> bool {
     loop {
         let o_status = ssm_client
             .list_command_invocations()
@@ -850,6 +893,9 @@ async fn wait_for_ssm_results(ssm_client: &ssm::Client, command_id: String) -> b
             Some(s) => s,
             None => return true,
         };
+        let dbg = format!("endpoint: {} status: {:?}", endpoint, status.clone());
+        dbg!(dbg);
+
         match status {
             ssm::types::CommandInvocationStatus::Cancelled
             | ssm::types::CommandInvocationStatus::Cancelling
@@ -858,7 +904,6 @@ async fn wait_for_ssm_results(ssm_client: &ssm::Client, command_id: String) -> b
             ssm::types::CommandInvocationStatus::Delayed
             | ssm::types::CommandInvocationStatus::InProgress
             | ssm::types::CommandInvocationStatus::Pending => {
-                dbg!(status);
                 sleep(Duration::from_secs(30));
                 continue;
             }
