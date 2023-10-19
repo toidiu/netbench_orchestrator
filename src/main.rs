@@ -55,104 +55,111 @@ async fn main() -> Result<(), String> {
         "http://d2jusruq1ilhjs.cloudfront.net/{}/index.html",
         unique_id
     );
-    let status_server_prefix = format!(
+    let template_server_prefix = format!(
         "http://d2jusruq1ilhjs.cloudfront.net/{}/server-step-",
         unique_id
     );
-    let status_client_prefix = format!(
+    let template_client_prefix = format!(
         "http://d2jusruq1ilhjs.cloudfront.net/{}/client-step-",
         unique_id
     );
-    let status_finished_prefix = format!(
+    let template_finished_prefix = format!(
         "http://d2jusruq1ilhjs.cloudfront.net/{}/finished-step-",
         unique_id
     );
 
     // Upload a status file to s3:
-    let index_file = format!(
-        r##"
-        <!DOCTYPE html>
-        <html lang="en">
-          <head>
-            <title>Netbench Runner Status Page</title>
-            <!-- Bootstrap CSS https://getbootstrap.com/docs/3.4/getting-started/ -->
-            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@3.4.1/dist/css/bootstrap.min.css" integrity="sha384-HSMxcRTRxnN+Bdg0JdbxYKrThecOKuH5zCYotlSAcp1+c8xmyTe9GYg1l9a69psu" crossorigin="anonymous">
-          </head>
-          <body onload="load()">
-            <main class="container" role="main">
-                <h1>Netbench Runner Status Page: {}</h1>
-                <h2>Finished: <span id="finished-0">Not Yet...</span></h2>
-                <p>
-                    This is the landing page for your Netbench Run.
-                    The current status for the server and client are shown below.
-                </p>
-                <h2>Server Status</h2>
-                <ul>
-                    <li id="server-0">...</li>
-                    <li id="server-1">...</li>
-                    <li id="server-2">...</li>
-                    <li id="server-3">...</li>
-                    <li id="server-4">...</li>
-                    <li id="server-5">...</li>
-                    <li id="server-6">...</li>
-                    <li id="server-7">...</li>
-                </ul>
-                <h2>Client Status</h2>
-                <ul>
-                    <li id="client-0">...</li>
-                    <li id="client-1">...</li>
-                    <li id="client-2">...</li>
-                    <li id="client-3">...</li>
-                    <li id="client-4">...</li>
-                    <li id="client-5">...</li>
-                    <li id="client-6">...</li>
-                    <li id="client-7">...</li>
-                </ul>
+    let index_file = std::fs::read_to_string("index.html")
+        .unwrap()
+        .replace("template_unique_id", &unique_id)
+        .replace("template_server_prefix", &template_server_prefix)
+        .replace("template_client_prefix", &template_client_prefix)
+        .replace("template_finished_prefix", &template_finished_prefix);
+    // println!("{:?}", index_file);
+    // let index_file = format!(
+    //     r##"
+    //     <!DOCTYPE html>
+    //     <html lang="en">
+    //       <head>
+    //         <title>Netbench Runner Status Page</title>
+    //         <!-- Bootstrap CSS https://getbootstrap.com/docs/3.4/getting-started/ -->
+    //         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@3.4.1/dist/css/bootstrap.min.css" integrity="sha384-HSMxcRTRxnN+Bdg0JdbxYKrThecOKuH5zCYotlSAcp1+c8xmyTe9GYg1l9a69psu" crossorigin="anonymous">
+    //       </head>
+    //       <body onload="load()">
+    //         <main class="container" role="main">
+    //             <h1>Netbench Runner Status Page: {}</h1>
+    //             <h2>Finished: <span id="finished-0">Not Yet...</span></h2>
+    //             <p>
+    //                 This is the landing page for your Netbench Run.
+    //                 The current status for the server and client are shown below.
+    //             </p>
+    //             <h2>Server Status</h2>
+    //             <ul>
+    //                 <li id="server-0">...</li>
+    //                 <li id="server-1">...</li>
+    //                 <li id="server-2">...</li>
+    //                 <li id="server-3">...</li>
+    //                 <li id="server-4">...</li>
+    //                 <li id="server-5">...</li>
+    //                 <li id="server-6">...</li>
+    //                 <li id="server-7">...</li>
+    //             </ul>
+    //             <h2>Client Status</h2>
+    //             <ul>
+    //                 <li id="client-0">...</li>
+    //                 <li id="client-1">...</li>
+    //                 <li id="client-2">...</li>
+    //                 <li id="client-3">...</li>
+    //                 <li id="client-4">...</li>
+    //                 <li id="client-5">...</li>
+    //                 <li id="client-6">...</li>
+    //                 <li id="client-7">...</li>
+    //             </ul>
 
-                <button onclick="updateAll()">Update</button>
-            </main>
-            <script>
-            function httpGetAsync(theUrl, callback)
-            {{
-                var xmlHttp = new XMLHttpRequest();
-                xmlHttp.onreadystatechange = function() {{
-                    if (xmlHttp.readyState == 4 && xmlHttp.status == 200)
-                        callback(xmlHttp.responseText);
-                }}
-                xmlHttp.open("GET", theUrl, true); // true for asynchronous
-                xmlHttp.send(null);
-            }}
-            function updateElement(id) {{
-                return function (text) {{
-                    document.getElementById(id).innerHTML = text;
-                }}
-            }}
-            function update(prefix, id) {{
-                return function (step) {{
-                    httpGetAsync(prefix + step, updateElement(id + "-" + step));
-                }};
-            }}
-            function updateAll() {{
-                console.log("Updating All");
-                let update_server_at_step = update("{status_server_prefix}", "server");
-                for (let i = 0; i < 8; i++) {{
-                    update_server_at_step(i);
-                }}
-                let update_client_at_step = update("{status_client_prefix}", "client");
-                for (let i = 0; i < 8; i++) {{
-                    update_client_at_step(i);
-                }}
-                let update_finished = update("{status_finished_prefix}", "finished")(0);
-            }}
-            function load() {{
-                setInterval(updateAll(), 30000);
-            }}
-            </script>
-          </body>
-        </html>
-    "##,
-        unique_id
-    );
+    //             <button onclick="updateAll()">Update</button>
+    //         </main>
+    //         <script>
+    //         function httpGetAsync(theUrl, callback)
+    //         {{
+    //             var xmlHttp = new XMLHttpRequest();
+    //             xmlHttp.onreadystatechange = function() {{
+    //                 if (xmlHttp.readyState == 4 && xmlHttp.status == 200)
+    //                     callback(xmlHttp.responseText);
+    //             }}
+    //             xmlHttp.open("GET", theUrl, true); // true for asynchronous
+    //             xmlHttp.send(null);
+    //         }}
+    //         function updateElement(id) {{
+    //             return function (text) {{
+    //                 document.getElementById(id).innerHTML = text;
+    //             }}
+    //         }}
+    //         function update(prefix, id) {{
+    //             return function (step) {{
+    //                 httpGetAsync(prefix + step, updateElement(id + "-" + step));
+    //             }};
+    //         }}
+    //         function updateAll() {{
+    //             console.log("Updating All");
+    //             let update_server_at_step = update("{template_server_prefix}", "server");
+    //             for (let i = 0; i < 8; i++) {{
+    //                 update_server_at_step(i);
+    //             }}
+    //             let update_client_at_step = update("{template_client_prefix}", "client");
+    //             for (let i = 0; i < 8; i++) {{
+    //                 update_client_at_step(i);
+    //             }}
+    //             let update_finished = update("{template_finished_prefix}", "finished")(0);
+    //         }}
+    //         function load() {{
+    //             setInterval(updateAll(), 30000);
+    //         }}
+    //         </script>
+    //       </body>
+    //     </html>
+    // "##,
+    //     unique_id
+    // );
 
     let orch_provider = Region::new(ORCH_REGION);
     let shared_config = aws_config::from_env().region(orch_provider).load().await;
