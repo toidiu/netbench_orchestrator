@@ -1,8 +1,8 @@
+use crate::state::STATE;
 use aws_sdk_ec2 as ec2;
 use aws_sdk_ssm as ssm;
 use ssm::operation::send_command::SendCommandOutput;
 use std::{collections::HashMap, fmt::format, thread::sleep, time::Duration};
-use crate::state::STATE;
 
 pub async fn wait_for_ssm_results(
     endpoint: &str,

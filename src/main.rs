@@ -36,10 +36,9 @@ mod launch;
 mod state;
 mod utils;
 
-use state::*;
 use launch::*;
+use state::*;
 use utils::*;
-
 
 const ORCH_REGION: &str = "us-west-1";
 const VPC_REGIONS: [&str; 2] = ["us-east-1", "us-west-2"];
@@ -52,7 +51,11 @@ async fn main() -> Result<(), String> {
      */
     tracing_subscriber::fmt::init();
 
-    let unique_id = format!("{}-{}", humantime::format_rfc3339_seconds(std::time::SystemTime::now()), STATE.version);
+    let unique_id = format!(
+        "{}-{}",
+        humantime::format_rfc3339_seconds(std::time::SystemTime::now()),
+        STATE.version
+    );
 
     let status = format!(
         "http://d2jusruq1ilhjs.cloudfront.net/{}/index.html",
