@@ -31,33 +31,16 @@ use aws_types::region::Region;
 use base64::{engine::general_purpose, Engine as _};
 use ec2::types::Filter;
 use iam::types::StatusType;
-use ssm::operation::send_command::SendCommandOutput;
+
+mod launch;
+mod utils;
+
+use launch::*;
+use utils::*;
 
 const ORCH_REGION: &str = "us-west-1";
 const VPC_REGIONS: [&str; 2] = ["us-east-1", "us-west-2"];
 const CLOUDFRONT: &str = "http://d2jusruq1ilhjs.cloudfront.net/";
-
-struct State {
-    log_bucket: &'static str,
-    cf_url: &'static str,
-    repo: &'static str,
-    branch: &'static str,
-    shutdown_time: &'static str,
-    cloud_watch_group: &'static str,
-}
-
-const STATE: State = State {
-    log_bucket: "netbenchrunnerlogs",
-    cf_url: "http://d2jusruq1ilhjs.cloudfront.net/", // TODO use in code
-    // harrison
-    // repo: "https://github.com/harrisonkaiser/s2n-quic.git",
-    // branch: "netbench_sync",
-    // aws
-    repo: "https://github.com/aws/s2n-quic.git",
-    branch: "ak-netbench_sync",
-    shutdown_time: "7200", // 2 hrs
-    cloud_watch_group: "netbench_runner_logs",
-};
 
 #[tokio::main]
 async fn main() -> Result<(), String> {
@@ -66,10 +49,7 @@ async fn main() -> Result<(), String> {
      */
     tracing_subscriber::fmt::init();
 
-    let unique_id = format!(
-        "{}",
-        humantime::format_rfc3339_seconds(std::time::SystemTime::now()).to_string()
-    );
+    let unique_id = humantime::format_rfc3339_seconds(std::time::SystemTime::now()).to_string();
 
     let status = format!(
         "http://d2jusruq1ilhjs.cloudfront.net/{}/index.html",
@@ -174,53 +154,42 @@ async fn main() -> Result<(), String> {
         unique_id
     );
 
-    //let region_provider = RegionProviderChain::default_provider().or_else("us-west-2");
     let orch_provider = Region::new(ORCH_REGION);
     let shared_config = aws_config::from_env().region(orch_provider).load().await;
-
-    // let ec2_client = ec2::Client::new(&shared_config);
-    //let _sqs_client = sqs::Client::new(&shared_config);
     let iam_client = iam::Client::new(&shared_config);
-    //let ec2ic_client = ec2ic::Client::new(&shared_config);
     let s3_client = s3::Client::new(&shared_config);
 
     let _ = s3_client
         .put_object()
-        .body(s3::primitives::ByteStream::from(Bytes::from(index_file)).into())
+        .body(s3::primitives::ByteStream::from(Bytes::from(index_file)))
         .bucket(STATE.log_bucket)
         .key(format!("{unique_id}/index.html"))
         .content_type("text/html")
         .send()
         .await
         .unwrap();
-    // let _ = s3_client
-    //     .put_object()
-    //     .body(
-    //         s3::primitives::ByteStream::from(Bytes::from(
-    //             "Waiting on EC2 Server Runner to come up",
-    //         ))
-    //         .into(),
-    //     )
-    //     .bucket(STATE.log_bucket)
-    //     .key(format!("{unique_id}/server-step-0"))
-    //     .content_type("text/html")
-    //     .send()
-    //     .await
-    //     .unwrap();
-    // let _ = s3_client
-    //     .put_object()
-    //     .body(
-    //         s3::primitives::ByteStream::from(Bytes::from(
-    //             "Waiting on EC2 Client Runner to come up",
-    //         ))
-    //         .into(),
-    //     )
-    //     .bucket(STATE.log_bucket)
-    //     .key(format!("{unique_id}/client-step-0"))
-    //     .content_type("text/html")
-    //     .send()
-    //     .await
-    //     .unwrap();
+    let _ = s3_client
+        .put_object()
+        .body(s3::primitives::ByteStream::from(Bytes::from(
+            "Waiting on EC2 Server Runner to come up",
+        )))
+        .bucket(STATE.log_bucket)
+        .key(format!("{unique_id}/server-step-0"))
+        .content_type("text/html")
+        .send()
+        .await
+        .unwrap();
+    let _ = s3_client
+        .put_object()
+        .body(s3::primitives::ByteStream::from(Bytes::from(
+            "Waiting on EC2 Client Runner to come up",
+        )))
+        .bucket(STATE.log_bucket)
+        .key(format!("{unique_id}/client-step-0"))
+        .content_type("text/html")
+        .send()
+        .await
+        .unwrap();
 
     println!("Status: URL: {status}");
 
@@ -455,13 +424,10 @@ async fn main() -> Result<(), String> {
 
     let _ = s3_client
         .put_object()
-        .body(
-            s3::primitives::ByteStream::from(Bytes::from(format!(
-                "EC2 Server Runner up: {}",
-                server_instance_id.clone()
-            )))
-            .into(),
-        )
+        .body(s3::primitives::ByteStream::from(Bytes::from(format!(
+            "EC2 Server Runner up: {}",
+            server_instance_id.clone()
+        ))))
         .bucket(STATE.log_bucket)
         .key(format!("{unique_id}/server-step-0"))
         .content_type("text/html")
@@ -470,13 +436,10 @@ async fn main() -> Result<(), String> {
         .unwrap();
     let _ = s3_client
         .put_object()
-        .body(
-            s3::primitives::ByteStream::from(Bytes::from(format!(
-                "EC2 Client Runner up: {}",
-                client_instance_id.clone()
-            )))
-            .into(),
-        )
+        .body(s3::primitives::ByteStream::from(Bytes::from(format!(
+            "EC2 Client Runner up: {}",
+            client_instance_id.clone()
+        ))))
         .bucket(STATE.log_bucket)
         .key(format!("{unique_id}/client-step-0"))
         .content_type("text/html")
@@ -610,7 +573,7 @@ async fn main() -> Result<(), String> {
         .await;
     sleep(Duration::from_secs(60));
 
-    while let Err(_) = deleted_sec_group {
+    while deleted_sec_group.is_err() {
         sleep(Duration::from_secs(30));
         deleted_sec_group = ec2_vpc
             .delete_security_group()
@@ -633,7 +596,7 @@ async fn get_launch_template(
     ec2_client: &ec2::Client,
     name: &str,
 ) -> Result<ec2::types::LaunchTemplateSpecification, String> {
-    let launch_template_name = get_launch_template_name(&ec2_client, name).await?;
+    let launch_template_name = get_launch_template_name(ec2_client, name).await?;
     Ok(
         ec2::types::builders::LaunchTemplateSpecificationBuilder::default()
             .launch_template_name(launch_template_name)
@@ -659,256 +622,5 @@ async fn get_launch_template_name(ec2_client: &ec2::Client, name: &str) -> Resul
         Ok(launch_templates.get(0).unwrap().clone())
     } else {
         Err("Found more launch templates (or none?)".into())
-    }
-}
-
-// Find or define the Subnet to Launch the Netbench Runners
-//  - Default: Use the one defined by CDK
-// Note: We may need to define more in different regions and AZ
-//      There is some connection between Security Groups and
-//      Subnets such that they have to be "in the same network"
-//       I'm unclear here.
-async fn get_subnet_vpc_ids(
-    ec2_client: &ec2::Client,
-    subnet_name: &str,
-) -> Result<(String, String), String> {
-    let describe_subnet_output = ec2_client
-        .describe_subnets()
-        .filters(
-            ec2::types::Filter::builder()
-                .name("tag:aws-cdk:subnet-name")
-                .values(subnet_name)
-                .build(),
-        )
-        .send()
-        .await
-        .map_err(|e| format!("Couldn't describe subnets: {:#?}", e))?;
-    assert_eq!(
-        describe_subnet_output.subnets().expect("No subnets?").len(),
-        1
-    );
-    let subnet_id = describe_subnet_output.subnets().unwrap()[0]
-        .subnet_id()
-        .ok_or::<String>("Couldn't find subnet".into())?;
-    let vpc_id = describe_subnet_output.subnets().unwrap()[0]
-        .vpc_id()
-        .ok_or::<String>("Couldn't find subnet".into())?;
-    Ok((subnet_id.into(), vpc_id.into()))
-}
-
-/*
- * Launch instance
- *
- * This function launches a single instance. It is configurable using
- * this struct.
- */
-struct InstanceDetails {
-    subnet_id: String,
-    security_group_id: String,
-    ami_id: String,
-    iam_role: String,
-}
-async fn launch_instance(
-    ec2_client: &ec2::Client,
-    instance_details: InstanceDetails,
-    name: &str,
-) -> Result<ec2::types::Instance, String> {
-    let run_result = ec2_client
-        .run_instances()
-        .iam_instance_profile(
-            ec2::types::IamInstanceProfileSpecification::builder()
-                .arn(instance_details.iam_role)
-                .build(),
-        )
-        .instance_type(ec2::types::InstanceType::C54xlarge)
-        .image_id(instance_details.ami_id)
-        .instance_initiated_shutdown_behavior(ec2::types::ShutdownBehavior::Terminate)
-        .user_data(
-            general_purpose::STANDARD.encode(format!("sudo shutdown -P +{}", STATE.shutdown_time)),
-        )
-        // give the instances human readable names. name is set via tags
-        .tag_specifications(
-            ec2::types::TagSpecification::builder()
-                .resource_type(ec2::types::ResourceType::Instance)
-                .tags(ec2::types::Tag::builder().key("Name").value(name).build())
-                .build(),
-        )
-        .block_device_mappings(
-            ec2::types::BlockDeviceMapping::builder()
-                .device_name("/dev/xvda")
-                .ebs(
-                    ec2::types::EbsBlockDevice::builder()
-                        .delete_on_termination(true)
-                        .volume_size(50)
-                        .build(),
-                )
-                .build(),
-        )
-        .network_interfaces(
-            ec2::types::InstanceNetworkInterfaceSpecification::builder()
-                .associate_public_ip_address(true)
-                .delete_on_termination(true)
-                .device_index(0)
-                .subnet_id(instance_details.subnet_id)
-                .groups(instance_details.security_group_id)
-                .build(),
-        )
-        .min_count(1)
-        .max_count(1)
-        .dry_run(false)
-        .send()
-        .await
-        .map_err(|r| format!("{:#?}", r))?;
-    let instances = run_result
-        .instances()
-        .ok_or::<String>("Couldn't find instances in run result".into())?;
-    Ok(instances
-        .get(0)
-        .ok_or(String::from("Didn't launch an instance?"))?
-        .clone())
-}
-
-struct InstanceDetailsCluster {
-    subnet_id: String,
-    security_group_id: String,
-    ami_id: String,
-    iam_role: String,
-    placement: ec2::types::Placement,
-}
-
-// Find placement group in infrastructure and use here
-async fn launch_cluster(
-    client: &ec2::Client,
-    instance_details: InstanceDetailsCluster,
-) -> Result<ec2::types::Instance, String> {
-    let run_result = client
-        .run_instances()
-        .iam_instance_profile(
-            ec2::types::IamInstanceProfileSpecification::builder()
-                .arn(instance_details.iam_role)
-                .build(),
-        )
-        .instance_type(ec2::types::InstanceType::C5n18xlarge)
-        .image_id(instance_details.ami_id)
-        .instance_initiated_shutdown_behavior(ec2::types::ShutdownBehavior::Terminate)
-        .user_data(
-            general_purpose::STANDARD.encode(format!("sudo shutdown -P +{}", STATE.shutdown_time)),
-        )
-        .block_device_mappings(
-            ec2::types::BlockDeviceMapping::builder()
-                .device_name("/dev/xvda")
-                .ebs(
-                    ec2::types::EbsBlockDevice::builder()
-                        .delete_on_termination(true)
-                        .volume_size(50)
-                        .build(),
-                )
-                .build(),
-        )
-        .network_interfaces(
-            ec2::types::InstanceNetworkInterfaceSpecification::builder()
-                .associate_public_ip_address(true)
-                .delete_on_termination(true)
-                .device_index(0)
-                .subnet_id(instance_details.subnet_id)
-                .groups(instance_details.security_group_id)
-                .build(),
-        )
-        .placement(instance_details.placement)
-        .min_count(1)
-        .max_count(1)
-        .dry_run(false)
-        .send()
-        .await
-        .map_err(|r| format!("{:#?}", r))?;
-    Ok(run_result
-        .instances()
-        .ok_or::<String>("Couldn't find instances in run result".into())?
-        .get(0)
-        .ok_or::<String>("Couldn't find instances in run result".into())?
-        .clone())
-}
-
-async fn send_command(
-    endpoint: &str,
-    ssm_client: &ssm::Client,
-    instance_id: String,
-    commands: Vec<String>,
-) -> Option<SendCommandOutput> {
-    let mut remaining_try_count: u32 = 30;
-    loop {
-        match ssm_client
-            .send_command()
-            .instance_ids(instance_id.clone())
-            .document_name("AWS-RunShellScript")
-            .document_version("$LATEST")
-            .parameters("commands", commands.clone())
-            .cloud_watch_output_config(
-                ssm::types::CloudWatchOutputConfig::builder()
-                    .cloud_watch_log_group_name(STATE.cloud_watch_group)
-                    .cloud_watch_output_enabled(true)
-                    .build(),
-            )
-            .send()
-            .await
-            .map_err(|x| format!("{:#?}", x))
-        {
-            Ok(sent_command) => {
-                break Some(sent_command);
-            }
-            Err(error_message) => {
-                if remaining_try_count > 0 {
-                    println!("Error message: {}", error_message);
-                    println!("Trying again, waiting 30 seconds...");
-                    sleep(Duration::new(30, 0));
-                    remaining_try_count -= 1;
-                    continue;
-                } else {
-                    return None;
-                }
-            }
-        };
-    }
-}
-
-async fn wait_for_ssm_results(
-    endpoint: &str,
-    ssm_client: &ssm::Client,
-    command_id: String,
-) -> bool {
-    loop {
-        let o_status = ssm_client
-            .list_command_invocations()
-            .command_id(command_id.clone())
-            .send()
-            .await
-            .unwrap()
-            .command_invocations()
-            .unwrap()
-            .iter()
-            .filter_map(|command| command.status())
-            .next()
-            .cloned();
-        let status = match o_status {
-            Some(s) => s,
-            None => return true,
-        };
-        let dbg = format!("endpoint: {} status: {:?}", endpoint, status.clone());
-        dbg!(dbg);
-
-        match status {
-            ssm::types::CommandInvocationStatus::Cancelled
-            | ssm::types::CommandInvocationStatus::Cancelling
-            | ssm::types::CommandInvocationStatus::Failed
-            | ssm::types::CommandInvocationStatus::TimedOut => break false,
-            ssm::types::CommandInvocationStatus::Delayed
-            | ssm::types::CommandInvocationStatus::InProgress
-            | ssm::types::CommandInvocationStatus::Pending => {
-                sleep(Duration::from_secs(30));
-                continue;
-            }
-            ssm::types::CommandInvocationStatus::Success => break true,
-            _ => panic!("Unhandled Status"),
-        };
     }
 }
