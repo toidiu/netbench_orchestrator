@@ -1,6 +1,7 @@
 use crate::utils::*;
 use aws_sdk_ec2 as ec2;
 use base64::{engine::general_purpose, Engine as _};
+use crate::state::STATE;
 
 /*
  * Launch instance
