@@ -46,7 +46,7 @@ pub async fn wait_for_ssm_results(
 }
 
 pub async fn send_command(
-    endpoint: &str,
+    _endpoint: &str,
     ssm_client: &ssm::Client,
     instance_id: &str,
     commands: Vec<String>,

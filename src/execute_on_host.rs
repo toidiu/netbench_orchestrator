@@ -1,5 +1,6 @@
 use aws_sdk_ssm as ssm;
 
+use crate::ssm::operation::send_command::SendCommandOutput;
 use crate::utils::*;
 
 pub async fn execute_ssm_client(
@@ -7,8 +8,8 @@ pub async fn execute_ssm_client(
     client_instance_id: String,
     server_ip: &str,
     unique_id: &str,
-) {
-    let client_cmd = send_command("client", ssm_client, &client_instance_id, vec![
+) -> SendCommandOutput {
+     send_command("client", ssm_client, &client_instance_id, vec![
         format!("runuser -u ec2-user -- echo ec2 up > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html s3://netbenchrunnerlogs/{}/client-step-1", unique_id).as_str(),
         "cd /home/ec2-user",
         "yum upgrade -y",
@@ -33,20 +34,7 @@ pub async fn execute_ssm_client(
         format!("runuser -u ec2-user -- echo report upload finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html s3://netbenchrunnerlogs/{}/client-step-8", unique_id).as_str(),
         "shutdown -h +1",
         "exit 0"
-    ].into_iter().map(String::from).collect()).await.expect("Timed out");
-
-    let result = wait_for_ssm_results(
-        "client",
-        ssm_client,
-        client_cmd.command().unwrap().command_id().unwrap(),
-    )
-    .await;
-
-    println!(
-        "Client Finished!: Successful: {}",
-        result
-    );
-
+    ].into_iter().map(String::from).collect()).await.expect("Timed out")
 }
 
 pub async fn execute_ssm_server(
@@ -54,8 +42,8 @@ pub async fn execute_ssm_server(
     server_instance_id: &str,
     client_ip: &str,
     unique_id: &str,
-) -> bool {
-    let send_command_output_server = send_command("server", ssm_client, server_instance_id, vec![
+) -> SendCommandOutput {
+    send_command("server", ssm_client, server_instance_id, vec![
         format!("runuser -u ec2-user -- echo starting > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html s3://netbenchrunnerlogs/{}/server-step-1", unique_id).as_str(),
         "cd /home/ec2-user",
         "yum upgrade -y",
@@ -78,18 +66,7 @@ pub async fn execute_ssm_server(
         format!("runuser -u ec2-user -- aws s3 sync /home/ec2-user/s2n-quic/netbench/target/netbench s3://netbenchrunnerlogs/{}", unique_id).as_str(),
         format!("runuser -u ec2-user -- echo report upload finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html s3://netbenchrunnerlogs/{}/client-step-8", unique_id).as_str(),
         "exit 0",
-    ].into_iter().map(String::from).collect()).await.expect("Timed out");
-
-    wait_for_ssm_results(
-        "server",
-        ssm_client,
-        send_command_output_server
-            .command()
-            .unwrap()
-            .command_id()
-            .unwrap(),
-    )
-    .await
+    ].into_iter().map(String::from).collect()).await.expect("Timed out")
 }
 
 pub async fn generate_report(
