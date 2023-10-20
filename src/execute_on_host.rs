@@ -71,10 +71,10 @@ pub async fn execute_ssm_server(
 
 pub async fn generate_report(
     ssm_client: &ssm::Client,
-    server_instance_id: String,
+    server_instance_id: &str,
     unique_id: &str,
 ) -> bool {
-    let generate_report = dbg!(send_command("server", ssm_client, &server_instance_id, vec![
+    let generate_report = send_command("server", ssm_client, server_instance_id, vec![
         "runuser -u ec2-user -- tree /home/ec2-user/s2n-quic/netbench/target/netbench > /home/ec2-user/before-sync",
         format!("runuser -u ec2-user -- aws s3 sync s3://netbenchrunnerlogs/{} /home/ec2-user/s2n-quic/netbench/target/netbench", unique_id).as_str(),
         "runuser -u ec2-user -- tree /home/ec2-user/s2n-quic/netbench/target/netbench > /home/ec2-user/after-sync",
@@ -86,7 +86,7 @@ pub async fn generate_report(
         format!(r#"runuser -u ec2-user -- echo \<a href=\"http://d2jusruq1ilhjs.cloudfront.net/{}/report/index.html\"\>Final Report\</a\> > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html s3://netbenchrunnerlogs/{}/finished-step-0"#, unique_id, unique_id).as_str(),
         "shutdown -h +1",
         "exit 0",
-    ].into_iter().map(String::from).collect()).await.expect("Timed out"));
+    ].into_iter().map(String::from).collect()).await.expect("Timed out");
 
     wait_for_ssm_results(
         "server",

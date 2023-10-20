@@ -376,31 +376,8 @@ async fn main() -> Result<(), String> {
     /*
      * Copy results back
      */
-    let generate_report = send_command("server", &ssm_client, &server_instance_id, vec![
-        "runuser -u ec2-user -- tree /home/ec2-user/s2n-quic/netbench/target/netbench > /home/ec2-user/before-sync",
-        format!("runuser -u ec2-user -- aws s3 sync s3://netbenchrunnerlogs/{} /home/ec2-user/s2n-quic/netbench/target/netbench", unique_id).as_str(),
-        "runuser -u ec2-user -- tree /home/ec2-user/s2n-quic/netbench/target/netbench > /home/ec2-user/after-sync",
-        "cd /home/ec2-user/s2n-quic/netbench/",
-        "runuser -u ec2-user -- ./target/release/netbench-cli report-tree ./target/netbench/results ./target/netbench/report",
-        "runuser -u ec2-user -- tree /home/ec2-user/s2n-quic/netbench/target/netbench > /home/ec2-user/after-report",
-        format!("runuser -u ec2-user -- aws s3 sync /home/ec2-user/s2n-quic/netbench/target/netbench s3://netbenchrunnerlogs/{}", unique_id).as_str(),
-        "runuser -u ec2-user -- tree /home/ec2-user/s2n-quic/netbench/target/netbench > /home/ec2-user/after-sync-back",
-        format!(r#"runuser -u ec2-user -- echo \<a href=\"http://d2jusruq1ilhjs.cloudfront.net/{}/report/index.html\"\>Final Report\</a\> > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html s3://netbenchrunnerlogs/{}/finished-step-0"#, unique_id, unique_id).as_str(),
-        "shutdown -h +1",
-        "exit 0",
-    ].into_iter().map(String::from).collect()).await.expect("Timed out");
-    let report_result = wait_for_ssm_results(
-        "server",
-        &ssm_client,
-        generate_report
-            .command()
-            .unwrap()
-            .command_id()
-            .unwrap()
-    )
-    .await;
-
-    println!("Report Finished!: Successful: {}", report_result);
+    let generated_report_result = generate_report(&ssm_client, &server_instance_id, &unique_id).await;
+    println!("Report Finished!: Successful: {}", generated_report_result);
     println!(
         "URL: http://d2jusruq1ilhjs.cloudfront.net/{}/report/index.html",
         unique_id
