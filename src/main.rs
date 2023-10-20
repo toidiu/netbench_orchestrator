@@ -32,15 +32,16 @@ use base64::{engine::general_purpose, Engine as _};
 use ec2::types::Filter;
 use iam::types::StatusType;
 
+mod execute_on_host;
 mod launch;
+mod s3_helper;
 mod state;
 mod utils;
-mod execute_on_host;
 
+use execute_on_host::*;
 use launch::*;
 use state::*;
 use utils::*;
-use execute_on_host::*;
 
 #[tokio::main]
 async fn main() -> Result<(), String> {
@@ -344,8 +345,10 @@ async fn main() -> Result<(), String> {
 
     println!("{:?}", instance_ids);
 
-    let client_output = execute_ssm_client(&ssm_client, client_instance_id, &server_ip, &unique_id).await;
-    let server_output = execute_ssm_server(&ssm_client, &server_instance_id, &client_ip, &unique_id).await;
+    let client_output =
+        execute_ssm_client(&ssm_client, client_instance_id, &server_ip, &unique_id).await;
+    let server_output =
+        execute_ssm_server(&ssm_client, &server_instance_id, &client_ip, &unique_id).await;
 
     let client_result = wait_for_ssm_results(
         "client",
@@ -353,30 +356,20 @@ async fn main() -> Result<(), String> {
         client_output.command().unwrap().command_id().unwrap(),
     )
     .await;
-    println!(
-        "Client Finished!: Successful: {}",
-        client_result
-    );
+    println!("Client Finished!: Successful: {}", client_result);
     let server_result = wait_for_ssm_results(
         "server",
         &ssm_client,
-        server_output
-            .command()
-            .unwrap()
-            .command_id()
-            .unwrap(),
+        server_output.command().unwrap().command_id().unwrap(),
     )
     .await;
-    println!(
-        "Server Finished!: Successful: {}",
-        server_result
-    );
-
+    println!("Server Finished!: Successful: {}", server_result);
 
     /*
      * Copy results back
      */
-    let generated_report_result = generate_report(&ssm_client, &server_instance_id, &unique_id).await;
+    let generated_report_result =
+        generate_report(&s3_client, &ssm_client, &server_instance_id, &unique_id).await;
     println!("Report Finished!: Successful: {}", generated_report_result);
     println!(
         "URL: http://d2jusruq1ilhjs.cloudfront.net/{}/report/index.html",

@@ -1,6 +1,9 @@
+use aws_sdk_s3 as s3;
 use aws_sdk_ssm as ssm;
 
+use crate::s3_helper::*;
 use crate::ssm::operation::send_command::SendCommandOutput;
+use crate::state::*;
 use crate::utils::*;
 
 pub async fn execute_ssm_client(
@@ -9,7 +12,7 @@ pub async fn execute_ssm_client(
     server_ip: &str,
     unique_id: &str,
 ) -> SendCommandOutput {
-     send_command("client", ssm_client, &client_instance_id, vec![
+    send_command("client", ssm_client, &client_instance_id, vec![
         format!("runuser -u ec2-user -- echo ec2 up > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html s3://netbenchrunnerlogs/{}/client-step-1", unique_id).as_str(),
         "cd /home/ec2-user",
         "yum upgrade -y",
@@ -70,10 +73,25 @@ pub async fn execute_ssm_server(
 }
 
 pub async fn generate_report(
+    s3_client: &s3::Client,
     ssm_client: &ssm::Client,
     server_instance_id: &str,
     unique_id: &str,
 ) -> bool {
+    // mkdir -p target/netbench
+    // format!("aws s3 sync s3://netbenchrunnerlogs/{} /home/ec2-user/s2n-quic/netbench/target/netbench", unique_id)
+    // download_object(s3_client, STATE.log_bucket, unique_id)
+    //     .await
+    //     .unwrap();
+
+    // 2023-10-20T22:17:20Z-v1.0.2
+    //
+    // "~/projects/player_netbench/target/debug/netbench-cli report-tree ./target/netbench/results ./target/netbench/report",
+    //
+    // format!("aws s3 sync /home/ec2-user/s2n-quic/netbench/target/netbench s3://netbenchrunnerlogs/{}", unique_id)
+    //
+    // format!(r#"echo \<a href=\"http://d2jusruq1ilhjs.cloudfront.net/{}/report/index.html\"\>Final Report\</a\> > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html s3://netbenchrunnerlogs/{}/finished-step-0"#, unique_id, unique_id)
+
     let generate_report = send_command("server", ssm_client, server_instance_id, vec![
         "runuser -u ec2-user -- tree /home/ec2-user/s2n-quic/netbench/target/netbench > /home/ec2-user/before-sync",
         format!("runuser -u ec2-user -- aws s3 sync s3://netbenchrunnerlogs/{} /home/ec2-user/s2n-quic/netbench/target/netbench", unique_id).as_str(),

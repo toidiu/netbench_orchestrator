@@ -13,6 +13,8 @@ pub const STATE: State = State {
     cloud_watch_group: "netbench_runner_logs",
     region: "us-west-1",
     vpc_region: "us-east-1",
+    // create/import a key pair to the account
+    ssh_key_name: "apoorvko_m1",
 
     // orchestrator config
     shutdown_time: "7200", // 2 hrs
@@ -31,6 +33,7 @@ pub struct State {
     pub region: &'static str,
     // TODO we shouldnt need two different regions. create infra in the single region
     pub vpc_region: &'static str,
+    pub ssh_key_name: &'static str,
 
     // orchestrator config
     pub shutdown_time: &'static str,

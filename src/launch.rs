@@ -23,6 +23,7 @@ pub async fn launch_instance(
 ) -> Result<ec2::types::Instance, String> {
     let run_result = ec2_client
         .run_instances()
+        .key_name(STATE.ssh_key_name)
         .iam_instance_profile(
             ec2::types::IamInstanceProfileSpecification::builder()
                 .arn(instance_details.iam_role)
