@@ -7,12 +7,12 @@ use std::{collections::HashMap, fmt::format, thread::sleep, time::Duration};
 pub async fn wait_for_ssm_results(
     endpoint: &str,
     ssm_client: &ssm::Client,
-    command_id: String,
+    command_id: &str,
 ) -> bool {
     loop {
         let o_status = ssm_client
             .list_command_invocations()
-            .command_id(command_id.clone())
+            .command_id(command_id)
             .send()
             .await
             .unwrap()
@@ -48,14 +48,14 @@ pub async fn wait_for_ssm_results(
 pub async fn send_command(
     endpoint: &str,
     ssm_client: &ssm::Client,
-    instance_id: String,
+    instance_id: &str,
     commands: Vec<String>,
 ) -> Option<SendCommandOutput> {
     let mut remaining_try_count: u32 = 30;
     loop {
         match ssm_client
             .send_command()
-            .instance_ids(instance_id.clone())
+            .instance_ids(instance_id)
             .document_name("AWS-RunShellScript")
             .document_version("$LATEST")
             .parameters("commands", commands.clone())

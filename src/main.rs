@@ -35,6 +35,7 @@ use iam::types::StatusType;
 mod launch;
 mod state;
 mod utils;
+mod execute_on_host;
 
 use launch::*;
 use state::*;
@@ -342,7 +343,7 @@ async fn main() -> Result<(), String> {
 
     println!("{:?}", instance_ids);
 
-    let send_command_output_client = send_command("client", &ssm_client, client_instance_id, vec![
+    let send_command_output_client = send_command("client", &ssm_client, &client_instance_id, vec![
         format!("runuser -u ec2-user -- echo ec2 up > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html s3://netbenchrunnerlogs/{}/client-step-1", unique_id).as_str(),
         "cd /home/ec2-user",
         "yum upgrade -y",
@@ -369,7 +370,7 @@ async fn main() -> Result<(), String> {
         "exit 0"
     ].into_iter().map(String::from).collect()).await.expect("Timed out");
 
-    let send_command_output_server = send_command("server", &ssm_client, server_instance_id.clone(), vec![
+    let send_command_output_server = send_command("server", &ssm_client, &server_instance_id, vec![
         format!("runuser -u ec2-user -- echo starting > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html s3://netbenchrunnerlogs/{}/server-step-1", unique_id).as_str(),
         "cd /home/ec2-user",
         "yum upgrade -y",
@@ -401,7 +402,6 @@ async fn main() -> Result<(), String> {
             .unwrap()
             .command_id()
             .unwrap()
-            .into(),
     )
     .await;
     println!(
@@ -416,7 +416,6 @@ async fn main() -> Result<(), String> {
             .unwrap()
             .command_id()
             .unwrap()
-            .into(),
     )
     .await;
     println!(
@@ -427,7 +426,7 @@ async fn main() -> Result<(), String> {
     /*
      * Copy results back
      */
-    let generate_report = dbg!(send_command("server", &ssm_client, server_instance_id, vec![
+    let generate_report = dbg!(send_command("server", &ssm_client, &server_instance_id, vec![
         "runuser -u ec2-user -- tree /home/ec2-user/s2n-quic/netbench/target/netbench > /home/ec2-user/before-sync",
         format!("runuser -u ec2-user -- aws s3 sync s3://netbenchrunnerlogs/{} /home/ec2-user/s2n-quic/netbench/target/netbench", unique_id).as_str(),
         "runuser -u ec2-user -- tree /home/ec2-user/s2n-quic/netbench/target/netbench > /home/ec2-user/after-sync",
@@ -448,7 +447,6 @@ async fn main() -> Result<(), String> {
             .unwrap()
             .command_id()
             .unwrap()
-            .into(),
     )
     .await;
 
