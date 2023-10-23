@@ -245,9 +245,9 @@ async fn main() -> Result<(), String> {
      * Modify Security Group
      */
     let client_ip: String = ip_client.unwrap();
-    println!("client ip: {:#?}", client_ip);
+    println!("client ip: {}", client_ip);
     let server_ip: String = ip_server.unwrap();
-    println!("server ip: {:#?}", server_ip);
+    println!("server ip: {}", server_ip);
 
     let _network_perms = ec2_vpc
         .authorize_security_group_egress()
