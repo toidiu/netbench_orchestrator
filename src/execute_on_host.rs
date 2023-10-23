@@ -6,6 +6,8 @@ use aws_sdk_s3 as s3;
 use aws_sdk_ssm as ssm;
 use std::fs::File;
 use std::io::prelude::*;
+use std::path::Path;
+use std::path::PathBuf;
 use tokio_stream::StreamExt;
 
 pub async fn execute_ssm_client(
@@ -73,30 +75,10 @@ pub async fn execute_ssm_server(
 }
 
 pub async fn generate_report(
-    s3_client: &s3::Client,
     ssm_client: &ssm::Client,
     server_instance_id: &str,
     unique_id: &str,
 ) -> bool {
-    let unique_id = "";
-
-    // mkdir -p target/netbench
-    //
-    // TODO get data from s3
-    // format!("aws s3 sync s3://netbenchrunnerlogs/{} /home/ec2-user/s2n-quic/netbench/target/netbench", unique_id)
-    download_object(s3_client, STATE.log_bucket, unique_id)
-        .await
-        .unwrap();
-
-    // TODO run netbench-cli to generate report
-    // "~/projects/player_netbench/target/debug/netbench-cli report-tree ./target/netbench/results ./target/netbench/report",
-    //
-    // TODO upload report to s3
-    // format!("aws s3 sync /home/ec2-user/s2n-quic/netbench/target/netbench s3://netbenchrunnerlogs/{}", unique_id)
-    //
-    // TODO update status for index.html
-    // format!(r#"echo \<a href=\"http://d2jusruq1ilhjs.cloudfront.net/{}/report/index.html\"\>Final Report\</a\> > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html s3://netbenchrunnerlogs/{}/finished-step-0"#, unique_id, unique_id)
-
     let generate_report = send_command("server", ssm_client, server_instance_id, vec![
         "runuser -u ec2-user -- tree /home/ec2-user/s2n-quic/netbench/target/netbench > /home/ec2-user/before-sync",
         format!("runuser -u ec2-user -- aws s3 sync s3://netbenchrunnerlogs/{} /home/ec2-user/s2n-quic/netbench/target/netbench", unique_id).as_str(),
@@ -120,24 +102,29 @@ pub async fn generate_report(
 }
 
 pub async fn orch_generate_report(s3_client: &s3::Client, unique_id: &str) -> bool {
-    // mkdir -p target/netbench
-    //
     // TODO get data from s3
-    // format!("aws s3 sync s3://netbenchrunnerlogs/{} /home/ec2-user/s2n-quic/netbench/target/netbench", unique_id)
-    let key = "client.json";
-    let mut file = File::create(key).unwrap();
 
     let key = "client.json";
-    let full_path = format!("{}/results/request_response/s2n-quic/{}", unique_id, key);
-    let mut obj = download_object(s3_client, STATE.log_bucket, &full_path)
-        .await
-        .unwrap();
-    // let body = obj.body;
+    let s3_path = format!("{}/results/request_response/s2n-quic/{}", unique_id, key);
+    download_object_to_file(
+        s3_client,
+        STATE.log_bucket,
+        &s3_path,
+        Path::new(STATE.workspace_dir).join(key),
+    )
+    .await
+    .unwrap();
 
-    // let bytes = body.collect().await.map(|data| data.into_bytes());
-    while let Some(bytes) = obj.body.try_next().await.unwrap() {
-        let bytes = file.write(&bytes).unwrap();
-    }
+    let key = "server.json";
+    let s3_path = format!("{}/results/request_response/s2n-quic/{}", unique_id, key);
+    download_object_to_file(
+        s3_client,
+        STATE.log_bucket,
+        &s3_path,
+        Path::new(STATE.workspace_dir).join(key),
+    )
+    .await
+    .unwrap();
 
     // TODO run netbench-cli to generate report
     // "~/projects/player_netbench/target/debug/netbench-cli report-tree ./target/netbench/results ./target/netbench/report",

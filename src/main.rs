@@ -47,9 +47,11 @@ use utils::*;
 fn check_requirements() -> Result<(), String> {
     // export PATH="/home/toidiu/projects/s2n-quic/netbench/target/release/:$PATH"
     Command::new("netbench-cli")
-        // .args(["netbench-cli"])
         .output()
         .expect("netbench-cli utility not found");
+
+    // report folder
+    std::fs::create_dir_all(STATE.workspace_dir).unwrap();
 
     Ok(())
 }
@@ -395,7 +397,7 @@ async fn main() -> Result<(), String> {
     //  * Copy results back
     //  */
     // let generated_report_result =
-    //     generate_report(&s3_client, &ssm_client, &server_instance_id, &unique_id).await;
+    //     generate_report(&ssm_client, &server_instance_id, &unique_id).await;
     // println!("Report Finished!: Successful: {}", generated_report_result);
     // println!(
     //     "URL: http://d2jusruq1ilhjs.cloudfront.net/{}/report/index.html",

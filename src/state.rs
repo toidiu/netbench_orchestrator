@@ -17,6 +17,7 @@ pub const STATE: State = State {
     ssh_key_name: "apoorvko_m1",
 
     // orchestrator config
+    workspace_dir: "./target/netbench",
     shutdown_time: "7200", // 2 hrs
 };
 
@@ -36,6 +37,7 @@ pub struct State {
     pub ssh_key_name: &'static str,
 
     // orchestrator config
+    pub workspace_dir: &'static str,
     pub shutdown_time: &'static str,
 }
 
