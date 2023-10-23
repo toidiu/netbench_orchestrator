@@ -321,8 +321,9 @@ async fn main() -> Result<(), String> {
     let _ = s3_client
         .put_object()
         .body(s3::primitives::ByteStream::from(Bytes::from(format!(
-            "EC2 Server Runner up: {}",
-            server_instance_id.clone()
+            "EC2 Server Runner up: {} {}",
+            server_instance_id.clone(),
+            server_ip
         ))))
         .bucket(STATE.log_bucket)
         .key(format!("{unique_id}/server-step-0"))
@@ -333,8 +334,9 @@ async fn main() -> Result<(), String> {
     let _ = s3_client
         .put_object()
         .body(s3::primitives::ByteStream::from(Bytes::from(format!(
-            "EC2 Client Runner up: {}",
-            client_instance_id.clone()
+            "EC2 Client Runner up: {} {}",
+            client_instance_id.clone(),
+            client_ip
         ))))
         .bucket(STATE.log_bucket)
         .key(format!("{unique_id}/client-step-0"))
