@@ -8,6 +8,7 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::path::Path;
 use std::path::PathBuf;
+use std::process::Command;
 use tokio_stream::StreamExt;
 
 pub async fn execute_ssm_client(
@@ -102,15 +103,23 @@ pub async fn generate_report(
 }
 
 pub async fn orch_generate_report(s3_client: &s3::Client, unique_id: &str) -> bool {
-    // TODO get data from s3
+    // create dir ---------------------------
+    std::fs::create_dir_all(format!(
+        "{}/results/request_response/s2n-quic/",
+        STATE.workspace_dir
+    ))
+    .unwrap();
+    std::fs::create_dir_all(format!("{}/report/request_response/", STATE.workspace_dir)).unwrap();
 
+    // results ---------------------------
     let key = "client.json";
+    let local_path = format!("{}/results/request_response/s2n-quic/", STATE.workspace_dir);
     let s3_path = format!("{}/results/request_response/s2n-quic/{}", unique_id, key);
     download_object_to_file(
         s3_client,
         STATE.log_bucket,
         &s3_path,
-        Path::new(STATE.workspace_dir).join(key),
+        Path::new(&local_path).join(key),
     )
     .await
     .unwrap();
@@ -121,12 +130,36 @@ pub async fn orch_generate_report(s3_client: &s3::Client, unique_id: &str) -> bo
         s3_client,
         STATE.log_bucket,
         &s3_path,
-        Path::new(STATE.workspace_dir).join(key),
+        Path::new(&local_path).join(key),
     )
     .await
     .unwrap();
 
-    // TODO run netbench-cli to generate report
+    // request_response ---------------------------
+    let key = "request_response.json";
+    let local_path = format!("{}/", STATE.workspace_dir);
+    let s3_path = format!("{}/{}", unique_id, key);
+    download_object_to_file(
+        s3_client,
+        STATE.log_bucket,
+        &s3_path,
+        Path::new(&local_path).join(key),
+    )
+    .await
+    .unwrap();
+
+    // CLI ---------------------------
+    let mut cmd = Command::new("netbench-cli");
+    cmd.args([
+        "report-tree",
+        &local_path,
+        &format!("{}/report", STATE.workspace_dir),
+    ]);
+    println!("{:?}", cmd);
+    let status = cmd.status().expect("netbench-cli command failed");
+    assert!(status.success(), " netbench-cli command failed");
+
+    // TODO ---------------------------
     // "~/projects/player_netbench/target/debug/netbench-cli report-tree ./target/netbench/results ./target/netbench/report",
     //
     // TODO upload report to s3
