@@ -1,5 +1,7 @@
 use crate::state::STATE;
 use aws_sdk_ec2 as ec2;
+use aws_sdk_iam as iam;
+use aws_sdk_ssm as ssm;
 use base64::{engine::general_purpose, Engine as _};
 use std::{thread::sleep, time::Duration};
 
@@ -9,6 +11,7 @@ use std::{thread::sleep, time::Duration};
  * This function launches a single instance. It is configurable using
  * this struct.
  */
+#[derive(Clone)]
 pub struct InstanceDetails {
     pub subnet_id: String,
     pub security_group_id: String,
@@ -16,9 +19,104 @@ pub struct InstanceDetails {
     pub iam_role: String,
 }
 
+impl InstanceDetails {
+    pub async fn new(
+        unique_id: &str,
+        ec2_client: &ec2::Client,
+        iam_client: &iam::Client,
+        ssm_client: &ssm::Client,
+    ) -> Self {
+        let iam_role: String = iam_client
+            .get_instance_profile()
+            .instance_profile_name("NetbenchRunnerInstanceProfile")
+            .send()
+            .await
+            .unwrap()
+            .instance_profile()
+            .unwrap()
+            .arn()
+            .unwrap()
+            .into();
+
+        // Find or define the Subnet to Launch the Netbench Runners
+        let (subnet_id, vpc_id) =
+            get_subnet_vpc_ids(&ec2_client, "public-subnet-for-runners-in-us-east-1")
+                .await
+                .unwrap();
+
+        // Create a security group
+        let security_group_id: String = ec2_client
+            .create_security_group()
+            .group_name(format!("generated_group_{}", unique_id))
+            .description("This is a security group for a single run of netbench.")
+            .vpc_id(vpc_id)
+            .send()
+            .await
+            .expect("No output?")
+            .group_id()
+            .expect("No group ID?")
+            .into();
+
+        // Get latest ami
+        let ami_id: String = ssm_client
+            .get_parameter()
+            .name("/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64")
+            .with_decryption(true)
+            .send()
+            .await
+            .unwrap()
+            .parameter()
+            .unwrap()
+            .value()
+            .unwrap()
+            .into();
+
+        InstanceDetails {
+            ami_id: ami_id,
+            subnet_id: subnet_id,
+            security_group_id: security_group_id,
+            iam_role: iam_role,
+        }
+    }
+}
+
+// Find or define the Subnet to Launch the Netbench Runners
+//  - Default: Use the one defined by CDK
+// Note: We may need to define more in different regions and AZ
+//      There is some connection between Security Groups and
+//      Subnets such that they have to be "in the same network"
+//       I'm unclear here.
+pub async fn get_subnet_vpc_ids(
+    ec2_client: &ec2::Client,
+    subnet_name: &str,
+) -> Result<(String, String), String> {
+    let describe_subnet_output = ec2_client
+        .describe_subnets()
+        .filters(
+            ec2::types::Filter::builder()
+                .name("tag:aws-cdk:subnet-name")
+                .values(subnet_name)
+                .build(),
+        )
+        .send()
+        .await
+        .map_err(|e| format!("Couldn't describe subnets: {:#?}", e))?;
+    assert_eq!(
+        describe_subnet_output.subnets().expect("No subnets?").len(),
+        1
+    );
+    let subnet_id = describe_subnet_output.subnets().unwrap()[0]
+        .subnet_id()
+        .ok_or::<String>("Couldn't find subnet".into())?;
+    let vpc_id = describe_subnet_output.subnets().unwrap()[0]
+        .vpc_id()
+        .ok_or::<String>("Couldn't find subnet".into())?;
+    Ok((subnet_id.into(), vpc_id.into()))
+}
+
 pub async fn launch_instance(
     ec2_client: &ec2::Client,
-    instance_details: InstanceDetails,
+    instance_details: &InstanceDetails,
     name: &str,
 ) -> Result<ec2::types::Instance, String> {
     let run_result = ec2_client
@@ -26,11 +124,11 @@ pub async fn launch_instance(
         .key_name(STATE.ssh_key_name)
         .iam_instance_profile(
             ec2::types::IamInstanceProfileSpecification::builder()
-                .arn(instance_details.iam_role)
+                .arn(&instance_details.iam_role)
                 .build(),
         )
         .instance_type(ec2::types::InstanceType::C54xlarge)
-        .image_id(instance_details.ami_id)
+        .image_id(&instance_details.ami_id)
         .instance_initiated_shutdown_behavior(ec2::types::ShutdownBehavior::Terminate)
         .user_data(
             general_purpose::STANDARD.encode(format!("sudo shutdown -P +{}", STATE.shutdown_time)),
@@ -58,8 +156,8 @@ pub async fn launch_instance(
                 .associate_public_ip_address(true)
                 .delete_on_termination(true)
                 .device_index(0)
-                .subnet_id(instance_details.subnet_id)
-                .groups(instance_details.security_group_id)
+                .subnet_id(&instance_details.subnet_id)
+                .groups(&instance_details.security_group_id)
                 .build(),
         )
         .min_count(1)

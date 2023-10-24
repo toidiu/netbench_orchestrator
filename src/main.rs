@@ -96,74 +96,18 @@ async fn main() -> Result<(), String> {
 
     println!("Status: URL: {status}");
 
-    let iam_role: String = iam_client
-        .get_instance_profile()
-        .instance_profile_name("NetbenchRunnerInstanceProfile")
-        .send()
-        .await
-        .unwrap()
-        .instance_profile()
-        .unwrap()
-        .arn()
-        .unwrap()
-        .into();
-
-    // Find or define the Subnet to Launch the Netbench Runners
-    let (subnet_id, vpc_id) =
-        get_subnet_vpc_ids(&ec2_client, "public-subnet-for-runners-in-us-east-1").await?;
-
-    // Create a security group
-    let security_group_id: String = ec2_client
-        .create_security_group()
-        .group_name(format!("generated_group_{}", unique_id))
-        .description("This is a security group for a single run of netbench.")
-        .vpc_id(vpc_id)
-        .send()
-        .await
-        .expect("No output?")
-        .group_id()
-        .expect("No group ID?")
-        .into();
-
-    // Get latest ami
-    let ami_id: String = ssm_client
-        .get_parameter()
-        .name("/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64")
-        .with_decryption(true)
-        .send()
-        .await
-        .unwrap()
-        .parameter()
-        .unwrap()
-        .value()
-        .unwrap()
-        .into();
-
-    // Launch instances
-    // We will define multiple launch templates in CDK for use here.
-    // For now: Launch 2 instances with the subnet and launch template.
-    let server_details = InstanceDetails {
-        ami_id: ami_id.clone(),
-        subnet_id: subnet_id.clone(),
-        security_group_id: security_group_id.clone(),
-        iam_role: iam_role.clone(),
-    };
+    let instance_details =
+        InstanceDetails::new(&unique_id, &ec2_client, &iam_client, &ssm_client).await;
     let server = launch_instance(
         &ec2_client,
-        server_details,
+        &instance_details,
         format!("server-{}", unique_id).as_str(),
     )
     .await?;
 
-    let client_details = InstanceDetails {
-        ami_id: ami_id.clone(),
-        subnet_id: subnet_id.clone(),
-        security_group_id: security_group_id.clone(),
-        iam_role: iam_role.clone(),
-    };
     let client = launch_instance(
         &ec2_client,
-        client_details,
+        &instance_details,
         format!("client-{}", unique_id).as_str(),
     )
     .await?;
@@ -235,7 +179,7 @@ async fn main() -> Result<(), String> {
 
     let _network_perms = ec2_client
         .authorize_security_group_egress()
-        .group_id(security_group_id.clone())
+        .group_id(&instance_details.security_group_id)
         .ip_permissions(
             ec2::types::IpPermission::builder()
                 .from_port(-1)
@@ -258,7 +202,7 @@ async fn main() -> Result<(), String> {
         .expect("error");
     let _network_perms = ec2_client
         .authorize_security_group_ingress()
-        .group_id(security_group_id.clone())
+        .group_id(&instance_details.security_group_id)
         .ip_permissions(
             ec2::types::IpPermission::builder()
                 .from_port(-1)
@@ -350,7 +294,7 @@ async fn main() -> Result<(), String> {
     // Copy results back
     orch_generate_report(&s3_client, &unique_id).await;
 
-    delete_security_group(ec2_client, &security_group_id).await;
+    delete_security_group(ec2_client, &instance_details.security_group_id).await;
 
     Ok(())
 }
