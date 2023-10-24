@@ -4,7 +4,10 @@ use crate::state::*;
 use crate::utils::*;
 use aws_sdk_s3 as s3;
 use aws_sdk_ssm as ssm;
+use s3::primitives::ByteStream;
+use s3::primitives::SdkBody;
 use std::fs::File;
+use std::io::prelude::*;
 use std::io::prelude::*;
 use std::path::Path;
 use std::path::PathBuf;
@@ -71,101 +74,82 @@ pub async fn execute_ssm_server(
         format!("runuser -u ec2-user -- echo run finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html s3://netbenchrunnerlogs/{}/server-step-7", unique_id).as_str(),
         format!("runuser -u ec2-user -- aws s3 sync /home/ec2-user/s2n-quic/netbench/target/netbench s3://netbenchrunnerlogs/{}", unique_id).as_str(),
         format!("runuser -u ec2-user -- echo report upload finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html s3://netbenchrunnerlogs/{}/server-step-8", unique_id).as_str(),
+        "shutdown -h +1",
         "exit 0",
     ].into_iter().map(String::from).collect()).await.expect("Timed out")
 }
 
-pub async fn generate_report(
-    ssm_client: &ssm::Client,
-    server_instance_id: &str,
-    unique_id: &str,
-) -> bool {
-    let generate_report = send_command("server", ssm_client, server_instance_id, vec![
-        "runuser -u ec2-user -- tree /home/ec2-user/s2n-quic/netbench/target/netbench > /home/ec2-user/before-sync",
-        format!("runuser -u ec2-user -- aws s3 sync s3://netbenchrunnerlogs/{} /home/ec2-user/s2n-quic/netbench/target/netbench", unique_id).as_str(),
-        "runuser -u ec2-user -- tree /home/ec2-user/s2n-quic/netbench/target/netbench > /home/ec2-user/after-sync",
-        "cd /home/ec2-user/s2n-quic/netbench/",
-        "runuser -u ec2-user -- ./target/release/netbench-cli report-tree ./target/netbench/results ./target/netbench/report",
-        "runuser -u ec2-user -- tree /home/ec2-user/s2n-quic/netbench/target/netbench > /home/ec2-user/after-report",
-        format!("runuser -u ec2-user -- aws s3 sync /home/ec2-user/s2n-quic/netbench/target/netbench s3://netbenchrunnerlogs/{}", unique_id).as_str(),
-        "runuser -u ec2-user -- tree /home/ec2-user/s2n-quic/netbench/target/netbench > /home/ec2-user/after-sync-back",
-        format!(r#"runuser -u ec2-user -- echo \<a href=\"http://d2jusruq1ilhjs.cloudfront.net/{}/report/index.html\"\>Final Report\</a\> > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html s3://netbenchrunnerlogs/{}/finished-step-0"#, unique_id, unique_id).as_str(),
-        "shutdown -h +1",
-        "exit 0",
-    ].into_iter().map(String::from).collect()).await.expect("Timed out");
+// pub async fn generate_report(
+//     ssm_client: &ssm::Client,
+//     server_instance_id: &str,
+//     unique_id: &str,
+// ) -> bool {
+//     let generate_report = send_command("server", ssm_client, server_instance_id, vec![
+//         "runuser -u ec2-user -- tree /home/ec2-user/s2n-quic/netbench/target/netbench > /home/ec2-user/before-sync",
+//         format!("runuser -u ec2-user -- aws s3 sync s3://netbenchrunnerlogs/{} /home/ec2-user/s2n-quic/netbench/target/netbench", unique_id).as_str(),
+//         "runuser -u ec2-user -- tree /home/ec2-user/s2n-quic/netbench/target/netbench > /home/ec2-user/after-sync",
+//         "cd /home/ec2-user/s2n-quic/netbench/",
+//         "runuser -u ec2-user -- ./target/release/netbench-cli report-tree ./target/netbench/results ./target/netbench/report",
+//         "runuser -u ec2-user -- tree /home/ec2-user/s2n-quic/netbench/target/netbench > /home/ec2-user/after-report",
+//         format!("runuser -u ec2-user -- aws s3 sync /home/ec2-user/s2n-quic/netbench/target/netbench s3://netbenchrunnerlogs/{}", unique_id).as_str(),
+//         "runuser -u ec2-user -- tree /home/ec2-user/s2n-quic/netbench/target/netbench > /home/ec2-user/after-sync-back",
+//         format!(r#"runuser -u ec2-user -- echo \<a href=\"http://d2jusruq1ilhjs.cloudfront.net/{}/report/index.html\"\>Final Report\</a\> > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html s3://netbenchrunnerlogs/{}/finished-step-0"#, unique_id, unique_id).as_str(),
+//         "shutdown -h +1",
+//         "exit 0",
+//     ].into_iter().map(String::from).collect()).await.expect("Timed out");
 
-    wait_for_ssm_results(
-        "server",
-        ssm_client,
-        generate_report.command().unwrap().command_id().unwrap(),
-    )
-    .await
-}
+//     wait_for_ssm_results(
+//         "server",
+//         ssm_client,
+//         generate_report.command().unwrap().command_id().unwrap(),
+//     )
+//     .await
+// }
 
 pub async fn orch_generate_report(s3_client: &s3::Client, unique_id: &str) -> bool {
-    // create dir ---------------------------
-    std::fs::create_dir_all(format!(
-        "{}/results/request_response/s2n-quic/",
-        STATE.workspace_dir
-    ))
-    .unwrap();
-    std::fs::create_dir_all(format!("{}/report/request_response/", STATE.workspace_dir)).unwrap();
-
-    // results ---------------------------
-    let key = "client.json";
-    let local_path = format!("{}/results/request_response/s2n-quic/", STATE.workspace_dir);
-    let s3_path = format!("{}/results/request_response/s2n-quic/{}", unique_id, key);
-    download_object_to_file(
-        s3_client,
-        STATE.log_bucket,
-        &s3_path,
-        Path::new(&local_path).join(key),
-    )
-    .await
-    .unwrap();
-
-    let key = "server.json";
-    let s3_path = format!("{}/results/request_response/s2n-quic/{}", unique_id, key);
-    download_object_to_file(
-        s3_client,
-        STATE.log_bucket,
-        &s3_path,
-        Path::new(&local_path).join(key),
-    )
-    .await
-    .unwrap();
-
-    // request_response ---------------------------
-    let key = "request_response.json";
-    let local_path = format!("{}/", STATE.workspace_dir);
-    let s3_path = format!("{}/{}", unique_id, key);
-    download_object_to_file(
-        s3_client,
-        STATE.log_bucket,
-        &s3_path,
-        Path::new(&local_path).join(key),
-    )
-    .await
-    .unwrap();
+    // download results from s3 -----------------------
+    let mut cmd = Command::new("aws");
+    cmd.args([
+        "s3",
+        "sync",
+        &format!("s3://{}/{}", STATE.log_bucket, unique_id),
+        STATE.workspace_dir,
+    ]);
+    println!("{:?}", cmd);
+    assert!(cmd.status().expect("aws sync").success(), "aws sync");
 
     // CLI ---------------------------
+    let results_path = format!("{}/results", STATE.workspace_dir);
+    let report_path = format!("{}/report", STATE.workspace_dir);
     let mut cmd = Command::new("netbench-cli");
-    cmd.args([
-        "report-tree",
-        &local_path,
-        &format!("{}/report", STATE.workspace_dir),
-    ]);
+    cmd.args(["report-tree", &results_path, &report_path]);
     println!("{:?}", cmd);
     let status = cmd.status().expect("netbench-cli command failed");
     assert!(status.success(), " netbench-cli command failed");
 
-    // TODO ---------------------------
-    // "~/projects/player_netbench/target/debug/netbench-cli report-tree ./target/netbench/results ./target/netbench/report",
-    //
-    // TODO upload report to s3
-    // format!("aws s3 sync /home/ec2-user/s2n-quic/netbench/target/netbench s3://netbenchrunnerlogs/{}", unique_id)
-    //
-    // TODO update status for index.html
-    // format!(r#"echo \<a href=\"http://d2jusruq1ilhjs.cloudfront.net/{}/report/index.html\"\>Final Report\</a\> > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html s3://netbenchrunnerlogs/{}/finished-step-0"#, unique_id, unique_id)
+    // upload report to s3 -----------------------
+    let mut cmd = Command::new("aws");
+    cmd.args([
+        "s3",
+        "sync",
+        STATE.workspace_dir,
+        &format!("s3://{}/{}", STATE.log_bucket, unique_id),
+    ]);
+    println!("{:?}", cmd);
+    assert!(cmd.status().expect("aws sync").success(), "aws sync");
+
+    update_report_url(s3_client, unique_id).await;
+
     true
+}
+
+async fn update_report_url(s3_client: &s3::Client, unique_id: &str) {
+    let body = ByteStream::new(SdkBody::from(format!(
+        "<a href=\"http://d2jusruq1ilhjs.cloudfront.net/{}/report/index.html\">Final Report</a>",
+        unique_id
+    )));
+    let key = format!("{}/finished-step-0", unique_id);
+    let _ = upload_object(s3_client, STATE.log_bucket, body, &key)
+        .await
+        .unwrap();
 }
