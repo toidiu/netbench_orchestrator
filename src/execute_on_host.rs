@@ -6,13 +6,7 @@ use aws_sdk_s3 as s3;
 use aws_sdk_ssm as ssm;
 use s3::primitives::ByteStream;
 use s3::primitives::SdkBody;
-use std::fs::File;
-use std::io::prelude::*;
-use std::io::prelude::*;
-use std::path::Path;
-use std::path::PathBuf;
 use std::process::Command;
-use tokio_stream::StreamExt;
 
 pub async fn execute_ssm_client(
     ssm_client: &ssm::Client,

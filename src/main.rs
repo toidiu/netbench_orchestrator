@@ -3,36 +3,22 @@
  * SPDX-License-Identifier: Apache-2.0.
  */
 #![allow(dead_code)]
-#![allow(unused_imports)]
+// #![allow(unused_imports)]
+use aws_sdk_ec2 as ec2;
+use aws_sdk_ec2::types::InstanceStateName;
+use aws_sdk_iam as iam;
+use aws_sdk_s3 as s3;
+use aws_sdk_ssm as ssm;
+use aws_types::region::Region;
 use bytes::Bytes;
-use std::borrow::BorrowMut;
+use s3::primitives::ByteStream;
 use std::process::Command;
-use std::{collections::HashMap, fmt::format, thread::sleep, time::Duration};
 use std::{
     fs::File,
     io::{self, BufRead, BufReader},
     path::Path,
 };
-use tempdir::TempDir;
-
-fn lines_from_file(filename: impl AsRef<Path>) -> io::Result<Vec<String>> {
-    BufReader::new(File::open(filename)?).lines().collect()
-}
-
-use aws_config::meta::region::RegionProviderChain;
-use aws_sdk_ec2 as ec2;
-use aws_sdk_ec2::types::InstanceStateName;
-use aws_sdk_ec2instanceconnect as ec2ic;
-use aws_sdk_iam as iam;
-use aws_sdk_s3 as s3;
-use aws_sdk_sqs as sqs;
-use aws_sdk_ssm as ssm;
-
-use aws_types::region::Region;
-use base64::{engine::general_purpose, Engine as _};
-use ec2::types::Filter;
-use iam::types::StatusType;
-
+use std::{thread::sleep, time::Duration};
 mod ec2_utils;
 mod execute_on_host;
 mod s3_helper;
@@ -41,8 +27,13 @@ mod utils;
 
 use ec2_utils::*;
 use execute_on_host::*;
+use s3_helper::*;
 use state::*;
 use utils::*;
+
+fn lines_from_file(filename: impl AsRef<Path>) -> io::Result<Vec<String>> {
+    BufReader::new(File::open(filename)?).lines().collect()
+}
 
 fn check_requirements() -> Result<(), String> {
     // export PATH="/home/toidiu/projects/s2n-quic/netbench/target/release/:$PATH"
@@ -106,15 +97,23 @@ async fn main() -> Result<(), String> {
         .replace("template_client_prefix", &template_client_prefix)
         .replace("template_finished_prefix", &template_finished_prefix);
 
-    let _ = s3_client
-        .put_object()
-        .body(s3::primitives::ByteStream::from(Bytes::from(index_file)))
-        .bucket(STATE.log_bucket)
-        .key(format!("{unique_id}/index.html"))
-        .content_type("text/html")
-        .send()
-        .await
-        .unwrap();
+    upload_object(
+        &s3_client,
+        STATE.log_bucket,
+        ByteStream::from(Bytes::from(index_file)),
+        &format!("{unique_id}/index.html"),
+    )
+    .await
+    .unwrap();
+    // let _ = s3_client
+    //     .put_object()
+    //     .body(s3::primitives::ByteStream::from(Bytes::from(index_file)))
+    //     .bucket(STATE.log_bucket)
+    //     .key(format!("{unique_id}/index.html"))
+    //     .content_type("text/html")
+    //     .send()
+    //     .await
+    //     .unwrap();
 
     println!("Status: URL: {status}");
 
@@ -129,9 +128,6 @@ async fn main() -> Result<(), String> {
         .arn()
         .unwrap()
         .into();
-
-    // Find the Launch Template for the Netbench Runners
-    // let launch_template = get_launch_template(&ec2_vpc, "NetbenchRunnerTemplate-us-east-1").await?;
 
     // Find or define the Subnet to Launch the Netbench Runners
     let (subnet_id, vpc_id) =
@@ -382,42 +378,4 @@ async fn main() -> Result<(), String> {
     delete_security_group(ec2_client, &security_group_id).await;
 
     Ok(())
-}
-
-/// Find the Launch Template for the Netbench Runners
-///  This will be used so that we launch the runners in the right
-///  the right security group.
-///  NOTE: if you deploy a new version of the launch template, be
-///        sure to update the default version
-async fn get_launch_template(
-    ec2_client: &ec2::Client,
-    name: &str,
-) -> Result<ec2::types::LaunchTemplateSpecification, String> {
-    let launch_template_name = get_launch_template_name(ec2_client, name).await?;
-    Ok(
-        ec2::types::builders::LaunchTemplateSpecificationBuilder::default()
-            .launch_template_name(launch_template_name)
-            .version("$Latest")
-            .build(),
-    )
-}
-
-async fn get_launch_template_name(ec2_client: &ec2::Client, name: &str) -> Result<String, String> {
-    let launch_templates: Vec<String> = ec2_client
-        .describe_launch_templates()
-        .launch_template_names(name)
-        .send()
-        .await
-        .map_err(|r| format!("Describe Launch Template Error: {:#?}", r))?
-        .launch_templates()
-        .ok_or("No launch templates?")?
-        .iter()
-        .map(|lt| lt.launch_template_name().unwrap().into())
-        .collect();
-
-    if launch_templates.len() == 1 {
-        Ok(launch_templates.get(0).unwrap().clone())
-    } else {
-        Err("Found more launch templates (or none?)".into())
-    }
 }

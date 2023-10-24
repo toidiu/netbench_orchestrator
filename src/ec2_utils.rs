@@ -1,8 +1,7 @@
 use crate::state::STATE;
-use crate::utils::*;
 use aws_sdk_ec2 as ec2;
 use base64::{engine::general_purpose, Engine as _};
-use std::{collections::HashMap, fmt::format, thread::sleep, time::Duration};
+use std::{thread::sleep, time::Duration};
 
 /*
  * Launch instance
@@ -159,3 +158,42 @@ async fn launch_cluster(
         .ok_or::<String>("Couldn't find instances in run result".into())?
         .clone())
 }
+
+// TODO waiting to see if this is needed for multiple hosts.. else delete
+// /// Find the Launch Template for the Netbench Runners
+// ///  This will be used so that we launch the runners in the right
+// ///  the right security group.
+// ///  NOTE: if you deploy a new version of the launch template, be
+// ///        sure to update the default version
+// async fn get_launch_template(
+//     ec2_client: &ec2::Client,
+//     name: &str,
+// ) -> Result<ec2::types::LaunchTemplateSpecification, String> {
+//     let launch_template_name = get_launch_template_name(ec2_client, name).await?;
+//     Ok(
+//         ec2::types::builders::LaunchTemplateSpecificationBuilder::default()
+//             .launch_template_name(launch_template_name)
+//             .version("$Latest")
+//             .build(),
+//     )
+// }
+
+// async fn get_launch_template_name(ec2_client: &ec2::Client, name: &str) -> Result<String, String> {
+//     let launch_templates: Vec<String> = ec2_client
+//         .describe_launch_templates()
+//         .launch_template_names(name)
+//         .send()
+//         .await
+//         .map_err(|r| format!("Describe Launch Template Error: {:#?}", r))?
+//         .launch_templates()
+//         .ok_or("No launch templates?")?
+//         .iter()
+//         .map(|lt| lt.launch_template_name().unwrap().into())
+//         .collect();
+
+//     if launch_templates.len() == 1 {
+//         Ok(launch_templates.get(0).unwrap().clone())
+//     } else {
+//         Err("Found more launch templates (or none?)".into())
+//     }
+// }

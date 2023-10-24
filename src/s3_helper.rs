@@ -7,7 +7,6 @@ use aws_sdk_s3::operation::put_object::PutObjectOutput;
 use std::fs::File;
 use std::io::prelude::*;
 use std::path::Path;
-use std::path::PathBuf;
 use tokio_stream::StreamExt;
 
 pub async fn download_object_to_file<P: AsRef<Path>>(

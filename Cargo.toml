@@ -11,19 +11,15 @@ edition = "2021"
 
 [dependencies]
 aws-config = "0.55.0"
-aws-sdk-sqs = "0.25.0"
-tokio = { version = "1.26.0", features = ["full"] }
+aws-sdk-ec2 = { version = "0.25.0", features = [] }
+aws-sdk-iam = "0.25.0"
+aws-sdk-ssm = "0.25.0"
+aws-sdk-s3 = "0.26.0"
+aws-types = "0.55.0"
+tokio = { version = "1.26.0", features = ["macros", "rt-multi-thread"] }
+tokio-stream = "0.1.14"
 structopt = { version = "0.3.26", default-features = false }
 tracing-subscriber = { version = "0.3.16", features = ["env-filter"] }
-aws-sdk-ec2 = "0.25.0"
 base64 = "0.21.0"
-aws-sdk-iam = "0.25.0"
-openssh = "0.9.9"
-aws-sdk-ec2instanceconnect = "0.25.0"
-aws-sdk-ssm = "0.25.0"
-aws-types = "0.55.0"
-tempdir = "0.3.7"
-aws-sdk-s3 = "0.26.0"
 bytes = "1.4.0"
 humantime = "2.1.0"
-tokio-stream = "0.1.14"
