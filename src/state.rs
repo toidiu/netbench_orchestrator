@@ -1,9 +1,7 @@
 pub const STATE: State = State {
-    version: "v1.0.7",
+    version: "v1.0.8",
 
     // git
-    // repo: "https://github.com/harrisonkaiser/s2n-quic.git",
-    // branch: "netbench_sync",
     repo: "https://github.com/aws/s2n-quic.git",
     branch: "ak-netbench-sync",
 

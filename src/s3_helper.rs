@@ -50,6 +50,7 @@ pub async fn upload_object(
         .put_object()
         .bucket(bucket_name)
         .key(key)
+        .content_type("text/html")
         .body(body)
         .send()
         .await

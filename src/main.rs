@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: Apache-2.0.
  */
 #![allow(dead_code)]
-// #![allow(unused_imports)]
 use aws_sdk_ec2 as ec2;
 use aws_sdk_ec2::types::InstanceStateName;
 use aws_sdk_iam as iam;
@@ -67,17 +66,6 @@ async fn main() -> Result<(), String> {
     let ec2_client = ec2::Client::new(&shared_config_vpc);
     let ssm_client = ssm::Client::new(&shared_config_vpc);
 
-    // // ---------------------- TESTING
-    // // Copy results back
-    // let unique_id = "2023-10-23T16:55:22Z-v1.0.5";
-    // let orch_provider = Region::new(STATE.region);
-    // let shared_config = aws_config::from_env().region(orch_provider).load().await;
-    // let s3_client = s3::Client::new(&shared_config);
-    // let generated_report_result = orch_generate_report(&s3_client, unique_id).await;
-    // println!("Report Finished!: Successful: {}", generated_report_result);
-
-    // // ---------------------- TESTING
-
     let unique_id = format!(
         "{}-{}",
         humantime::format_rfc3339_seconds(std::time::SystemTime::now()),
@@ -105,15 +93,6 @@ async fn main() -> Result<(), String> {
     )
     .await
     .unwrap();
-    // let _ = s3_client
-    //     .put_object()
-    //     .body(s3::primitives::ByteStream::from(Bytes::from(index_file)))
-    //     .bucket(STATE.log_bucket)
-    //     .key(format!("{unique_id}/index.html"))
-    //     .content_type("text/html")
-    //     .send()
-    //     .await
-    //     .unwrap();
 
     println!("Status: URL: {status}");
 
@@ -188,8 +167,6 @@ async fn main() -> Result<(), String> {
         format!("client-{}", unique_id).as_str(),
     )
     .await?;
-    println!("-----Client----");
-    println!("-----Server----");
 
     // Wait for running state
     let mut client_code = InstanceStateName::Pending;
@@ -320,37 +297,35 @@ async fn main() -> Result<(), String> {
         .instance_id()
         .map(String::from)
         .ok_or(String::from("No server id"))?;
+    println!(
+        "client: {} server: {}",
+        client_instance_id, server_instance_id
+    );
 
-    let instance_ids = vec![client_instance_id.clone(), server_instance_id.clone()];
-
-    let _ = s3_client
-        .put_object()
-        .body(s3::primitives::ByteStream::from(Bytes::from(format!(
+    upload_object(
+        &s3_client,
+        STATE.log_bucket,
+        ByteStream::from(Bytes::from(format!(
             "EC2 Server Runner up: {} {}",
-            server_instance_id.clone(),
-            server_ip
-        ))))
-        .bucket(STATE.log_bucket)
-        .key(format!("{unique_id}/server-step-0"))
-        .content_type("text/html")
-        .send()
-        .await
-        .unwrap();
-    let _ = s3_client
-        .put_object()
-        .body(s3::primitives::ByteStream::from(Bytes::from(format!(
+            server_instance_id, server_ip
+        ))),
+        &format!("{unique_id}/server-step-0"),
+    )
+    .await
+    .unwrap();
+
+    upload_object(
+        &s3_client,
+        STATE.log_bucket,
+        ByteStream::from(Bytes::from(format!(
             "EC2 Client Runner up: {} {}",
             client_instance_id.clone(),
             client_ip
-        ))))
-        .bucket(STATE.log_bucket)
-        .key(format!("{unique_id}/client-step-0"))
-        .content_type("text/html")
-        .send()
-        .await
-        .unwrap();
-
-    println!("{:?}", instance_ids);
+        ))),
+        &format!("{unique_id}/client-step-0"),
+    )
+    .await
+    .unwrap();
 
     let client_output =
         execute_ssm_client(&ssm_client, client_instance_id, &server_ip, &unique_id).await;
