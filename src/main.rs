@@ -3,20 +3,11 @@
  * SPDX-License-Identifier: Apache-2.0.
  */
 #![allow(dead_code)]
-use aws_sdk_ec2 as ec2;
 use aws_sdk_ec2::types::InstanceStateName;
-use aws_sdk_iam as iam;
-use aws_sdk_s3 as s3;
-use aws_sdk_ssm as ssm;
+use aws_sdk_s3::primitives::ByteStream;
 use aws_types::region::Region;
 use bytes::Bytes;
-use s3::primitives::ByteStream;
 use std::process::Command;
-use std::{
-    fs::File,
-    io::{self, BufRead, BufReader},
-    path::Path,
-};
 use std::{thread::sleep, time::Duration};
 mod ec2_utils;
 mod execute_on_host;
@@ -29,10 +20,6 @@ use execute_on_host::*;
 use s3_helper::*;
 use state::*;
 use utils::*;
-
-fn lines_from_file(filename: impl AsRef<Path>) -> io::Result<Vec<String>> {
-    BufReader::new(File::open(filename)?).lines().collect()
-}
 
 fn check_requirements() -> Result<(), String> {
     // export PATH="/home/toidiu/projects/s2n-quic/netbench/target/release/:$PATH"
@@ -56,15 +43,15 @@ async fn main() -> Result<(), String> {
 
     let orch_provider = Region::new(STATE.region);
     let shared_config = aws_config::from_env().region(orch_provider).load().await;
-    let iam_client = iam::Client::new(&shared_config);
-    let s3_client = s3::Client::new(&shared_config);
+    let iam_client = aws_sdk_iam::Client::new(&shared_config);
+    let s3_client = aws_sdk_s3::Client::new(&shared_config);
     let orch_provider_vpc = Region::new(STATE.vpc_region);
     let shared_config_vpc = aws_config::from_env()
         .region(orch_provider_vpc)
         .load()
         .await;
-    let ec2_client = ec2::Client::new(&shared_config_vpc);
-    let ssm_client = ssm::Client::new(&shared_config_vpc);
+    let ec2_client = aws_sdk_ec2::Client::new(&shared_config_vpc);
+    let ssm_client = aws_sdk_ssm::Client::new(&shared_config_vpc);
 
     let unique_id = format!(
         "{}-{}",
@@ -98,19 +85,9 @@ async fn main() -> Result<(), String> {
 
     let instance_details =
         InstanceDetails::new(&unique_id, &ec2_client, &iam_client, &ssm_client).await;
-    let server = launch_instance(
-        &ec2_client,
-        &instance_details,
-        format!("server-{}", unique_id).as_str(),
-    )
-    .await?;
-
-    let client = launch_instance(
-        &ec2_client,
-        &instance_details,
-        format!("client-{}", unique_id).as_str(),
-    )
-    .await?;
+    let (server, client) = launch_server_client(&ec2_client, &instance_details, &unique_id)
+        .await
+        .unwrap();
 
     // Wait for running state
     let mut client_code = InstanceStateName::Pending;
@@ -181,17 +158,17 @@ async fn main() -> Result<(), String> {
         .authorize_security_group_egress()
         .group_id(&instance_details.security_group_id)
         .ip_permissions(
-            ec2::types::IpPermission::builder()
+            aws_sdk_ec2::types::IpPermission::builder()
                 .from_port(-1)
                 .to_port(-1)
                 .ip_protocol("-1")
                 .ip_ranges(
-                    ec2::types::IpRange::builder()
+                    aws_sdk_ec2::types::IpRange::builder()
                         .cidr_ip(format!("{}/32", client_ip))
                         .build(),
                 )
                 .ip_ranges(
-                    ec2::types::IpRange::builder()
+                    aws_sdk_ec2::types::IpRange::builder()
                         .cidr_ip(format!("{}/32", server_ip))
                         .build(),
                 )
@@ -204,28 +181,32 @@ async fn main() -> Result<(), String> {
         .authorize_security_group_ingress()
         .group_id(&instance_details.security_group_id)
         .ip_permissions(
-            ec2::types::IpPermission::builder()
+            aws_sdk_ec2::types::IpPermission::builder()
                 .from_port(-1)
                 .to_port(-1)
                 .ip_protocol("-1")
                 .ip_ranges(
-                    ec2::types::IpRange::builder()
+                    aws_sdk_ec2::types::IpRange::builder()
                         .cidr_ip(format!("{}/32", client_ip))
                         .build(),
                 )
                 .ip_ranges(
-                    ec2::types::IpRange::builder()
+                    aws_sdk_ec2::types::IpRange::builder()
                         .cidr_ip(format!("{}/32", server_ip))
                         .build(),
                 )
                 .build(),
         )
         .ip_permissions(
-            ec2::types::IpPermission::builder()
+            aws_sdk_ec2::types::IpPermission::builder()
                 .from_port(22)
                 .to_port(22)
                 .ip_protocol("tcp")
-                .ip_ranges(ec2::types::IpRange::builder().cidr_ip("0.0.0.0/0").build())
+                .ip_ranges(
+                    aws_sdk_ec2::types::IpRange::builder()
+                        .cidr_ip("0.0.0.0/0")
+                        .build(),
+                )
                 .build(),
         )
         .send()

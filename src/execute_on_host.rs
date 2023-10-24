@@ -1,15 +1,12 @@
 use crate::s3_helper::*;
-use crate::ssm::operation::send_command::SendCommandOutput;
 use crate::state::*;
 use crate::utils::*;
-use aws_sdk_s3 as s3;
-use aws_sdk_ssm as ssm;
-use s3::primitives::ByteStream;
-use s3::primitives::SdkBody;
+use aws_sdk_s3::primitives::{ByteStream, SdkBody};
+use aws_sdk_ssm::operation::send_command::SendCommandOutput;
 use std::process::Command;
 
 pub async fn execute_ssm_client(
-    ssm_client: &ssm::Client,
+    ssm_client: &aws_sdk_ssm::Client,
     client_instance_id: String,
     server_ip: &str,
     unique_id: &str,
@@ -42,7 +39,7 @@ pub async fn execute_ssm_client(
 }
 
 pub async fn execute_ssm_server(
-    ssm_client: &ssm::Client,
+    ssm_client: &aws_sdk_ssm::Client,
     server_instance_id: &str,
     client_ip: &str,
     unique_id: &str,
@@ -73,7 +70,7 @@ pub async fn execute_ssm_server(
     ].into_iter().map(String::from).collect()).await.expect("Timed out")
 }
 
-pub async fn orch_generate_report(s3_client: &s3::Client, unique_id: &str) {
+pub async fn orch_generate_report(s3_client: &aws_sdk_s3::Client, unique_id: &str) {
     // download results from s3 -----------------------
     let mut cmd = Command::new("aws");
     cmd.args([
@@ -111,7 +108,7 @@ pub async fn orch_generate_report(s3_client: &s3::Client, unique_id: &str) {
     println!("URL: {}/report/index.html", STATE.cf_url_with_id(unique_id));
 }
 
-async fn update_report_url(s3_client: &s3::Client, unique_id: &str) {
+async fn update_report_url(s3_client: &aws_sdk_s3::Client, unique_id: &str) {
     let body = ByteStream::new(SdkBody::from(format!(
         "<a href=\"http://d2jusruq1ilhjs.cloudfront.net/{}/report/index.html\">Final Report</a>",
         unique_id
