@@ -2,6 +2,7 @@ use crate::state::STATE;
 use crate::utils::*;
 use aws_sdk_ec2 as ec2;
 use base64::{engine::general_purpose, Engine as _};
+use std::{collections::HashMap, fmt::format, thread::sleep, time::Duration};
 
 /*
  * Launch instance
@@ -75,6 +76,27 @@ pub async fn launch_instance(
         .get(0)
         .ok_or(String::from("Didn't launch an instance?"))?
         .clone())
+}
+
+pub async fn delete_security_group(ec2_client: ec2::Client, security_group_id: &str) {
+    println!("Start: deleting security groups");
+    let mut deleted_sec_group = ec2_client
+        .delete_security_group()
+        .group_id(security_group_id)
+        .send()
+        .await;
+    sleep(Duration::from_secs(60));
+
+    while deleted_sec_group.is_err() {
+        sleep(Duration::from_secs(30));
+        deleted_sec_group = ec2_client
+            .delete_security_group()
+            .group_id(security_group_id)
+            .send()
+            .await;
+    }
+    println!("Deleted Security Group: {:#?}", deleted_sec_group);
+    println!("Done: deleting security groups");
 }
 
 struct InstanceDetailsCluster {

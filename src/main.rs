@@ -33,32 +33,48 @@ use base64::{engine::general_purpose, Engine as _};
 use ec2::types::Filter;
 use iam::types::StatusType;
 
+mod ec2_utils;
 mod execute_on_host;
-mod launch;
 mod s3_helper;
 mod state;
 mod utils;
 
+use ec2_utils::*;
 use execute_on_host::*;
-use launch::*;
 use state::*;
 use utils::*;
 
 fn check_requirements() -> Result<(), String> {
     // export PATH="/home/toidiu/projects/s2n-quic/netbench/target/release/:$PATH"
-    Command::new("netbench-cli")
-        .output()
-        .expect("netbench-cli utility not found");
+    Command::new("netbench-cli").output().expect(
+        "include netbench-cli on PATH: 'export PATH=\"s2n-quic/netbench/target/release/:$PATH\"'",
+    );
 
     // report folder
     std::fs::create_dir_all(STATE.workspace_dir).unwrap();
+
+    // TODO check aws creds
 
     Ok(())
 }
 
 #[tokio::main]
 async fn main() -> Result<(), String> {
+    tracing_subscriber::fmt::init();
+
     check_requirements()?;
+
+    let orch_provider = Region::new(STATE.region);
+    let shared_config = aws_config::from_env().region(orch_provider).load().await;
+    let iam_client = iam::Client::new(&shared_config);
+    let s3_client = s3::Client::new(&shared_config);
+    let orch_provider_vpc = Region::new(STATE.vpc_region);
+    let shared_config_vpc = aws_config::from_env()
+        .region(orch_provider_vpc)
+        .load()
+        .await;
+    let ec2_client = ec2::Client::new(&shared_config_vpc);
+    let ssm_client = ssm::Client::new(&shared_config_vpc);
 
     // // ---------------------- TESTING
     // // Copy results back
@@ -71,21 +87,13 @@ async fn main() -> Result<(), String> {
 
     // // ---------------------- TESTING
 
-    /*
-     * Overview
-     */
-    tracing_subscriber::fmt::init();
-
     let unique_id = format!(
         "{}-{}",
         humantime::format_rfc3339_seconds(std::time::SystemTime::now()),
         STATE.version
     );
 
-    let status = format!(
-        "http://d2jusruq1ilhjs.cloudfront.net/{}/index.html",
-        unique_id
-    );
+    let status = format!("{}/index.html", STATE.cf_url_with_id(&unique_id));
     let template_server_prefix = format!("{}/server-step-", STATE.cf_url_with_id(&unique_id));
     let template_client_prefix = format!("{}/client-step-", STATE.cf_url_with_id(&unique_id));
     let template_finished_prefix = format!("{}/finished-step-", STATE.cf_url_with_id(&unique_id));
@@ -97,11 +105,6 @@ async fn main() -> Result<(), String> {
         .replace("template_server_prefix", &template_server_prefix)
         .replace("template_client_prefix", &template_client_prefix)
         .replace("template_finished_prefix", &template_finished_prefix);
-
-    let orch_provider = Region::new(STATE.region);
-    let shared_config = aws_config::from_env().region(orch_provider).load().await;
-    let iam_client = iam::Client::new(&shared_config);
-    let s3_client = s3::Client::new(&shared_config);
 
     let _ = s3_client
         .put_object()
@@ -127,23 +130,15 @@ async fn main() -> Result<(), String> {
         .unwrap()
         .into();
 
-    let orch_provider_vpc = Region::new(STATE.vpc_region);
-    let shared_config_vpc = aws_config::from_env()
-        .region(orch_provider_vpc)
-        .load()
-        .await;
-    let ec2_vpc = ec2::Client::new(&shared_config_vpc);
-    let ssm_client = ssm::Client::new(&shared_config_vpc);
-
     // Find the Launch Template for the Netbench Runners
     // let launch_template = get_launch_template(&ec2_vpc, "NetbenchRunnerTemplate-us-east-1").await?;
 
     // Find or define the Subnet to Launch the Netbench Runners
     let (subnet_id, vpc_id) =
-        get_subnet_vpc_ids(&ec2_vpc, "public-subnet-for-runners-in-us-east-1").await?;
+        get_subnet_vpc_ids(&ec2_client, "public-subnet-for-runners-in-us-east-1").await?;
 
     // Create a security group
-    let security_group_id: String = ec2_vpc
+    let security_group_id: String = ec2_client
         .create_security_group()
         .group_name(format!("generated_group_{}", unique_id))
         .description("This is a security group for a single run of netbench.")
@@ -169,13 +164,9 @@ async fn main() -> Result<(), String> {
         .unwrap()
         .into();
 
-    /*
-     * Launch instances
-     *
-     * We will define multiple launch templates in CDK for use here.
-     *
-     * For now: Launch 2 instances with the subnet and launch template.
-     */
+    // Launch instances
+    // We will define multiple launch templates in CDK for use here.
+    // For now: Launch 2 instances with the subnet and launch template.
     let server_details = InstanceDetails {
         ami_id: ami_id.clone(),
         subnet_id: subnet_id.clone(),
@@ -183,7 +174,7 @@ async fn main() -> Result<(), String> {
         iam_role: iam_role.clone(),
     };
     let server = launch_instance(
-        &ec2_vpc,
+        &ec2_client,
         server_details,
         format!("server-{}", unique_id).as_str(),
     )
@@ -196,24 +187,20 @@ async fn main() -> Result<(), String> {
         iam_role: iam_role.clone(),
     };
     let client = launch_instance(
-        &ec2_vpc,
+        &ec2_client,
         client_details,
         format!("client-{}", unique_id).as_str(),
     )
     .await?;
     println!("-----Client----");
-    //println!("{:#?}", client);
     println!("-----Server----");
-    //println!("{:#?}", server);
 
-    /*
-     * Wait for running state
-     */
+    // Wait for running state
     let mut client_code = InstanceStateName::Pending;
     let mut ip_client = None;
     while dbg!(client_code != InstanceStateName::Running) {
         sleep(Duration::from_secs(30));
-        let result = ec2_vpc
+        let result = ec2_client
             .describe_instances()
             .instance_ids(client.instance_id().unwrap())
             .send()
@@ -242,7 +229,7 @@ async fn main() -> Result<(), String> {
     let mut ip_server = None;
     while dbg!(server_code != InstanceStateName::Running) {
         sleep(Duration::from_secs(30));
-        let result = ec2_vpc
+        let result = ec2_client
             .describe_instances()
             .instance_ids(server.instance_id().unwrap())
             .send()
@@ -267,15 +254,13 @@ async fn main() -> Result<(), String> {
     }
     assert_ne!(ip_server, None);
 
-    /*
-     * Modify Security Group
-     */
+    // Modify Security Group
     let client_ip: String = ip_client.unwrap();
     println!("client ip: {}", client_ip);
     let server_ip: String = ip_server.unwrap();
     println!("server ip: {}", server_ip);
 
-    let _network_perms = ec2_vpc
+    let _network_perms = ec2_client
         .authorize_security_group_egress()
         .group_id(security_group_id.clone())
         .ip_permissions(
@@ -298,7 +283,7 @@ async fn main() -> Result<(), String> {
         .send()
         .await
         .expect("error");
-    let _network_perms = ec2_vpc
+    let _network_perms = ec2_client
         .authorize_security_group_ingress()
         .group_id(security_group_id.clone())
         .ip_permissions(
@@ -330,9 +315,7 @@ async fn main() -> Result<(), String> {
         .await
         .expect("error");
 
-    /*
-     * Setup instances
-     */
+    // Setup instances
     let client_instance_id = client
         .instance_id()
         .map(String::from)
@@ -393,37 +376,10 @@ async fn main() -> Result<(), String> {
     .await;
     println!("Server Finished!: Successful: {}", server_result);
 
-    /*
-     * Copy results back
-     */
-    // let generated_report_result =
-    //     generate_report(&ssm_client, &server_instance_id, &unique_id).await;
+    // Copy results back
+    orch_generate_report(&s3_client, &unique_id).await;
 
-    let generated_report_result = orch_generate_report(&s3_client, &unique_id).await;
-    println!("Report Finished!: Successful: {}", generated_report_result);
-    println!(
-        "URL: http://d2jusruq1ilhjs.cloudfront.net/{}/report/index.html",
-        unique_id
-    );
-
-    println!("Start: deleting security groups");
-    let mut deleted_sec_group = ec2_vpc
-        .delete_security_group()
-        .group_id(security_group_id.clone())
-        .send()
-        .await;
-    sleep(Duration::from_secs(60));
-
-    while deleted_sec_group.is_err() {
-        sleep(Duration::from_secs(30));
-        deleted_sec_group = ec2_vpc
-            .delete_security_group()
-            .group_id(security_group_id.clone())
-            .send()
-            .await;
-    }
-    println!("Deleted Security Group: {:#?}", deleted_sec_group);
-    println!("Done: deleting security groups");
+    delete_security_group(ec2_client, &security_group_id).await;
 
     Ok(())
 }

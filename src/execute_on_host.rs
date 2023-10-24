@@ -79,34 +79,7 @@ pub async fn execute_ssm_server(
     ].into_iter().map(String::from).collect()).await.expect("Timed out")
 }
 
-// pub async fn generate_report(
-//     ssm_client: &ssm::Client,
-//     server_instance_id: &str,
-//     unique_id: &str,
-// ) -> bool {
-//     let generate_report = send_command("server", ssm_client, server_instance_id, vec![
-//         "runuser -u ec2-user -- tree /home/ec2-user/s2n-quic/netbench/target/netbench > /home/ec2-user/before-sync",
-//         format!("runuser -u ec2-user -- aws s3 sync s3://netbenchrunnerlogs/{} /home/ec2-user/s2n-quic/netbench/target/netbench", unique_id).as_str(),
-//         "runuser -u ec2-user -- tree /home/ec2-user/s2n-quic/netbench/target/netbench > /home/ec2-user/after-sync",
-//         "cd /home/ec2-user/s2n-quic/netbench/",
-//         "runuser -u ec2-user -- ./target/release/netbench-cli report-tree ./target/netbench/results ./target/netbench/report",
-//         "runuser -u ec2-user -- tree /home/ec2-user/s2n-quic/netbench/target/netbench > /home/ec2-user/after-report",
-//         format!("runuser -u ec2-user -- aws s3 sync /home/ec2-user/s2n-quic/netbench/target/netbench s3://netbenchrunnerlogs/{}", unique_id).as_str(),
-//         "runuser -u ec2-user -- tree /home/ec2-user/s2n-quic/netbench/target/netbench > /home/ec2-user/after-sync-back",
-//         format!(r#"runuser -u ec2-user -- echo \<a href=\"http://d2jusruq1ilhjs.cloudfront.net/{}/report/index.html\"\>Final Report\</a\> > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html s3://netbenchrunnerlogs/{}/finished-step-0"#, unique_id, unique_id).as_str(),
-//         "shutdown -h +1",
-//         "exit 0",
-//     ].into_iter().map(String::from).collect()).await.expect("Timed out");
-
-//     wait_for_ssm_results(
-//         "server",
-//         ssm_client,
-//         generate_report.command().unwrap().command_id().unwrap(),
-//     )
-//     .await
-// }
-
-pub async fn orch_generate_report(s3_client: &s3::Client, unique_id: &str) -> bool {
+pub async fn orch_generate_report(s3_client: &s3::Client, unique_id: &str) {
     // download results from s3 -----------------------
     let mut cmd = Command::new("aws");
     cmd.args([
@@ -140,7 +113,8 @@ pub async fn orch_generate_report(s3_client: &s3::Client, unique_id: &str) -> bo
 
     update_report_url(s3_client, unique_id).await;
 
-    true
+    println!("Report Finished!: Successful: true");
+    println!("URL: {}/report/index.html", STATE.cf_url_with_id(unique_id));
 }
 
 async fn update_report_url(s3_client: &s3::Client, unique_id: &str) {
