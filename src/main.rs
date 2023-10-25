@@ -3,12 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0.
  */
 #![allow(dead_code)]
-use aws_sdk_ec2::types::InstanceStateName;
 use aws_sdk_s3::primitives::ByteStream;
 use aws_types::region::Region;
 use bytes::Bytes;
 use std::process::Command;
-use std::{thread::sleep, time::Duration};
 mod ec2_utils;
 mod error;
 mod execute_on_host;
@@ -89,70 +87,9 @@ async fn main() -> Result<(), String> {
         .await
         .unwrap();
 
-    // Wait for running state
-    let mut client_code = InstanceStateName::Pending;
-    let mut ip_client = None;
-    while dbg!(client_code != InstanceStateName::Running) {
-        sleep(Duration::from_secs(30));
-        let result = ec2_client
-            .describe_instances()
-            .instance_ids(client.instance_id().unwrap())
-            .send()
-            .await
-            .unwrap();
-        let res = result.reservations().unwrap();
-        ip_client = res
-            .get(0)
-            .unwrap()
-            .instances()
-            .unwrap()
-            .get(0)
-            .unwrap()
-            .public_ip_address()
-            .map(String::from);
-        client_code = res.get(0).unwrap().instances().unwrap()[0]
-            .state()
-            .unwrap()
-            .name()
-            .unwrap()
-            .clone()
-    }
-    assert_ne!(ip_client, None);
-
-    // let mut server_code = InstanceStateName::Pending;
-    // let mut ip_server = None;
-    // while dbg!(server_code != InstanceStateName::Running) {
-    //     sleep(Duration::from_secs(30));
-    //     let result = ec2_client
-    //         .describe_instances()
-    //         .instance_ids(server.instance_id().unwrap())
-    //         .send()
-    //         .await
-    //         .unwrap();
-    //     let res = result.reservations().unwrap();
-    //     ip_server = res
-    //         .get(0)
-    //         .unwrap()
-    //         .instances()
-    //         .unwrap()
-    //         .get(0)
-    //         .unwrap()
-    //         .public_ip_address()
-    //         .map(String::from);
-    //     server_code = res.get(0).unwrap().instances().unwrap()[0]
-    //         .state()
-    //         .unwrap()
-    //         .name()
-    //         .unwrap()
-    //         .clone()
-    // }
-    // assert_ne!(ip_server, None);
-
     // Modify Security Group
-    let client_ip: String = ip_client.unwrap();
-    println!("client ip: {}", client_ip);
-    let server_ip: String = server.ip;
-    println!("server ip: {}", server_ip);
+    println!("client ip: {}", client.ip);
+    println!("server ip: {}", server.ip);
 
     let _network_perms = ec2_client
         .authorize_security_group_egress()
@@ -164,12 +101,12 @@ async fn main() -> Result<(), String> {
                 .ip_protocol("-1")
                 .ip_ranges(
                     aws_sdk_ec2::types::IpRange::builder()
-                        .cidr_ip(format!("{}/32", client_ip))
+                        .cidr_ip(format!("{}/32", client.ip))
                         .build(),
                 )
                 .ip_ranges(
                     aws_sdk_ec2::types::IpRange::builder()
-                        .cidr_ip(format!("{}/32", server_ip))
+                        .cidr_ip(format!("{}/32", server.ip))
                         .build(),
                 )
                 .build(),
@@ -187,12 +124,12 @@ async fn main() -> Result<(), String> {
                 .ip_protocol("-1")
                 .ip_ranges(
                     aws_sdk_ec2::types::IpRange::builder()
-                        .cidr_ip(format!("{}/32", client_ip))
+                        .cidr_ip(format!("{}/32", client.ip))
                         .build(),
                 )
                 .ip_ranges(
                     aws_sdk_ec2::types::IpRange::builder()
-                        .cidr_ip(format!("{}/32", server_ip))
+                        .cidr_ip(format!("{}/32", server.ip))
                         .build(),
                 )
                 .build(),
@@ -214,26 +151,15 @@ async fn main() -> Result<(), String> {
         .expect("error");
 
     // Setup instances
-    let client_instance_id = client
-        .instance_id()
-        .map(String::from)
-        .ok_or(String::from("No client id"))?;
-    let server_instance_id = server
-        .instance
-        .instance_id()
-        .map(String::from)
-        .ok_or(String::from("No server id"))?;
-    println!(
-        "client: {} server: {}",
-        client_instance_id, server_instance_id
-    );
+    let client_instance_id = client.instance_id().unwrap();
+    let server_instance_id = server.instance_id().unwrap();
 
     upload_object(
         &s3_client,
         STATE.log_bucket,
         ByteStream::from(Bytes::from(format!(
             "EC2 Server Runner up: {} {}",
-            server_instance_id, server_ip
+            server_instance_id, server.ip
         ))),
         &format!("{unique_id}/server-step-0"),
     )
@@ -245,8 +171,7 @@ async fn main() -> Result<(), String> {
         STATE.log_bucket,
         ByteStream::from(Bytes::from(format!(
             "EC2 Client Runner up: {} {}",
-            client_instance_id.clone(),
-            client_ip
+            client_instance_id, client.ip
         ))),
         &format!("{unique_id}/client-step-0"),
     )
@@ -254,9 +179,9 @@ async fn main() -> Result<(), String> {
     .unwrap();
 
     let client_output =
-        execute_ssm_client(&ssm_client, client_instance_id, &server_ip, &unique_id).await;
+        execute_ssm_client(&ssm_client, client_instance_id, &server.ip, &unique_id).await;
     let server_output =
-        execute_ssm_server(&ssm_client, &server_instance_id, &client_ip, &unique_id).await;
+        execute_ssm_server(&ssm_client, server_instance_id, &client.ip, &unique_id).await;
 
     let client_result = wait_for_ssm_results(
         "client",

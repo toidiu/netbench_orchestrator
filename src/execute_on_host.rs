@@ -7,11 +7,11 @@ use std::process::Command;
 
 pub async fn execute_ssm_client(
     ssm_client: &aws_sdk_ssm::Client,
-    client_instance_id: String,
+    client_instance_id: &str,
     server_ip: &str,
     unique_id: &str,
 ) -> SendCommandOutput {
-    send_command("client", ssm_client, &client_instance_id, vec![
+    send_command("client", ssm_client, client_instance_id, vec![
         format!("runuser -u ec2-user -- echo ec2 up > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html s3://netbenchrunnerlogs/{}/client-step-1", unique_id).as_str(),
         "cd /home/ec2-user",
         "yum upgrade -y",

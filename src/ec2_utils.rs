@@ -1,3 +1,4 @@
+use crate::error::{OrchError, OrchResult};
 use aws_sdk_ec2 as ec2;
 use std::{thread::sleep, time::Duration};
 
@@ -35,13 +36,19 @@ impl InstanceDetail {
             security_group_id,
         }
     }
+
+    pub fn instance_id(&self) -> OrchResult<&str> {
+        self.instance.instance_id().ok_or(OrchError::Ec2 {
+            dbg: "No client id".to_string(),
+        })
+    }
 }
 
 pub async fn launch_server_client(
     ec2_client: &ec2::Client,
     instance_details: &LaunchPlan,
     unique_id: &str,
-) -> crate::error::OrchResult<(InstanceDetail, ec2::types::Instance)> {
+) -> OrchResult<(InstanceDetail, InstanceDetail)> {
     let server = format!("server-{}", unique_id);
     let client = format!("client-{}", unique_id);
 
@@ -51,13 +58,25 @@ pub async fn launch_server_client(
     let server_ip =
         wait_for_state(ec2_client, &server, ec2::types::InstanceStateName::Running).await?;
     let client_ip =
-        wait_for_state(ec2_client, &client, ec2::types::InstanceStateName::Running).await;
+        wait_for_state(ec2_client, &client, ec2::types::InstanceStateName::Running).await?;
 
     let server = InstanceDetail::new(
         EndpointType::Server,
         server,
         server_ip,
         instance_details.security_group_id.clone(),
+    );
+    let client = InstanceDetail::new(
+        EndpointType::Client,
+        client,
+        client_ip,
+        instance_details.security_group_id.clone(),
+    );
+
+    println!(
+        "client: {} server: {}",
+        client.instance_id()?,
+        server.instance_id()?
     );
 
     Ok((server, client))
