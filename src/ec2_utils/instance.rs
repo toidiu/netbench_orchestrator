@@ -7,16 +7,16 @@ use aws_sdk_ec2::types::InstanceType;
 use base64::{engine::general_purpose, Engine as _};
 use std::{thread::sleep, time::Duration};
 
+#[derive(Debug)]
 pub enum EndpointType {
     Server,
     Client,
 }
 
 pub struct InstanceDetail {
-    endpoint_type: EndpointType,
+    pub endpoint_type: EndpointType,
     pub instance: aws_sdk_ec2::types::Instance,
     pub ip: String,
-    pub security_group_id: String,
 }
 
 impl InstanceDetail {
@@ -24,13 +24,11 @@ impl InstanceDetail {
         endpoint_type: EndpointType,
         instance: aws_sdk_ec2::types::Instance,
         ip: String,
-        security_group_id: String,
     ) -> Self {
         InstanceDetail {
             endpoint_type,
             instance,
             ip,
-            security_group_id,
         }
     }
 
@@ -58,9 +56,10 @@ pub async fn launch_instance(
         .instance_type(instance_type)
         .image_id(&instance_details.ami_id)
         .instance_initiated_shutdown_behavior(aws_sdk_ec2::types::ShutdownBehavior::Terminate)
-        .user_data(
-            general_purpose::STANDARD.encode(format!("sudo shutdown -P +{}", STATE.shutdown_time)),
-        )
+        .user_data(general_purpose::STANDARD.encode(format!(
+            "sudo shutdown -P +{}",
+            STATE.shutdown_time_sec.as_secs()
+        )))
         // give the instances human readable names. name is set via tags
         .tag_specifications(
             aws_sdk_ec2::types::TagSpecification::builder()
@@ -113,14 +112,16 @@ pub async fn launch_instance(
 }
 
 pub async fn poll_state(
+    enumerate: usize,
+    endpoint_type: &EndpointType,
     ec2_client: &aws_sdk_ec2::Client,
     instance: &Instance,
     desired_state: InstanceStateName,
 ) -> OrchResult<String> {
     // Wait for running state
-    let mut instance_state = InstanceStateName::Pending;
+    let mut actual_state = InstanceStateName::Pending;
     let mut ip = None;
-    while dbg!(instance_state != desired_state) {
+    while actual_state != desired_state {
         sleep(Duration::from_secs(30));
         let result = ec2_client
             .describe_instances()
@@ -138,14 +139,18 @@ pub async fn poll_state(
             .unwrap()
             .public_ip_address()
             .map(String::from);
-        instance_state = res.get(0).unwrap().instances().unwrap()[0]
+        actual_state = res.get(0).unwrap().instances().unwrap()[0]
             .state()
             .unwrap()
             .name()
             .unwrap()
-            .clone()
+            .clone();
+
+        println!(
+            "{:?} {} state: {:?} -- {:?} (actual -- desired)",
+            endpoint_type, enumerate, actual_state, desired_state
+        );
     }
-    // assert_ne!(ip, None);
 
     ip.ok_or(crate::error::OrchError::Ec2 {
         dbg: "".to_string(),

@@ -82,10 +82,17 @@ async fn main() -> Result<(), String> {
     println!("Status: URL: {status}");
 
     // Setup instances
-    let launch_plan = LaunchPlan::create(&unique_id, &ec2_client, &iam_client, &ssm_client).await;
+    let launch_plan = LaunchPlan::create(
+        &unique_id,
+        &ec2_client,
+        &iam_client,
+        &ssm_client,
+        STATE.host_count,
+    )
+    .await;
     let infra = launch_plan.launch(&ec2_client, &unique_id).await.unwrap();
     let client = infra.clients.get(0).unwrap();
-    let server = infra.server.get(0).unwrap();
+    let server = infra.servers.get(0).unwrap();
 
     let client_instance_id = client.instance_id().unwrap();
     let server_instance_id = server.instance_id().unwrap();

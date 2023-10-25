@@ -2,6 +2,7 @@ use crate::ec2_utils::instance::launch_instance;
 use crate::ec2_utils::instance::{EndpointType, InstanceDetail};
 use crate::ec2_utils::poll_state;
 use crate::error::{OrchError, OrchResult};
+use crate::state::HostCount;
 use crate::InfraDetail;
 use crate::STATE;
 use aws_sdk_ec2::types::{IpPermission, IpRange};
@@ -12,6 +13,7 @@ pub struct LaunchPlan {
     pub security_group_id: String,
     pub ami_id: String,
     pub instance_profile_arn: String,
+    pub host_count: HostCount,
 }
 
 impl LaunchPlan {
@@ -20,6 +22,7 @@ impl LaunchPlan {
         ec2_client: &aws_sdk_ec2::Client,
         iam_client: &aws_sdk_iam::Client,
         ssm_client: &aws_sdk_ssm::Client,
+        host_count: HostCount,
     ) -> Self {
         let instance_profile_arn = get_instance_profile(iam_client).await.unwrap();
         let (subnet_id, vpc_id) = get_subnet_vpc_ids(ec2_client).await.unwrap();
@@ -34,6 +37,7 @@ impl LaunchPlan {
             subnet_id,
             security_group_id,
             instance_profile_arn,
+            host_count,
         }
     }
 
@@ -45,52 +49,53 @@ impl LaunchPlan {
         let server = format!("server-{}", unique_id);
         let client = format!("client-{}", unique_id);
 
-        let server = launch_instance(ec2_client, self, &server).await?;
-        let client = launch_instance(ec2_client, self, &client).await?;
+        let mut servers = Vec::new();
+        let mut clients = Vec::new();
+        for _i in 0..self.host_count.servers {
+            let server = launch_instance(ec2_client, self, &server).await?;
+            servers.push(server);
+        }
+        for _i in 0..self.host_count.clients {
+            let client = launch_instance(ec2_client, self, &client).await?;
+            clients.push(client);
+        }
 
-        let server_ip = poll_state(
-            ec2_client,
-            &server,
-            aws_sdk_ec2::types::InstanceStateName::Running,
-        )
-        .await?;
-        let client_ip = poll_state(
-            ec2_client,
-            &client,
-            aws_sdk_ec2::types::InstanceStateName::Running,
-        )
-        .await?;
-
-        let server = InstanceDetail::new(
-            EndpointType::Server,
-            server,
-            server_ip,
-            self.security_group_id.clone(),
-        );
-        let client = InstanceDetail::new(
-            EndpointType::Client,
-            client,
-            client_ip,
-            self.security_group_id.clone(),
-        );
-
-        let infra = InfraDetail {
+        let mut infra = InfraDetail {
             security_group_id: self.security_group_id.clone(),
-            clients: vec![client],
-            server: vec![server],
+            clients: Vec::new(),
+            servers: Vec::new(),
         };
-        let client = infra.clients.get(0).unwrap();
-        let server = infra.server.get(0).unwrap();
+        for (i, server) in servers.into_iter().enumerate() {
+            let endpoint_type = EndpointType::Server;
+            let server_ip = poll_state(
+                i,
+                &endpoint_type,
+                ec2_client,
+                &server,
+                aws_sdk_ec2::types::InstanceStateName::Running,
+            )
+            .await?;
 
-        configure_networking(ec2_client, client, server).await?;
+            let server = InstanceDetail::new(endpoint_type, server, server_ip);
+            infra.servers.push(server);
+        }
 
-        println!(
-            "client: {} server: {} \n client_ip: {} \nserver_ip: {}",
-            client.instance_id()?,
-            server.instance_id()?,
-            client.ip,
-            server.ip
-        );
+        for (i, client) in clients.into_iter().enumerate() {
+            let endpoint_type = EndpointType::Client;
+            let client_ip = poll_state(
+                i,
+                &endpoint_type,
+                ec2_client,
+                &client,
+                aws_sdk_ec2::types::InstanceStateName::Running,
+            )
+            .await?;
+
+            let client = InstanceDetail::new(endpoint_type, client, client_ip);
+            infra.clients.push(client);
+        }
+
+        configure_networking(ec2_client, &infra).await?;
 
         Ok(infra)
     }
@@ -98,27 +103,39 @@ impl LaunchPlan {
 
 async fn configure_networking(
     ec2_client: &aws_sdk_ec2::Client,
-    client: &InstanceDetail,
-    server: &InstanceDetail,
+    infra: &InfraDetail,
 ) -> OrchResult<()> {
+    let host_ip_ranges: Vec<IpRange> = infra
+        .clients
+        .iter()
+        .chain(infra.servers.iter())
+        .map(|instance_detail| {
+            println!(
+                "{:?}: {} -- {}",
+                instance_detail.endpoint_type,
+                instance_detail.instance_id().unwrap(),
+                instance_detail.ip
+            );
+
+            IpRange::builder()
+                .cidr_ip(format!("{}/32", instance_detail.ip))
+                .build()
+        })
+        .collect();
+
+    let ssh_ip_range = aws_sdk_ec2::types::IpRange::builder()
+        .cidr_ip("0.0.0.0/0")
+        .build();
+
     ec2_client
         .authorize_security_group_egress()
-        .group_id(&client.security_group_id)
+        .group_id(infra.security_group_id.clone())
         .ip_permissions(
             IpPermission::builder()
                 .from_port(-1)
                 .to_port(-1)
                 .ip_protocol("-1")
-                .ip_ranges(
-                    IpRange::builder()
-                        .cidr_ip(format!("{}/32", client.ip))
-                        .build(),
-                )
-                .ip_ranges(
-                    IpRange::builder()
-                        .cidr_ip(format!("{}/32", server.ip))
-                        .build(),
-                )
+                .set_ip_ranges(Some(host_ip_ranges.clone()))
                 .build(),
         )
         .send()
@@ -128,22 +145,13 @@ async fn configure_networking(
         })?;
     ec2_client
         .authorize_security_group_ingress()
-        .group_id(&client.security_group_id)
+        .group_id(infra.security_group_id.clone())
         .ip_permissions(
             IpPermission::builder()
                 .from_port(-1)
                 .to_port(-1)
                 .ip_protocol("-1")
-                .ip_ranges(
-                    aws_sdk_ec2::types::IpRange::builder()
-                        .cidr_ip(format!("{}/32", client.ip))
-                        .build(),
-                )
-                .ip_ranges(
-                    aws_sdk_ec2::types::IpRange::builder()
-                        .cidr_ip(format!("{}/32", server.ip))
-                        .build(),
-                )
+                .set_ip_ranges(Some(host_ip_ranges.clone()))
                 .build(),
         )
         .ip_permissions(
@@ -151,11 +159,7 @@ async fn configure_networking(
                 .from_port(22)
                 .to_port(22)
                 .ip_protocol("tcp")
-                .ip_ranges(
-                    aws_sdk_ec2::types::IpRange::builder()
-                        .cidr_ip("0.0.0.0/0")
-                        .build(),
-                )
+                .ip_ranges(ssh_ip_range)
                 .build(),
         )
         .send()
@@ -194,7 +198,7 @@ async fn get_instance_profile(iam_client: &aws_sdk_iam::Client) -> OrchResult<St
         .instance_profile_name(STATE.instance_profile)
         .send()
         .await
-        .map_err(|err| OrchError::Ec2 {
+        .map_err(|err| OrchError::Iam {
             dbg: err.to_string(),
         })?
         .instance_profile()
@@ -212,7 +216,7 @@ async fn get_latest_ami(ssm_client: &aws_sdk_ssm::Client) -> OrchResult<String> 
         .with_decryption(true)
         .send()
         .await
-        .map_err(|err| OrchError::Ec2 {
+        .map_err(|err| OrchError::Ssm {
             dbg: err.to_string(),
         })?
         .parameter()

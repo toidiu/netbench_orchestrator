@@ -11,7 +11,7 @@ pub use launch_plan::LaunchPlan;
 pub struct InfraDetail {
     pub security_group_id: String,
     pub clients: Vec<InstanceDetail>,
-    pub server: Vec<InstanceDetail>,
+    pub servers: Vec<InstanceDetail>,
 }
 
 impl InfraDetail {

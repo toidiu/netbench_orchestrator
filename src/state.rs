@@ -1,5 +1,7 @@
+use core::time::Duration;
+
 pub const STATE: State = State {
-    version: "v1.0.12",
+    version: "v1.0.14",
 
     // git
     repo: "https://github.com/aws/s2n-quic.git",
@@ -25,8 +27,12 @@ pub const STATE: State = State {
     ssh_key_name: "apoorvko_m1",
 
     // orchestrator config
+    host_count: HostCount {
+        clients: 1,
+        servers: 2,
+    },
     workspace_dir: "./target/netbench",
-    shutdown_time: "7200", // 2 hrs
+    shutdown_time_sec: Duration::from_secs(60),
 };
 
 pub struct State {
@@ -49,8 +55,15 @@ pub struct State {
     pub ssh_key_name: &'static str,
 
     // orchestrator config
+    pub host_count: HostCount,
     pub workspace_dir: &'static str,
-    pub shutdown_time: &'static str,
+    pub shutdown_time_sec: Duration,
+}
+
+#[derive(Clone)]
+pub struct HostCount {
+    pub clients: u16,
+    pub servers: u16,
 }
 
 impl State {
