@@ -1,9 +1,8 @@
-use crate::s3_helper::*;
-use crate::state::*;
-use crate::utils::*;
-use aws_sdk_s3::primitives::{ByteStream, SdkBody};
+use crate::state::STATE;
 use aws_sdk_ssm::operation::send_command::SendCommandOutput;
-use std::process::Command;
+use aws_sdk_ssm::types::{CloudWatchOutputConfig, CommandInvocationStatus};
+use std::thread::sleep;
+use std::time::Duration;
 
 pub async fn execute_ssm_client(
     ssm_client: &aws_sdk_ssm::Client,
@@ -70,51 +69,85 @@ pub async fn execute_ssm_server(
     ].into_iter().map(String::from).collect()).await.expect("Timed out")
 }
 
-pub async fn orch_generate_report(s3_client: &aws_sdk_s3::Client, unique_id: &str) {
-    // download results from s3 -----------------------
-    let mut cmd = Command::new("aws");
-    cmd.args([
-        "s3",
-        "sync",
-        &format!("s3://{}/{}", STATE.log_bucket, unique_id),
-        STATE.workspace_dir,
-    ]);
-    println!("{:?}", cmd);
-    assert!(cmd.status().expect("aws sync").success(), "aws sync");
+pub async fn wait_for_ssm_results(
+    endpoint: &str,
+    ssm_client: &aws_sdk_ssm::Client,
+    command_id: &str,
+) -> bool {
+    loop {
+        let o_status = ssm_client
+            .list_command_invocations()
+            .command_id(command_id)
+            .send()
+            .await
+            .unwrap()
+            .command_invocations()
+            .unwrap()
+            .iter()
+            .find_map(|command| command.status())
+            .cloned();
+        let status = match o_status {
+            Some(s) => s,
+            None => return true,
+        };
+        let dbg = format!("endpoint: {} status: {:?}", endpoint, status.clone());
+        dbg!(dbg);
 
-    // CLI ---------------------------
-    let results_path = format!("{}/results", STATE.workspace_dir);
-    let report_path = format!("{}/report", STATE.workspace_dir);
-    let mut cmd = Command::new("netbench-cli");
-    cmd.args(["report-tree", &results_path, &report_path]);
-    println!("{:?}", cmd);
-    let status = cmd.status().expect("netbench-cli command failed");
-    assert!(status.success(), " netbench-cli command failed");
-
-    // upload report to s3 -----------------------
-    let mut cmd = Command::new("aws");
-    cmd.args([
-        "s3",
-        "sync",
-        STATE.workspace_dir,
-        &format!("s3://{}/{}", STATE.log_bucket, unique_id),
-    ]);
-    println!("{:?}", cmd);
-    assert!(cmd.status().expect("aws sync").success(), "aws sync");
-
-    update_report_url(s3_client, unique_id).await;
-
-    println!("Report Finished!: Successful: true");
-    println!("URL: {}/report/index.html", STATE.cf_url_with_id(unique_id));
+        match status {
+            CommandInvocationStatus::Cancelled
+            | CommandInvocationStatus::Cancelling
+            | CommandInvocationStatus::Failed
+            | CommandInvocationStatus::TimedOut => break false,
+            CommandInvocationStatus::Delayed
+            | CommandInvocationStatus::InProgress
+            | CommandInvocationStatus::Pending => {
+                sleep(Duration::from_secs(30));
+                continue;
+            }
+            CommandInvocationStatus::Success => break true,
+            _ => panic!("Unhandled Status"),
+        };
+    }
 }
 
-async fn update_report_url(s3_client: &aws_sdk_s3::Client, unique_id: &str) {
-    let body = ByteStream::new(SdkBody::from(format!(
-        "<a href=\"http://d2jusruq1ilhjs.cloudfront.net/{}/report/index.html\">Final Report</a>",
-        unique_id
-    )));
-    let key = format!("{}/finished-step-0", unique_id);
-    let _ = upload_object(s3_client, STATE.log_bucket, body, &key)
-        .await
-        .unwrap();
+pub async fn send_command(
+    _endpoint: &str,
+    ssm_client: &aws_sdk_ssm::Client,
+    instance_id: &str,
+    commands: Vec<String>,
+) -> Option<SendCommandOutput> {
+    let mut remaining_try_count: u32 = 30;
+    loop {
+        match ssm_client
+            .send_command()
+            .instance_ids(instance_id)
+            .document_name("AWS-RunShellScript")
+            .document_version("$LATEST")
+            .parameters("commands", commands.clone())
+            .cloud_watch_output_config(
+                CloudWatchOutputConfig::builder()
+                    .cloud_watch_log_group_name(STATE.cloud_watch_group)
+                    .cloud_watch_output_enabled(true)
+                    .build(),
+            )
+            .send()
+            .await
+            .map_err(|x| format!("{:#?}", x))
+        {
+            Ok(sent_command) => {
+                break Some(sent_command);
+            }
+            Err(error_message) => {
+                if remaining_try_count > 0 {
+                    println!("Error message: {}", error_message);
+                    println!("Trying again, waiting 30 seconds...");
+                    sleep(Duration::new(30, 0));
+                    remaining_try_count -= 1;
+                    continue;
+                } else {
+                    return None;
+                }
+            }
+        };
+    }
 }

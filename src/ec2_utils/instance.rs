@@ -6,6 +6,40 @@ use aws_sdk_ec2::types::InstanceStateName;
 use base64::{engine::general_purpose, Engine as _};
 use std::{thread::sleep, time::Duration};
 
+pub enum EndpointType {
+    Server,
+    Client,
+}
+
+pub struct InstanceDetail {
+    endpoint_type: EndpointType,
+    pub instance: aws_sdk_ec2::types::Instance,
+    pub ip: String,
+    pub security_group_id: String,
+}
+
+impl InstanceDetail {
+    pub fn new(
+        endpoint_type: EndpointType,
+        instance: aws_sdk_ec2::types::Instance,
+        ip: String,
+        security_group_id: String,
+    ) -> Self {
+        InstanceDetail {
+            endpoint_type,
+            instance,
+            ip,
+            security_group_id,
+        }
+    }
+
+    pub fn instance_id(&self) -> OrchResult<&str> {
+        self.instance.instance_id().ok_or(OrchError::Ec2 {
+            dbg: "No client id".to_string(),
+        })
+    }
+}
+
 pub async fn launch_instance(
     ec2_client: &aws_sdk_ec2::Client,
     instance_details: &LaunchPlan,

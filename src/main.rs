@@ -3,22 +3,22 @@
  * SPDX-License-Identifier: Apache-2.0.
  */
 #![allow(dead_code)]
+use crate::report::orch_generate_report;
 use aws_sdk_s3::primitives::ByteStream;
 use aws_types::region::Region;
 use bytes::Bytes;
 use std::process::Command;
 mod ec2_utils;
 mod error;
-mod execute_on_host;
-mod s3_helper;
+mod report;
+mod s3_utils;
+mod ssm_utils;
 mod state;
-mod utils;
 
 use ec2_utils::*;
-use execute_on_host::*;
-use s3_helper::*;
+use s3_utils::*;
+use ssm_utils::*;
 use state::*;
-use utils::*;
 
 fn check_requirements() -> Result<(), String> {
     // export PATH="/home/toidiu/projects/s2n-quic/netbench/target/release/:$PATH"
@@ -79,66 +79,71 @@ async fn main() -> Result<(), String> {
     )
     .await
     .unwrap();
-
     println!("Status: URL: {status}");
 
-    let instance_details = LaunchPlan::new(&unique_id, &ec2_client, &iam_client, &ssm_client).await;
-    let (server, client) = launch_server_client(&ec2_client, &instance_details, &unique_id)
-        .await
-        .unwrap();
-
     // Setup instances
+    let launch_plan = LaunchPlan::create(&unique_id, &ec2_client, &iam_client, &ssm_client).await;
+    let infra = launch_plan.launch(&ec2_client, &unique_id).await.unwrap();
+    let client = infra.clients.get(0).unwrap();
+    let server = infra.server.get(0).unwrap();
+
     let client_instance_id = client.instance_id().unwrap();
     let server_instance_id = server.instance_id().unwrap();
 
-    upload_object(
-        &s3_client,
-        STATE.log_bucket,
-        ByteStream::from(Bytes::from(format!(
-            "EC2 Server Runner up: {} {}",
-            server_instance_id, server.ip
-        ))),
-        &format!("{unique_id}/server-step-0"),
-    )
-    .await
-    .unwrap();
+    // TODO move elsewhere update status
+    {
+        upload_object(
+            &s3_client,
+            STATE.log_bucket,
+            ByteStream::from(Bytes::from(format!(
+                "EC2 Server Runner up: {} {}",
+                server_instance_id, server.ip
+            ))),
+            &format!("{unique_id}/server-step-0"),
+        )
+        .await
+        .unwrap();
 
-    upload_object(
-        &s3_client,
-        STATE.log_bucket,
-        ByteStream::from(Bytes::from(format!(
-            "EC2 Client Runner up: {} {}",
-            client_instance_id, client.ip
-        ))),
-        &format!("{unique_id}/client-step-0"),
-    )
-    .await
-    .unwrap();
+        upload_object(
+            &s3_client,
+            STATE.log_bucket,
+            ByteStream::from(Bytes::from(format!(
+                "EC2 Client Runner up: {} {}",
+                client_instance_id, client.ip
+            ))),
+            &format!("{unique_id}/client-step-0"),
+        )
+        .await
+        .unwrap();
+    }
 
-    let client_output =
-        execute_ssm_client(&ssm_client, client_instance_id, &server.ip, &unique_id).await;
-    let server_output =
-        execute_ssm_server(&ssm_client, server_instance_id, &client.ip, &unique_id).await;
+    // TODO move into ssm_utils
+    {
+        let client_output =
+            execute_ssm_client(&ssm_client, client_instance_id, &server.ip, &unique_id).await;
+        let server_output =
+            execute_ssm_server(&ssm_client, server_instance_id, &client.ip, &unique_id).await;
 
-    let client_result = wait_for_ssm_results(
-        "client",
-        &ssm_client,
-        client_output.command().unwrap().command_id().unwrap(),
-    )
-    .await;
-    println!("Client Finished!: Successful: {}", client_result);
-    let server_result = wait_for_ssm_results(
-        "server",
-        &ssm_client,
-        server_output.command().unwrap().command_id().unwrap(),
-    )
-    .await;
-    println!("Server Finished!: Successful: {}", server_result);
+        let client_result = wait_for_ssm_results(
+            "client",
+            &ssm_client,
+            client_output.command().unwrap().command_id().unwrap(),
+        )
+        .await;
+        println!("Client Finished!: Successful: {}", client_result);
+        let server_result = wait_for_ssm_results(
+            "server",
+            &ssm_client,
+            server_output.command().unwrap().command_id().unwrap(),
+        )
+        .await;
+        println!("Server Finished!: Successful: {}", server_result);
+    }
 
     // Copy results back
     orch_generate_report(&s3_client, &unique_id).await;
 
-    delete_security_group(ec2_client, &instance_details.security_group_id).await;
+    infra.cleanup(&ec2_client).await;
 
     Ok(())
 }
