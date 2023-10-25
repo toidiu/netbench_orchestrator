@@ -1,5 +1,5 @@
 pub const STATE: State = State {
-    version: "v1.0.8",
+    version: "v1.0.9",
 
     // git
     repo: "https://github.com/aws/s2n-quic.git",

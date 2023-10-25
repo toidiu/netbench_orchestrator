@@ -1,5 +1,6 @@
+use crate::error::{OrchError, OrchResult};
 use crate::state::STATE;
-use crate::InstanceDetails;
+use crate::LaunchPlan;
 use aws_sdk_ec2::types::Instance;
 use aws_sdk_ec2::types::InstanceStateName;
 use base64::{engine::general_purpose, Engine as _};
@@ -7,9 +8,9 @@ use std::{thread::sleep, time::Duration};
 
 pub async fn launch_instance(
     ec2_client: &aws_sdk_ec2::Client,
-    instance_details: &InstanceDetails,
+    instance_details: &LaunchPlan,
     name: &str,
-) -> Result<aws_sdk_ec2::types::Instance, String> {
+) -> OrchResult<aws_sdk_ec2::types::Instance> {
     let run_result = ec2_client
         .run_instances()
         .key_name(STATE.ssh_key_name)
@@ -61,25 +62,29 @@ pub async fn launch_instance(
         .dry_run(false)
         .send()
         .await
-        .map_err(|r| format!("{:#?}", r))?;
-    let instances = run_result
-        .instances()
-        .ok_or::<String>("Couldn't find instances in run result".into())?;
+        .map_err(|r| crate::error::OrchError::Ec2 {
+            dbg: format!("{:#?}", r),
+        })?;
+    let instances = run_result.instances().ok_or(OrchError::Ec2 {
+        dbg: "Couldn't find instances in run result".to_string(),
+    })?;
     Ok(instances
         .get(0)
-        .ok_or(String::from("Didn't launch an instance?"))?
+        .ok_or(OrchError::Ec2 {
+            dbg: "Didn't launch an instance?".to_string(),
+        })?
         .clone())
 }
 
 pub async fn wait_for_state(
     ec2_client: &aws_sdk_ec2::Client,
     instance: &Instance,
-    state: InstanceStateName,
-) {
+    desired_state: InstanceStateName,
+) -> OrchResult<String> {
     // Wait for running state
-    let mut client_code = InstanceStateName::Pending;
-    let mut ip_client = None;
-    while dbg!(client_code != state) {
+    let mut instance_state = InstanceStateName::Pending;
+    let mut ip = None;
+    while dbg!(instance_state != desired_state) {
         sleep(Duration::from_secs(30));
         let result = ec2_client
             .describe_instances()
@@ -88,7 +93,7 @@ pub async fn wait_for_state(
             .await
             .unwrap();
         let res = result.reservations().unwrap();
-        ip_client = res
+        ip = res
             .get(0)
             .unwrap()
             .instances()
@@ -97,14 +102,18 @@ pub async fn wait_for_state(
             .unwrap()
             .public_ip_address()
             .map(String::from);
-        client_code = res.get(0).unwrap().instances().unwrap()[0]
+        instance_state = res.get(0).unwrap().instances().unwrap()[0]
             .state()
             .unwrap()
             .name()
             .unwrap()
             .clone()
     }
-    assert_ne!(ip_client, None);
+    // assert_ne!(ip, None);
+
+    ip.ok_or(crate::error::OrchError::Ec2 {
+        dbg: "".to_string(),
+    })
 }
 
 // Find or define the Subnet to Launch the Netbench Runners

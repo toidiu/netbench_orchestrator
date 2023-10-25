@@ -10,6 +10,7 @@ use bytes::Bytes;
 use std::process::Command;
 use std::{thread::sleep, time::Duration};
 mod ec2_utils;
+mod error;
 mod execute_on_host;
 mod s3_helper;
 mod state;
@@ -83,8 +84,7 @@ async fn main() -> Result<(), String> {
 
     println!("Status: URL: {status}");
 
-    let instance_details =
-        InstanceDetails::new(&unique_id, &ec2_client, &iam_client, &ssm_client).await;
+    let instance_details = LaunchPlan::new(&unique_id, &ec2_client, &iam_client, &ssm_client).await;
     let (server, client) = launch_server_client(&ec2_client, &instance_details, &unique_id)
         .await
         .unwrap();
@@ -119,39 +119,39 @@ async fn main() -> Result<(), String> {
     }
     assert_ne!(ip_client, None);
 
-    let mut server_code = InstanceStateName::Pending;
-    let mut ip_server = None;
-    while dbg!(server_code != InstanceStateName::Running) {
-        sleep(Duration::from_secs(30));
-        let result = ec2_client
-            .describe_instances()
-            .instance_ids(server.instance_id().unwrap())
-            .send()
-            .await
-            .unwrap();
-        let res = result.reservations().unwrap();
-        ip_server = res
-            .get(0)
-            .unwrap()
-            .instances()
-            .unwrap()
-            .get(0)
-            .unwrap()
-            .public_ip_address()
-            .map(String::from);
-        server_code = res.get(0).unwrap().instances().unwrap()[0]
-            .state()
-            .unwrap()
-            .name()
-            .unwrap()
-            .clone()
-    }
-    assert_ne!(ip_server, None);
+    // let mut server_code = InstanceStateName::Pending;
+    // let mut ip_server = None;
+    // while dbg!(server_code != InstanceStateName::Running) {
+    //     sleep(Duration::from_secs(30));
+    //     let result = ec2_client
+    //         .describe_instances()
+    //         .instance_ids(server.instance_id().unwrap())
+    //         .send()
+    //         .await
+    //         .unwrap();
+    //     let res = result.reservations().unwrap();
+    //     ip_server = res
+    //         .get(0)
+    //         .unwrap()
+    //         .instances()
+    //         .unwrap()
+    //         .get(0)
+    //         .unwrap()
+    //         .public_ip_address()
+    //         .map(String::from);
+    //     server_code = res.get(0).unwrap().instances().unwrap()[0]
+    //         .state()
+    //         .unwrap()
+    //         .name()
+    //         .unwrap()
+    //         .clone()
+    // }
+    // assert_ne!(ip_server, None);
 
     // Modify Security Group
     let client_ip: String = ip_client.unwrap();
     println!("client ip: {}", client_ip);
-    let server_ip: String = ip_server.unwrap();
+    let server_ip: String = server.ip;
     println!("server ip: {}", server_ip);
 
     let _network_perms = ec2_client
@@ -219,6 +219,7 @@ async fn main() -> Result<(), String> {
         .map(String::from)
         .ok_or(String::from("No client id"))?;
     let server_instance_id = server
+        .instance
         .instance_id()
         .map(String::from)
         .ok_or(String::from("No server id"))?;
