@@ -1,5 +1,5 @@
 pub const STATE: State = State {
-    version: "v1.0.11",
+    version: "v1.0.12",
 
     // git
     repo: "https://github.com/aws/s2n-quic.git",
@@ -11,6 +11,16 @@ pub const STATE: State = State {
     cloud_watch_group: "netbench_runner_logs",
     region: "us-west-1",
     vpc_region: "us-east-1",
+    instance_type: "c5.4xlarge",
+    // Used to give permissions to the ec2 instance. Part of the `NetbenchRunnerRole`
+    instance_profile: "NetbenchRunnerInstanceProfile",
+    // Used to find subnets with the following tag/value pair
+    subnet_tag_value: (
+        "tag:aws-cdk:subnet-name",
+        "public-subnet-for-runners-in-us-east-1",
+    ),
+    // Create a security group with the following name prefix. Use with `sg_name_with_id`
+    security_group_name_prefix: "netbench_runner",
     // create/import a key pair to the account
     ssh_key_name: "apoorvko_m1",
 
@@ -32,6 +42,10 @@ pub struct State {
     pub region: &'static str,
     // TODO we shouldnt need two different regions. create infra in the single region
     pub vpc_region: &'static str,
+    pub instance_type: &'static str,
+    pub instance_profile: &'static str,
+    pub subnet_tag_value: (&'static str, &'static str),
+    security_group_name_prefix: &'static str,
     pub ssh_key_name: &'static str,
 
     // orchestrator config
@@ -42,5 +56,9 @@ pub struct State {
 impl State {
     pub fn cf_url_with_id(&self, id: &str) -> String {
         format!("{}/{}", self.cf_url, id)
+    }
+
+    pub fn sg_name_with_id(&self, id: &str) -> String {
+        format!("{}_{}", self.security_group_name_prefix, id)
     }
 }

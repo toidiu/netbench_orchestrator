@@ -1,9 +1,9 @@
-use crate::ec2_utils::instance::get_subnet_vpc_ids;
 use crate::ec2_utils::instance::launch_instance;
 use crate::ec2_utils::instance::{EndpointType, InstanceDetail};
 use crate::ec2_utils::poll_state;
 use crate::error::{OrchError, OrchResult};
 use crate::InfraDetail;
+use crate::STATE;
 use aws_sdk_ec2::types::{IpPermission, IpRange};
 
 #[derive(Clone)]
@@ -11,7 +11,7 @@ pub struct LaunchPlan {
     pub subnet_id: String,
     pub security_group_id: String,
     pub ami_id: String,
-    pub iam_role: String,
+    pub instance_profile_arn: String,
 }
 
 impl LaunchPlan {
@@ -21,56 +21,19 @@ impl LaunchPlan {
         iam_client: &aws_sdk_iam::Client,
         ssm_client: &aws_sdk_ssm::Client,
     ) -> Self {
-        let iam_role: String = iam_client
-            .get_instance_profile()
-            .instance_profile_name("NetbenchRunnerInstanceProfile")
-            .send()
-            .await
-            .unwrap()
-            .instance_profile()
-            .unwrap()
-            .arn()
-            .unwrap()
-            .into();
-
-        // Find or define the Subnet to Launch the Netbench Runners
-        let (subnet_id, vpc_id) =
-            get_subnet_vpc_ids(ec2_client, "public-subnet-for-runners-in-us-east-1")
-                .await
-                .unwrap();
-
+        let instance_profile_arn = get_instance_profile(iam_client).await.unwrap();
+        let (subnet_id, vpc_id) = get_subnet_vpc_ids(ec2_client).await.unwrap();
+        let ami_id = get_latest_ami(ssm_client).await.unwrap();
         // Create a security group
-        let security_group_id: String = ec2_client
-            .create_security_group()
-            .group_name(format!("generated_group_{}", unique_id))
-            .description("This is a security group for a single run of netbench.")
-            .vpc_id(vpc_id)
-            .send()
+        let security_group_id = create_security_group(ec2_client, &vpc_id, unique_id)
             .await
-            .expect("No output?")
-            .group_id()
-            .expect("No group ID?")
-            .into();
-
-        // Get latest ami
-        let ami_id: String = ssm_client
-            .get_parameter()
-            .name("/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64")
-            .with_decryption(true)
-            .send()
-            .await
-            .unwrap()
-            .parameter()
-            .unwrap()
-            .value()
-            .unwrap()
-            .into();
+            .unwrap();
 
         LaunchPlan {
             ami_id,
             subnet_id,
             security_group_id,
-            iam_role,
+            instance_profile_arn,
         }
     }
 
@@ -202,4 +165,96 @@ async fn configure_networking(
         })?;
 
     Ok(())
+}
+
+async fn create_security_group(
+    ec2_client: &aws_sdk_ec2::Client,
+    vpc_id: &str,
+    unique_id: &str,
+) -> OrchResult<String> {
+    let security_group_id = ec2_client
+        .create_security_group()
+        .group_name(STATE.sg_name_with_id(unique_id))
+        .description("This is a security group for a single run of netbench.")
+        .vpc_id(vpc_id)
+        .send()
+        .await
+        .map_err(|err| OrchError::Ec2 {
+            dbg: err.to_string(),
+        })?
+        .group_id()
+        .expect("expected security_group_id")
+        .into();
+    Ok(security_group_id)
+}
+
+async fn get_instance_profile(iam_client: &aws_sdk_iam::Client) -> OrchResult<String> {
+    let instance_profile_arn = iam_client
+        .get_instance_profile()
+        .instance_profile_name(STATE.instance_profile)
+        .send()
+        .await
+        .map_err(|err| OrchError::Ec2 {
+            dbg: err.to_string(),
+        })?
+        .instance_profile()
+        .unwrap()
+        .arn()
+        .unwrap()
+        .into();
+    Ok(instance_profile_arn)
+}
+
+async fn get_latest_ami(ssm_client: &aws_sdk_ssm::Client) -> OrchResult<String> {
+    let ami_id = ssm_client
+        .get_parameter()
+        .name("/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64")
+        .with_decryption(true)
+        .send()
+        .await
+        .map_err(|err| OrchError::Ec2 {
+            dbg: err.to_string(),
+        })?
+        .parameter()
+        .expect("expected ami value")
+        .value()
+        .expect("expected ami value")
+        .into();
+    Ok(ami_id)
+}
+
+// TODO investigate if we should find a VPC and then its subnet
+// Find or define the Subnet to Launch the Netbench Runners
+//  - Default: Use the one defined by CDK
+// Note: We may need to define more in different regions and AZ
+//      There is some connection between Security Groups and
+//      Subnets such that they have to be "in the same network"
+//       I'm unclear here.
+async fn get_subnet_vpc_ids(ec2_client: &aws_sdk_ec2::Client) -> OrchResult<(String, String)> {
+    let describe_subnet_output = ec2_client
+        .describe_subnets()
+        .filters(
+            aws_sdk_ec2::types::Filter::builder()
+                .name(STATE.subnet_tag_value.0)
+                .values(STATE.subnet_tag_value.1)
+                .build(),
+        )
+        .send()
+        .await
+        .map_err(|e| OrchError::Ec2 {
+            dbg: format!("Couldn't describe subnets: {:#?}", e),
+        })?;
+    assert_eq!(
+        describe_subnet_output.subnets().expect("No subnets?").len(),
+        1
+    );
+
+    let subnet = &describe_subnet_output.subnets().unwrap()[0];
+    let subnet_id = subnet.subnet_id().ok_or(OrchError::Ec2 {
+        dbg: "Couldn't find subnet".into(),
+    })?;
+    let vpc_id = subnet.vpc_id().ok_or(OrchError::Ec2 {
+        dbg: "Couldn't find vpc".into(),
+    })?;
+    Ok((subnet_id.into(), vpc_id.into()))
 }

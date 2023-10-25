@@ -3,6 +3,7 @@ use crate::state::STATE;
 use crate::LaunchPlan;
 use aws_sdk_ec2::types::Instance;
 use aws_sdk_ec2::types::InstanceStateName;
+use aws_sdk_ec2::types::InstanceType;
 use base64::{engine::general_purpose, Engine as _};
 use std::{thread::sleep, time::Duration};
 
@@ -45,15 +46,16 @@ pub async fn launch_instance(
     instance_details: &LaunchPlan,
     name: &str,
 ) -> OrchResult<aws_sdk_ec2::types::Instance> {
+    let instance_type = InstanceType::from(STATE.instance_type);
     let run_result = ec2_client
         .run_instances()
         .key_name(STATE.ssh_key_name)
         .iam_instance_profile(
             aws_sdk_ec2::types::IamInstanceProfileSpecification::builder()
-                .arn(&instance_details.iam_role)
+                .arn(&instance_details.instance_profile_arn)
                 .build(),
         )
-        .instance_type(aws_sdk_ec2::types::InstanceType::C54xlarge)
+        .instance_type(instance_type)
         .image_id(&instance_details.ami_id)
         .instance_initiated_shutdown_behavior(aws_sdk_ec2::types::ShutdownBehavior::Terminate)
         .user_data(
@@ -148,38 +150,4 @@ pub async fn poll_state(
     ip.ok_or(crate::error::OrchError::Ec2 {
         dbg: "".to_string(),
     })
-}
-
-// Find or define the Subnet to Launch the Netbench Runners
-//  - Default: Use the one defined by CDK
-// Note: We may need to define more in different regions and AZ
-//      There is some connection between Security Groups and
-//      Subnets such that they have to be "in the same network"
-//       I'm unclear here.
-pub async fn get_subnet_vpc_ids(
-    ec2_client: &aws_sdk_ec2::Client,
-    subnet_name: &str,
-) -> Result<(String, String), String> {
-    let describe_subnet_output = ec2_client
-        .describe_subnets()
-        .filters(
-            aws_sdk_ec2::types::Filter::builder()
-                .name("tag:aws-cdk:subnet-name")
-                .values(subnet_name)
-                .build(),
-        )
-        .send()
-        .await
-        .map_err(|e| format!("Couldn't describe subnets: {:#?}", e))?;
-    assert_eq!(
-        describe_subnet_output.subnets().expect("No subnets?").len(),
-        1
-    );
-    let subnet_id = describe_subnet_output.subnets().unwrap()[0]
-        .subnet_id()
-        .ok_or::<String>("Couldn't find subnet".into())?;
-    let vpc_id = describe_subnet_output.subnets().unwrap()[0]
-        .vpc_id()
-        .ok_or::<String>("Couldn't find subnet".into())?;
-    Ok((subnet_id.into(), vpc_id.into()))
 }
