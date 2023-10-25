@@ -1,8 +1,7 @@
+use self::instance::poll_state;
 use crate::error::{OrchError, OrchResult};
-use aws_sdk_ec2 as ec2;
+use aws_sdk_ec2::types::{IpPermission, IpRange};
 use std::{thread::sleep, time::Duration};
-
-use self::instance::wait_for_state;
 
 mod cluster;
 mod instance;
@@ -45,7 +44,7 @@ impl InstanceDetail {
 }
 
 pub async fn launch_server_client(
-    ec2_client: &ec2::Client,
+    ec2_client: &aws_sdk_ec2::Client,
     instance_details: &LaunchPlan,
     unique_id: &str,
 ) -> OrchResult<(InstanceDetail, InstanceDetail)> {
@@ -55,10 +54,18 @@ pub async fn launch_server_client(
     let server = instance::launch_instance(ec2_client, instance_details, &server).await?;
     let client = instance::launch_instance(ec2_client, instance_details, &client).await?;
 
-    let server_ip =
-        wait_for_state(ec2_client, &server, ec2::types::InstanceStateName::Running).await?;
-    let client_ip =
-        wait_for_state(ec2_client, &client, ec2::types::InstanceStateName::Running).await?;
+    let server_ip = poll_state(
+        ec2_client,
+        &server,
+        aws_sdk_ec2::types::InstanceStateName::Running,
+    )
+    .await?;
+    let client_ip = poll_state(
+        ec2_client,
+        &client,
+        aws_sdk_ec2::types::InstanceStateName::Running,
+    )
+    .await?;
 
     let server = InstanceDetail::new(
         EndpointType::Server,
@@ -73,16 +80,91 @@ pub async fn launch_server_client(
         instance_details.security_group_id.clone(),
     );
 
+    configure_networking(ec2_client, &client, &server).await?;
+
     println!(
-        "client: {} server: {}",
+        "client: {} server: {} \n client_ip: {} \nserver_ip: {}",
         client.instance_id()?,
-        server.instance_id()?
+        server.instance_id()?,
+        client.ip,
+        server.ip
     );
 
     Ok((server, client))
 }
 
-pub async fn delete_security_group(ec2_client: ec2::Client, security_group_id: &str) {
+async fn configure_networking(
+    ec2_client: &aws_sdk_ec2::Client,
+    client: &InstanceDetail,
+    server: &InstanceDetail,
+) -> OrchResult<()> {
+    ec2_client
+        .authorize_security_group_egress()
+        .group_id(&client.security_group_id)
+        .ip_permissions(
+            IpPermission::builder()
+                .from_port(-1)
+                .to_port(-1)
+                .ip_protocol("-1")
+                .ip_ranges(
+                    IpRange::builder()
+                        .cidr_ip(format!("{}/32", client.ip))
+                        .build(),
+                )
+                .ip_ranges(
+                    IpRange::builder()
+                        .cidr_ip(format!("{}/32", server.ip))
+                        .build(),
+                )
+                .build(),
+        )
+        .send()
+        .await
+        .map_err(|err| OrchError::Ec2 {
+            dbg: err.to_string(),
+        })?;
+    ec2_client
+        .authorize_security_group_ingress()
+        .group_id(&client.security_group_id)
+        .ip_permissions(
+            IpPermission::builder()
+                .from_port(-1)
+                .to_port(-1)
+                .ip_protocol("-1")
+                .ip_ranges(
+                    aws_sdk_ec2::types::IpRange::builder()
+                        .cidr_ip(format!("{}/32", client.ip))
+                        .build(),
+                )
+                .ip_ranges(
+                    aws_sdk_ec2::types::IpRange::builder()
+                        .cidr_ip(format!("{}/32", server.ip))
+                        .build(),
+                )
+                .build(),
+        )
+        .ip_permissions(
+            aws_sdk_ec2::types::IpPermission::builder()
+                .from_port(22)
+                .to_port(22)
+                .ip_protocol("tcp")
+                .ip_ranges(
+                    aws_sdk_ec2::types::IpRange::builder()
+                        .cidr_ip("0.0.0.0/0")
+                        .build(),
+                )
+                .build(),
+        )
+        .send()
+        .await
+        .map_err(|err| OrchError::Ec2 {
+            dbg: err.to_string(),
+        })?;
+
+    Ok(())
+}
+
+pub async fn delete_security_group(ec2_client: aws_sdk_ec2::Client, security_group_id: &str) {
     println!("Start: deleting security groups");
     let mut deleted_sec_group = ec2_client
         .delete_security_group()

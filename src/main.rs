@@ -87,69 +87,6 @@ async fn main() -> Result<(), String> {
         .await
         .unwrap();
 
-    // Modify Security Group
-    println!("client ip: {}", client.ip);
-    println!("server ip: {}", server.ip);
-
-    let _network_perms = ec2_client
-        .authorize_security_group_egress()
-        .group_id(&instance_details.security_group_id)
-        .ip_permissions(
-            aws_sdk_ec2::types::IpPermission::builder()
-                .from_port(-1)
-                .to_port(-1)
-                .ip_protocol("-1")
-                .ip_ranges(
-                    aws_sdk_ec2::types::IpRange::builder()
-                        .cidr_ip(format!("{}/32", client.ip))
-                        .build(),
-                )
-                .ip_ranges(
-                    aws_sdk_ec2::types::IpRange::builder()
-                        .cidr_ip(format!("{}/32", server.ip))
-                        .build(),
-                )
-                .build(),
-        )
-        .send()
-        .await
-        .expect("error");
-    let _network_perms = ec2_client
-        .authorize_security_group_ingress()
-        .group_id(&instance_details.security_group_id)
-        .ip_permissions(
-            aws_sdk_ec2::types::IpPermission::builder()
-                .from_port(-1)
-                .to_port(-1)
-                .ip_protocol("-1")
-                .ip_ranges(
-                    aws_sdk_ec2::types::IpRange::builder()
-                        .cidr_ip(format!("{}/32", client.ip))
-                        .build(),
-                )
-                .ip_ranges(
-                    aws_sdk_ec2::types::IpRange::builder()
-                        .cidr_ip(format!("{}/32", server.ip))
-                        .build(),
-                )
-                .build(),
-        )
-        .ip_permissions(
-            aws_sdk_ec2::types::IpPermission::builder()
-                .from_port(22)
-                .to_port(22)
-                .ip_protocol("tcp")
-                .ip_ranges(
-                    aws_sdk_ec2::types::IpRange::builder()
-                        .cidr_ip("0.0.0.0/0")
-                        .build(),
-                )
-                .build(),
-        )
-        .send()
-        .await
-        .expect("error");
-
     // Setup instances
     let client_instance_id = client.instance_id().unwrap();
     let server_instance_id = server.instance_id().unwrap();

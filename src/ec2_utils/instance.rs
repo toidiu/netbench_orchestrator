@@ -76,7 +76,7 @@ pub async fn launch_instance(
         .clone())
 }
 
-pub async fn wait_for_state(
+pub async fn poll_state(
     ec2_client: &aws_sdk_ec2::Client,
     instance: &Instance,
     desired_state: InstanceStateName,
