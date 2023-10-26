@@ -1,7 +1,7 @@
 use core::time::Duration;
 
 pub const STATE: State = State {
-    version: "v1.0.16",
+    version: "v1.0.17",
 
     // git
     repo: "https://github.com/aws/s2n-quic.git",

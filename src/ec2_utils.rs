@@ -1,6 +1,7 @@
 use self::instance::poll_state;
 use crate::ec2_utils::instance::delete_instance;
 use crate::error::{OrchError, OrchResult};
+use std::{thread::sleep, time::Duration};
 
 mod cluster;
 mod instance;
@@ -39,14 +40,29 @@ impl InfraDetail {
 
     async fn delete_security_group(&self, ec2_client: &aws_sdk_ec2::Client) -> OrchResult<()> {
         println!("Start: deleting security groups");
-        let deleted_sec_group = ec2_client
+        let mut deleted_sec_group = ec2_client
             .delete_security_group()
             .group_id(self.security_group_id.to_string())
             .send()
             .await;
+        sleep(Duration::from_secs(30));
+
+        let mut retries = 10;
+        while deleted_sec_group.is_err() && retries > 0 {
+            sleep(Duration::from_secs(20));
+            deleted_sec_group = ec2_client
+                .delete_security_group()
+                .group_id(self.security_group_id.to_string())
+                .send()
+                .await;
+
+            retries -= 1;
+        }
+
         deleted_sec_group.map_err(|err| OrchError::Ec2 {
             dbg: err.to_string(),
         })?;
+
         Ok(())
     }
 }

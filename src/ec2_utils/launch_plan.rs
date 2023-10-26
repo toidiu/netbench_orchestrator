@@ -6,6 +6,7 @@ use crate::state::HostCount;
 use crate::InfraDetail;
 use crate::STATE;
 use aws_sdk_ec2::types::{IpPermission, IpRange};
+use std::{thread::sleep, time::Duration};
 
 #[derive(Clone)]
 pub struct LaunchPlan {
@@ -96,6 +97,9 @@ impl LaunchPlan {
         }
 
         configure_networking(ec2_client, &infra).await?;
+
+        // wait for instance to spawn
+        sleep(Duration::from_secs(50));
 
         Ok(infra)
     }

@@ -101,7 +101,7 @@ pub async fn wait_for_ssm_results(
             CommandInvocationStatus::Delayed
             | CommandInvocationStatus::InProgress
             | CommandInvocationStatus::Pending => {
-                sleep(Duration::from_secs(30));
+                sleep(Duration::from_secs(10));
                 continue;
             }
             CommandInvocationStatus::Success => break true,
@@ -141,7 +141,7 @@ pub async fn send_command(
                 if remaining_try_count > 0 {
                     println!("Error message: {}", error_message);
                     println!("Trying again, waiting 30 seconds...");
-                    sleep(Duration::new(30, 0));
+                    sleep(Duration::from_secs(10));
                     remaining_try_count -= 1;
                     continue;
                 } else {

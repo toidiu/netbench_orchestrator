@@ -143,7 +143,7 @@ pub async fn poll_state(
     let mut actual_state = InstanceStateName::Pending;
     let mut ip = None;
     while actual_state != desired_state {
-        sleep(Duration::from_secs(30));
+        sleep(Duration::from_secs(5));
         let result = ec2_client
             .describe_instances()
             .instance_ids(instance.instance_id().unwrap())
