@@ -1,3 +1,4 @@
+use crate::ec2_utils::EndpointType;
 use core::time::Duration;
 
 pub const STATE: State = State {
@@ -21,8 +22,6 @@ pub const STATE: State = State {
         "tag:aws-cdk:subnet-name",
         "public-subnet-for-runners-in-us-east-1",
     ),
-    // Create a security group with the following name prefix. Use with `sg_name_with_id`
-    security_group_name_prefix: "netbench_runner",
     // create/import a key pair to the account
     ssh_key_name: "apoorvko_m1",
 
@@ -51,7 +50,6 @@ pub struct State {
     pub instance_type: &'static str,
     pub instance_profile: &'static str,
     pub subnet_tag_value: (&'static str, &'static str),
-    security_group_name_prefix: &'static str,
     pub ssh_key_name: &'static str,
 
     // orchestrator config
@@ -71,7 +69,13 @@ impl State {
         format!("{}/{}", self.cf_url, id)
     }
 
-    pub fn sg_name_with_id(&self, id: &str) -> String {
-        format!("{}_{}", self.security_group_name_prefix, id)
+    // Create a security group with the following name prefix. Use with `sg_name_with_id`
+    // security_group_name_prefix: "netbench_runner",
+    pub fn sg_name_with_id(&self, unique_id: &str) -> String {
+        format!("netbench_{}", unique_id)
+    }
+
+    pub fn instance_name(&self, unique_id: &str, endpoint_type: EndpointType) -> String {
+        format!("{}_{}", endpoint_type.as_str().to_lowercase(), unique_id)
     }
 }

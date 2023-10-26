@@ -1,9 +1,11 @@
 use crate::error::{OrchError, OrchResult};
 use crate::state::STATE;
 use crate::LaunchPlan;
-use aws_sdk_ec2::types::Instance;
-use aws_sdk_ec2::types::InstanceStateName;
-use aws_sdk_ec2::types::InstanceType;
+use aws_sdk_ec2::types::{
+    BlockDeviceMapping, EbsBlockDevice, IamInstanceProfileSpecification, Instance,
+    InstanceNetworkInterfaceSpecification, InstanceStateName, InstanceType, ResourceType,
+    ShutdownBehavior, Tag, TagSpecification,
+};
 use base64::{engine::general_purpose, Engine as _};
 use std::{thread::sleep, time::Duration};
 
@@ -24,16 +26,12 @@ impl EndpointType {
 
 pub struct InstanceDetail {
     pub endpoint_type: EndpointType,
-    pub instance: aws_sdk_ec2::types::Instance,
+    pub instance: Instance,
     pub ip: String,
 }
 
 impl InstanceDetail {
-    pub fn new(
-        endpoint_type: EndpointType,
-        instance: aws_sdk_ec2::types::Instance,
-        ip: String,
-    ) -> Self {
+    pub fn new(endpoint_type: EndpointType, instance: Instance, ip: String) -> Self {
         InstanceDetail {
             endpoint_type,
             instance,
@@ -51,41 +49,42 @@ impl InstanceDetail {
 pub async fn launch_instance(
     ec2_client: &aws_sdk_ec2::Client,
     launch_plan: &LaunchPlan,
-    name: &str,
-) -> OrchResult<aws_sdk_ec2::types::Instance> {
+    unique_id: &str,
+    endpoint_type: EndpointType,
+) -> OrchResult<Instance> {
     let instance_type = InstanceType::from(STATE.instance_type);
     let run_result = ec2_client
         .run_instances()
         .key_name(STATE.ssh_key_name)
         .iam_instance_profile(
-            aws_sdk_ec2::types::IamInstanceProfileSpecification::builder()
+            IamInstanceProfileSpecification::builder()
                 .arn(&launch_plan.instance_profile_arn)
                 .build(),
         )
         .instance_type(instance_type)
         .image_id(&launch_plan.ami_id)
-        .instance_initiated_shutdown_behavior(aws_sdk_ec2::types::ShutdownBehavior::Terminate)
+        .instance_initiated_shutdown_behavior(ShutdownBehavior::Terminate)
         .user_data(general_purpose::STANDARD.encode(format!(
             "sudo shutdown -P +{}",
             STATE.shutdown_time_sec.as_secs()
         )))
         // give the instances human readable names. name is set via tags
         .tag_specifications(
-            aws_sdk_ec2::types::TagSpecification::builder()
-                .resource_type(aws_sdk_ec2::types::ResourceType::Instance)
+            TagSpecification::builder()
+                .resource_type(ResourceType::Instance)
                 .tags(
-                    aws_sdk_ec2::types::Tag::builder()
+                    Tag::builder()
                         .key("Name")
-                        .value(name)
+                        .value(STATE.instance_name(unique_id, endpoint_type))
                         .build(),
                 )
                 .build(),
         )
         .block_device_mappings(
-            aws_sdk_ec2::types::BlockDeviceMapping::builder()
+            BlockDeviceMapping::builder()
                 .device_name("/dev/xvda")
                 .ebs(
-                    aws_sdk_ec2::types::EbsBlockDevice::builder()
+                    EbsBlockDevice::builder()
                         .delete_on_termination(true)
                         .volume_size(50)
                         .build(),
@@ -93,7 +92,7 @@ pub async fn launch_instance(
                 .build(),
         )
         .network_interfaces(
-            aws_sdk_ec2::types::InstanceNetworkInterfaceSpecification::builder()
+            InstanceNetworkInterfaceSpecification::builder()
                 .associate_public_ip_address(true)
                 .delete_on_termination(true)
                 .device_index(0)

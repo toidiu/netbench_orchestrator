@@ -5,7 +5,9 @@ use crate::error::{OrchError, OrchResult};
 use crate::state::HostCount;
 use crate::InfraDetail;
 use crate::STATE;
-use aws_sdk_ec2::types::{IpPermission, IpRange};
+use aws_sdk_ec2::types::{
+    Filter, InstanceStateName, IpPermission, IpRange, ResourceType, TagSpecification,
+};
 use std::{thread::sleep, time::Duration};
 
 #[derive(Clone)]
@@ -47,17 +49,14 @@ impl LaunchPlan {
         ec2_client: &aws_sdk_ec2::Client,
         unique_id: &str,
     ) -> OrchResult<InfraDetail> {
-        let server = format!("server-{}", unique_id);
-        let client = format!("client-{}", unique_id);
-
         let mut servers = Vec::new();
         let mut clients = Vec::new();
         for _i in 0..self.host_count.servers {
-            let server = launch_instance(ec2_client, self, &server).await?;
+            let server = launch_instance(ec2_client, self, unique_id, EndpointType::Server).await?;
             servers.push(server);
         }
         for _i in 0..self.host_count.clients {
-            let client = launch_instance(ec2_client, self, &client).await?;
+            let client = launch_instance(ec2_client, self, unique_id, EndpointType::Client).await?;
             clients.push(client);
         }
 
@@ -73,7 +72,7 @@ impl LaunchPlan {
                 &endpoint_type,
                 ec2_client,
                 &server,
-                aws_sdk_ec2::types::InstanceStateName::Running,
+                InstanceStateName::Running,
             )
             .await?;
 
@@ -88,7 +87,7 @@ impl LaunchPlan {
                 &endpoint_type,
                 ec2_client,
                 &client,
-                aws_sdk_ec2::types::InstanceStateName::Running,
+                InstanceStateName::Running,
             )
             .await?;
 
@@ -127,9 +126,7 @@ async fn configure_networking(
         })
         .collect();
 
-    let ssh_ip_range = aws_sdk_ec2::types::IpRange::builder()
-        .cidr_ip("0.0.0.0/0")
-        .build();
+    let ssh_ip_range = IpRange::builder().cidr_ip("0.0.0.0/0").build();
 
     ec2_client
         .authorize_security_group_egress()
@@ -159,7 +156,7 @@ async fn configure_networking(
                 .build(),
         )
         .ip_permissions(
-            aws_sdk_ec2::types::IpPermission::builder()
+            IpPermission::builder()
                 .from_port(22)
                 .to_port(22)
                 .ip_protocol("tcp")
@@ -185,6 +182,17 @@ async fn create_security_group(
         .group_name(STATE.sg_name_with_id(unique_id))
         .description("This is a security group for a single run of netbench.")
         .vpc_id(vpc_id)
+        .tag_specifications(
+            TagSpecification::builder()
+                .resource_type(ResourceType::SecurityGroup)
+                .tags(
+                    aws_sdk_ec2::types::Tag::builder()
+                        .key("Name")
+                        .value(STATE.sg_name_with_id(unique_id))
+                        .build(),
+                )
+                .build(),
+        )
         .send()
         .await
         .map_err(|err| OrchError::Ec2 {
@@ -242,7 +250,7 @@ async fn get_subnet_vpc_ids(ec2_client: &aws_sdk_ec2::Client) -> OrchResult<(Str
     let describe_subnet_output = ec2_client
         .describe_subnets()
         .filters(
-            aws_sdk_ec2::types::Filter::builder()
+            Filter::builder()
                 .name(STATE.subnet_tag_value.0)
                 .values(STATE.subnet_tag_value.1)
                 .build(),

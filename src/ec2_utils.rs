@@ -7,7 +7,7 @@ mod cluster;
 mod instance;
 mod launch_plan;
 
-pub use instance::InstanceDetail;
+pub use instance::{EndpointType, InstanceDetail};
 pub use launch_plan::LaunchPlan;
 
 pub struct InfraDetail {
