@@ -1,3 +1,6 @@
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
+
 use crate::ec2_utils::instance::launch_instance;
 use crate::ec2_utils::instance::{EndpointType, InstanceDetail};
 use crate::ec2_utils::poll_state;

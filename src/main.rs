@@ -1,7 +1,6 @@
-/*
- * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
- * SPDX-License-Identifier: Apache-2.0.
- */
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
+
 #![allow(dead_code)]
 use crate::report::orch_generate_report;
 use aws_types::region::Region;
@@ -26,7 +25,8 @@ async fn check_requirements(iam_client: &aws_sdk_iam::Client) -> OrchResult<()> 
     Command::new("netbench-cli")
         .output()
         .map_err(|_err| OrchError::Init {
-            dbg: "Missing netbench-cli.".to_string(),
+            dbg: "Missing netbench-cli. export PATH='.../s2n-quic/netbench/target/release/:$PATH'"
+                .to_string(),
         })?;
 
     // report folder

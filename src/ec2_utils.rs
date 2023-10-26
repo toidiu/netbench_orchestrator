@@ -1,3 +1,6 @@
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
+
 use self::instance::poll_state;
 use crate::ec2_utils::instance::delete_instance;
 use crate::error::{OrchError, OrchResult};

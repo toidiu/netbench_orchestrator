@@ -1,3 +1,6 @@
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
+
 use crate::state::STATE;
 use aws_sdk_ssm::operation::send_command::SendCommandOutput;
 use aws_sdk_ssm::types::{CloudWatchOutputConfig, CommandInvocationStatus};
