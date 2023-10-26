@@ -13,6 +13,15 @@ pub enum EndpointType {
     Client,
 }
 
+impl EndpointType {
+    pub fn as_str(&self) -> &str {
+        match self {
+            EndpointType::Server => "Server",
+            EndpointType::Client => "Client",
+        }
+    }
+}
+
 pub struct InstanceDetail {
     pub endpoint_type: EndpointType,
     pub instance: aws_sdk_ec2::types::Instance,
@@ -147,7 +156,7 @@ pub async fn poll_state(
             .clone();
 
         println!(
-            "{:?} {} state: {:?} -- {:?} (actual -- desired)",
+            "{:?} {} state: actual ({:?}) -- desired ({:?})",
             endpoint_type, enumerate, actual_state, desired_state
         );
     }

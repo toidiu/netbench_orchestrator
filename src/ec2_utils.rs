@@ -1,11 +1,11 @@
 use self::instance::poll_state;
-use crate::ec2_utils::instance::InstanceDetail;
 use std::{thread::sleep, time::Duration};
 
 mod cluster;
 mod instance;
 mod launch_plan;
 
+pub use instance::InstanceDetail;
 pub use launch_plan::LaunchPlan;
 
 pub struct InfraDetail {

@@ -4,10 +4,10 @@
  */
 #![allow(dead_code)]
 use crate::report::orch_generate_report;
-use aws_sdk_s3::primitives::ByteStream;
 use aws_types::region::Region;
-use bytes::Bytes;
+use error::OrchResult;
 use std::process::Command;
+mod dashboard;
 mod ec2_utils;
 mod error;
 mod report;
@@ -15,12 +15,13 @@ mod s3_utils;
 mod ssm_utils;
 mod state;
 
+use dashboard::*;
 use ec2_utils::*;
 use s3_utils::*;
 use ssm_utils::*;
 use state::*;
 
-fn check_requirements() -> Result<(), String> {
+fn check_requirements() -> OrchResult<()> {
     // export PATH="/home/toidiu/projects/s2n-quic/netbench/target/release/:$PATH"
     Command::new("netbench-cli").output().expect(
         "include netbench-cli on PATH: 'export PATH=\"s2n-quic/netbench/target/release/:$PATH\"'",
@@ -35,7 +36,8 @@ fn check_requirements() -> Result<(), String> {
 }
 
 #[tokio::main]
-async fn main() -> Result<(), String> {
+// async fn main() -> Result<(), String> {
+async fn main() -> OrchResult<()> {
     tracing_subscriber::fmt::init();
 
     check_requirements()?;
@@ -58,71 +60,37 @@ async fn main() -> Result<(), String> {
         STATE.version
     );
 
-    let status = format!("{}/index.html", STATE.cf_url_with_id(&unique_id));
-    let template_server_prefix = format!("{}/server-step-", STATE.cf_url_with_id(&unique_id));
-    let template_client_prefix = format!("{}/client-step-", STATE.cf_url_with_id(&unique_id));
-    let template_finished_prefix = format!("{}/finished-step-", STATE.cf_url_with_id(&unique_id));
-
-    // Upload a status file to s3:
-    let index_file = std::fs::read_to_string("index.html")
-        .unwrap()
-        .replace("template_unique_id", &unique_id)
-        .replace("template_server_prefix", &template_server_prefix)
-        .replace("template_client_prefix", &template_client_prefix)
-        .replace("template_finished_prefix", &template_finished_prefix);
-
-    upload_object(
-        &s3_client,
-        STATE.log_bucket,
-        ByteStream::from(Bytes::from(index_file)),
-        &format!("{unique_id}/index.html"),
-    )
-    .await
-    .unwrap();
-    println!("Status: URL: {status}");
+    update_dashboard(Step::UploadIndex, &s3_client, &unique_id).await?;
 
     // Setup instances
-    let launch_plan = LaunchPlan::create(
+    let infra = LaunchPlan::create(
         &unique_id,
         &ec2_client,
         &iam_client,
         &ssm_client,
         STATE.host_count,
     )
-    .await;
-    let infra = launch_plan.launch(&ec2_client, &unique_id).await.unwrap();
-    let client = infra.clients.get(0).unwrap();
-    let server = infra.servers.get(0).unwrap();
+    .await
+    .launch(&ec2_client, &unique_id)
+    .await?;
+    let client = &infra.clients[0];
+    let server = &infra.servers[0];
 
-    let client_instance_id = client.instance_id().unwrap();
-    let server_instance_id = server.instance_id().unwrap();
+    let client_instance_id = client.instance_id()?;
+    let server_instance_id = server.instance_id()?;
 
-    // TODO move elsewhere update status
-    {
-        upload_object(
-            &s3_client,
-            STATE.log_bucket,
-            ByteStream::from(Bytes::from(format!(
-                "EC2 Server Runner up: {} {}",
-                server_instance_id, server.ip
-            ))),
-            &format!("{unique_id}/server-step-0"),
-        )
-        .await
-        .unwrap();
-
-        upload_object(
-            &s3_client,
-            STATE.log_bucket,
-            ByteStream::from(Bytes::from(format!(
-                "EC2 Client Runner up: {} {}",
-                client_instance_id, client.ip
-            ))),
-            &format!("{unique_id}/client-step-0"),
-        )
-        .await
-        .unwrap();
-    }
+    update_dashboard(
+        Step::ServerHostsRunning(&infra.servers),
+        &s3_client,
+        &unique_id,
+    )
+    .await?;
+    update_dashboard(
+        Step::ServerHostsRunning(&infra.clients),
+        &s3_client,
+        &unique_id,
+    )
+    .await?;
 
     // TODO move into ssm_utils
     {
