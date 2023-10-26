@@ -1,5 +1,6 @@
 use self::instance::poll_state;
-use std::{thread::sleep, time::Duration};
+use crate::ec2_utils::instance::delete_instance;
+use crate::error::{OrchError, OrchResult};
 
 mod cluster;
 mod instance;
@@ -15,28 +16,37 @@ pub struct InfraDetail {
 }
 
 impl InfraDetail {
-    pub async fn cleanup(&self, ec2_client: &aws_sdk_ec2::Client) {
-        delete_security_group(ec2_client, &self.security_group_id).await;
+    pub async fn cleanup(&self, ec2_client: &aws_sdk_ec2::Client) -> OrchResult<()> {
+        self.delete_instances(ec2_client).await?;
+        self.delete_security_group(ec2_client).await?;
+        Ok(())
     }
 }
 
-async fn delete_security_group(ec2_client: &aws_sdk_ec2::Client, security_group_id: &str) {
-    println!("Start: deleting security groups");
-    let mut deleted_sec_group = ec2_client
-        .delete_security_group()
-        .group_id(security_group_id)
-        .send()
-        .await;
-    sleep(Duration::from_secs(60));
+impl InfraDetail {
+    async fn delete_instances(&self, ec2_client: &aws_sdk_ec2::Client) -> OrchResult<()> {
+        println!("Start: deleting instances");
+        let ids: Vec<String> = self
+            .servers
+            .iter()
+            .chain(self.clients.iter())
+            .map(|instance| instance.instance_id().unwrap().to_string())
+            .collect();
 
-    while deleted_sec_group.is_err() {
-        sleep(Duration::from_secs(30));
-        deleted_sec_group = ec2_client
+        delete_instance(ec2_client, ids).await?;
+        Ok(())
+    }
+
+    async fn delete_security_group(&self, ec2_client: &aws_sdk_ec2::Client) -> OrchResult<()> {
+        println!("Start: deleting security groups");
+        let deleted_sec_group = ec2_client
             .delete_security_group()
-            .group_id(security_group_id)
+            .group_id(self.security_group_id.to_string())
             .send()
             .await;
+        deleted_sec_group.map_err(|err| OrchError::Ec2 {
+            dbg: err.to_string(),
+        })?;
+        Ok(())
     }
-    println!("Deleted Security Group: {:#?}", deleted_sec_group);
-    println!("Done: deleting security groups");
 }

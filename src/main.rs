@@ -5,7 +5,7 @@
 #![allow(dead_code)]
 use crate::report::orch_generate_report;
 use aws_types::region::Region;
-use error::OrchResult;
+use error::{OrchError, OrchResult};
 use std::process::Command;
 mod dashboard;
 mod ec2_utils;
@@ -21,16 +21,26 @@ use s3_utils::*;
 use ssm_utils::*;
 use state::*;
 
-fn check_requirements() -> OrchResult<()> {
+async fn check_requirements(iam_client: &aws_sdk_iam::Client) -> OrchResult<()> {
     // export PATH="/home/toidiu/projects/s2n-quic/netbench/target/release/:$PATH"
-    Command::new("netbench-cli").output().expect(
-        "include netbench-cli on PATH: 'export PATH=\"s2n-quic/netbench/target/release/:$PATH\"'",
-    );
+    Command::new("netbench-cli")
+        .output()
+        .map_err(|_err| OrchError::Init {
+            dbg: "Missing netbench-cli.".to_string(),
+        })?;
 
     // report folder
-    std::fs::create_dir_all(STATE.workspace_dir).unwrap();
+    std::fs::create_dir_all(STATE.workspace_dir).map_err(|_err| OrchError::Init {
+        dbg: "Failed to create local workspace".to_string(),
+    })?;
 
-    // TODO check aws creds
+    iam_client
+        .list_roles()
+        .send()
+        .await
+        .map_err(|_err| OrchError::Init {
+            dbg: "Missing AWS creds".to_string(),
+        })?;
 
     Ok(())
 }
@@ -39,8 +49,6 @@ fn check_requirements() -> OrchResult<()> {
 // async fn main() -> Result<(), String> {
 async fn main() -> OrchResult<()> {
     tracing_subscriber::fmt::init();
-
-    check_requirements()?;
 
     let orch_provider = Region::new(STATE.region);
     let shared_config = aws_config::from_env().region(orch_provider).load().await;
@@ -53,6 +61,8 @@ async fn main() -> OrchResult<()> {
         .await;
     let ec2_client = aws_sdk_ec2::Client::new(&shared_config_vpc);
     let ssm_client = aws_sdk_ssm::Client::new(&shared_config_vpc);
+
+    check_requirements(&iam_client).await?;
 
     let unique_id = format!(
         "{}-{}",
@@ -118,7 +128,11 @@ async fn main() -> OrchResult<()> {
     // Copy results back
     orch_generate_report(&s3_client, &unique_id).await;
 
-    infra.cleanup(&ec2_client).await;
+    infra
+        .cleanup(&ec2_client)
+        .await
+        .map_err(|err| eprintln!("Failed to cleanup resources. {}", err))
+        .unwrap();
 
     Ok(())
 }

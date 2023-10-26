@@ -1,7 +1,7 @@
 use core::time::Duration;
 
 pub const STATE: State = State {
-    version: "v1.0.15",
+    version: "v1.0.16",
 
     // git
     repo: "https://github.com/aws/s2n-quic.git",
@@ -28,7 +28,7 @@ pub const STATE: State = State {
 
     // orchestrator config
     host_count: HostCount {
-        clients: 1,
+        clients: 3,
         servers: 2,
     },
     workspace_dir: "./target/netbench",

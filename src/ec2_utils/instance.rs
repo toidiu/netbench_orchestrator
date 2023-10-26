@@ -50,7 +50,7 @@ impl InstanceDetail {
 
 pub async fn launch_instance(
     ec2_client: &aws_sdk_ec2::Client,
-    instance_details: &LaunchPlan,
+    launch_plan: &LaunchPlan,
     name: &str,
 ) -> OrchResult<aws_sdk_ec2::types::Instance> {
     let instance_type = InstanceType::from(STATE.instance_type);
@@ -59,11 +59,11 @@ pub async fn launch_instance(
         .key_name(STATE.ssh_key_name)
         .iam_instance_profile(
             aws_sdk_ec2::types::IamInstanceProfileSpecification::builder()
-                .arn(&instance_details.instance_profile_arn)
+                .arn(&launch_plan.instance_profile_arn)
                 .build(),
         )
         .instance_type(instance_type)
-        .image_id(&instance_details.ami_id)
+        .image_id(&launch_plan.ami_id)
         .instance_initiated_shutdown_behavior(aws_sdk_ec2::types::ShutdownBehavior::Terminate)
         .user_data(general_purpose::STANDARD.encode(format!(
             "sudo shutdown -P +{}",
@@ -97,8 +97,8 @@ pub async fn launch_instance(
                 .associate_public_ip_address(true)
                 .delete_on_termination(true)
                 .device_index(0)
-                .subnet_id(&instance_details.subnet_id)
-                .groups(&instance_details.security_group_id)
+                .subnet_id(&launch_plan.subnet_id)
+                .groups(&launch_plan.security_group_id)
                 .build(),
         )
         .min_count(1)
@@ -118,6 +118,18 @@ pub async fn launch_instance(
             dbg: "Didn't launch an instance?".to_string(),
         })?
         .clone())
+}
+
+pub async fn delete_instance(ec2_client: &aws_sdk_ec2::Client, ids: Vec<String>) -> OrchResult<()> {
+    ec2_client
+        .terminate_instances()
+        .set_instance_ids(Some(ids))
+        .send()
+        .await
+        .map_err(|err| OrchError::Ec2 {
+            dbg: err.to_string(),
+        })?;
+    Ok(())
 }
 
 pub async fn poll_state(
@@ -156,8 +168,8 @@ pub async fn poll_state(
             .clone();
 
         println!(
-            "{:?} {} state: actual ({:?}) -- desired ({:?})",
-            endpoint_type, enumerate, actual_state, desired_state
+            "{:?} {} state: {:?}",
+            endpoint_type, enumerate, actual_state
         );
     }
 
