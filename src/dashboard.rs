@@ -31,10 +31,10 @@ pub async fn update_dashboard(
 }
 
 async fn upload_index_html(s3_client: &aws_sdk_s3::Client, unique_id: &str) -> OrchResult<()> {
-    let status = format!("{}/index.html", STATE.cf_url_with_id(unique_id));
-    let template_server_prefix = format!("{}/server-step-", STATE.cf_url_with_id(unique_id));
-    let template_client_prefix = format!("{}/client-step-", STATE.cf_url_with_id(unique_id));
-    let template_finished_prefix = format!("{}/finished-step-", STATE.cf_url_with_id(unique_id));
+    let status = format!("{}/index.html", STATE.cf_url(unique_id));
+    let template_server_prefix = format!("{}/server-step-", STATE.cf_url(unique_id));
+    let template_client_prefix = format!("{}/client-step-", STATE.cf_url(unique_id));
+    let template_finished_prefix = format!("{}/finished-step-", STATE.cf_url(unique_id));
 
     // Upload a status file to s3:
     let index_file = std::fs::read_to_string("index.html")
@@ -46,7 +46,7 @@ async fn upload_index_html(s3_client: &aws_sdk_s3::Client, unique_id: &str) -> O
 
     upload_object(
         s3_client,
-        STATE.log_bucket,
+        STATE.s3_log_bucket,
         ByteStream::from(Bytes::from(index_file)),
         &format!("{unique_id}/index.html"),
     )
@@ -72,7 +72,7 @@ async fn update_instance_running(
 
     upload_object(
         s3_client,
-        STATE.log_bucket,
+        STATE.s3_log_bucket,
         ByteStream::from(Bytes::from(format!(
             "EC2 {:?} instances up: {}",
             endpoint_type, instance_ip_id

@@ -12,7 +12,7 @@ pub async fn orch_generate_report(s3_client: &aws_sdk_s3::Client, unique_id: &st
     cmd.args([
         "s3",
         "sync",
-        &format!("s3://{}/{}", STATE.log_bucket, unique_id),
+        &format!("s3://{}/{}", STATE.s3_log_bucket, unique_id),
         STATE.workspace_dir,
     ]);
     println!("{:?}", cmd);
@@ -33,7 +33,7 @@ pub async fn orch_generate_report(s3_client: &aws_sdk_s3::Client, unique_id: &st
         "s3",
         "sync",
         STATE.workspace_dir,
-        &format!("s3://{}/{}", STATE.log_bucket, unique_id),
+        &format!("s3://{}/{}", STATE.s3_log_bucket, unique_id),
     ]);
     println!("{:?}", cmd);
     assert!(cmd.status().expect("aws sync").success(), "aws sync");
@@ -41,16 +41,16 @@ pub async fn orch_generate_report(s3_client: &aws_sdk_s3::Client, unique_id: &st
     update_report_url(s3_client, unique_id).await;
 
     println!("Report Finished!: Successful: true");
-    println!("URL: {}/report/index.html", STATE.cf_url_with_id(unique_id));
+    println!("URL: {}/report/index.html", STATE.cf_url(unique_id));
 }
 
 async fn update_report_url(s3_client: &aws_sdk_s3::Client, unique_id: &str) {
     let body = ByteStream::new(SdkBody::from(format!(
         "<a href=\"{}/report/index.html\">Final Report</a>",
-        STATE.cf_url_with_id(unique_id)
+        STATE.cf_url(unique_id)
     )));
     let key = format!("{}/finished-step-0", unique_id);
-    let _ = upload_object(s3_client, STATE.log_bucket, body, &key)
+    let _ = upload_object(s3_client, STATE.s3_log_bucket, body, &key)
         .await
         .unwrap();
 }

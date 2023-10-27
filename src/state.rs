@@ -5,20 +5,23 @@ use crate::ec2_utils::EndpointType;
 use core::time::Duration;
 
 pub const STATE: State = State {
-    version: "v1.0.17",
+    version: "v1.0.18",
 
     // git
     repo: "https://github.com/aws/s2n-quic.git",
     branch: "ak-netbench-sync",
 
     // aws
-    log_bucket: "netbenchrunnerlogs",
-    cf_url: "http://d2jusruq1ilhjs.cloudfront.net", // TODO use in code
+    s3_log_bucket: "netbenchrunnerlogs",
+    // TODO contains request_response.json but that should just come from the orchestrator
+    s3_resource_folder: "TS",
+    cloudfront_url: "http://d2jusruq1ilhjs.cloudfront.net",
     cloud_watch_group: "netbench_runner_logs",
+    // TODO remove `vpc_region` and configure vpc/subnet in same `region`
     region: "us-west-1",
     vpc_region: "us-east-1",
     instance_type: "c5.4xlarge",
-    // Used to give permissions to the ec2 instance. Part of the `NetbenchRunnerRole`
+    // Used to give permissions to the ec2 instance. Part of the IAM Role `NetbenchRunnerRole`
     instance_profile: "NetbenchRunnerInstanceProfile",
     // Used to find subnets with the following tag/value pair
     subnet_tag_value: (
@@ -44,8 +47,9 @@ pub struct State {
     pub branch: &'static str,
 
     // aws
-    pub log_bucket: &'static str,
-    pub cf_url: &'static str,
+    pub s3_log_bucket: &'static str,
+    pub s3_resource_folder: &'static str,
+    pub cloudfront_url: &'static str,
     pub cloud_watch_group: &'static str,
     pub region: &'static str,
     // TODO we shouldnt need two different regions. create infra in the single region
@@ -68,13 +72,17 @@ pub struct HostCount {
 }
 
 impl State {
-    pub fn cf_url_with_id(&self, id: &str) -> String {
-        format!("{}/{}", self.cf_url, id)
+    pub fn cf_url(&self, unique_id: &str) -> String {
+        format!("{}/{}", self.cloudfront_url, unique_id)
+    }
+
+    pub fn s3_path(&self, unique_id: &str) -> String {
+        format!("s3://{}/{}", self.s3_log_bucket, unique_id)
     }
 
     // Create a security group with the following name prefix. Use with `sg_name_with_id`
     // security_group_name_prefix: "netbench_runner",
-    pub fn sg_name_with_id(&self, unique_id: &str) -> String {
+    pub fn security_group_name(&self, unique_id: &str) -> String {
         format!("netbench_{}", unique_id)
     }
 

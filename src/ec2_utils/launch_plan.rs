@@ -182,7 +182,7 @@ async fn create_security_group(
 ) -> OrchResult<String> {
     let security_group_id = ec2_client
         .create_security_group()
-        .group_name(STATE.sg_name_with_id(unique_id))
+        .group_name(STATE.security_group_name(unique_id))
         .description("This is a security group for a single run of netbench.")
         .vpc_id(vpc_id)
         .tag_specifications(
@@ -191,7 +191,7 @@ async fn create_security_group(
                 .tags(
                     aws_sdk_ec2::types::Tag::builder()
                         .key("Name")
-                        .value(STATE.sg_name_with_id(unique_id))
+                        .value(STATE.security_group_name(unique_id))
                         .build(),
                 )
                 .build(),
