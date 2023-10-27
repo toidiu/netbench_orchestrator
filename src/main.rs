@@ -10,6 +10,7 @@ mod dashboard;
 mod ec2_utils;
 mod error;
 mod report;
+mod russula;
 mod s3_utils;
 mod ssm_utils;
 mod state;
