@@ -1,28 +1,38 @@
-use std::marker::PhantomData;
+use std::{collections::BTreeMap, collections::BTreeSet, net::SocketAddr};
 
 struct Russula<P: Protocol> {
-    version: u16,
-    app: String,
-    role: Role,
-    id: String, // negotiated in connect
-    p: P,
+    role: Role<P>,
 }
 
 impl<P: Protocol> Russula<P> {
-    fn connect(&self, ip: &str, port: u16) {
-        self.p.start()
+    fn new_coordinator(addr: BTreeSet<SocketAddr>, protocol: P) -> Self {
+        let mut map = BTreeMap::new();
+        addr.into_iter().for_each(|addr| {
+            map.insert(addr, protocol.clone());
+        });
+        let role = Role::Coordinator(map);
+        Self { role }
     }
 
-    fn curr_state(&self) -> P::Message {
-        self.p.curr_state()
+    fn new_worker(protocol: P) -> Self {
+        Self {
+            role: Role::Worker(protocol),
+        }
     }
 
     fn start() {}
     fn stop() {}
 }
 
-pub trait Protocol {
+pub trait Protocol: Clone {
     type Message;
+
+    // TODO replace u8 with uuid
+    fn id(&self) -> u8 {
+        0
+    }
+    fn version(&self) {}
+    fn app(&self) {}
 
     fn start(&self) {}
     fn stop(&self) {}
@@ -31,11 +41,12 @@ pub trait Protocol {
     fn curr_state(&self) -> Self::Message;
 }
 
-enum Role {
-    Coordinator,
-    Worker,
+enum Role<P: Protocol> {
+    Coordinator(BTreeMap<SocketAddr, P>),
+    Worker(P),
 }
 
+#[derive(Clone)]
 struct NetbenchOrchestrator {
     state: NetbenchState,
 }
