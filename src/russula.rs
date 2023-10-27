@@ -5,31 +5,48 @@ struct Russula<P: Protocol> {
     app: String,
     role: Role,
     id: String, // negotiated in connect
-    _p: PhantomData<P>,
+    p: P,
 }
 
 impl<P: Protocol> Russula<P> {
     fn connect(&self, ip: &str, port: u16) {
-        todo!()
+        self.p.start()
     }
 
-    fn state(&self) -> P::States {
-        todo!()
+    fn curr_state(&self) -> P::Message {
+        self.p.curr_state()
     }
 
     fn start() {}
-
     fn stop() {}
 }
 
 pub trait Protocol {
-    type States;
+    type Message;
 
-    fn recv();
-    fn send();
+    fn start(&self) {}
+    fn stop(&self) {}
+    fn recv(&self) {}
+    fn send(&self) {}
+    fn curr_state(&self) -> Self::Message;
 }
 
 enum Role {
     Coordinator,
     Worker,
 }
+
+struct NetbenchOrchestrator {
+    state: NetbenchState,
+}
+
+impl Protocol for NetbenchOrchestrator {
+    type Message = NetbenchState;
+
+    fn curr_state(&self) -> Self::Message {
+        self.state
+    }
+}
+
+#[derive(Copy, Clone)]
+enum NetbenchState {}
