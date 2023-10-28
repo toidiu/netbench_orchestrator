@@ -1,11 +1,11 @@
 use std::{collections::BTreeMap, collections::BTreeSet, net::SocketAddr};
 
-struct Russula<P: Protocol> {
+pub struct Russula<P: Protocol> {
     role: Role<P>,
 }
 
 impl<P: Protocol> Russula<P> {
-    fn new_coordinator(addr: BTreeSet<SocketAddr>, protocol: P) -> Self {
+    pub fn new_coordinator(addr: BTreeSet<SocketAddr>, protocol: P) -> Self {
         let mut map = BTreeMap::new();
         addr.into_iter().for_each(|addr| {
             map.insert(addr, protocol.clone());
@@ -14,14 +14,34 @@ impl<P: Protocol> Russula<P> {
         Self { role }
     }
 
-    fn new_worker(protocol: P) -> Self {
+    pub fn new_worker(protocol: P) -> Self {
         Self {
             role: Role::Worker(protocol),
         }
     }
 
-    fn start() {}
-    fn stop() {}
+    pub async fn connect(&self) -> Self {
+        match self.role {
+            Role::Coordinator(_) => todo!(),
+            Role::Worker(_) => todo!(),
+        }
+    }
+
+    pub async fn start(&self) {
+        match &self.role {
+            Role::Coordinator(_role) => todo!(),
+            Role::Worker(_role) => todo!(),
+        }
+    }
+
+    pub async fn kill(&self) {
+        match &self.role {
+            Role::Coordinator(_) => todo!(),
+            Role::Worker(role) => role.kill(),
+        }
+    }
+
+    pub async fn wait_peer_state(&self, _state: P::Message) {}
 }
 
 pub trait Protocol: Clone {
@@ -35,10 +55,11 @@ pub trait Protocol: Clone {
     fn app(&self) {}
 
     fn start(&self) {}
-    fn stop(&self) {}
+    fn kill(&self) {}
+
     fn recv(&self) {}
     fn send(&self) {}
-    fn curr_state(&self) -> Self::Message;
+    fn peer_state(&self) -> Self::Message;
 }
 
 enum Role<P: Protocol> {
@@ -47,17 +68,29 @@ enum Role<P: Protocol> {
 }
 
 #[derive(Clone)]
-struct NetbenchOrchestrator {
-    state: NetbenchState,
+pub struct NetbenchOrchestrator {
+    peer_state: NetbenchState,
+}
+
+impl NetbenchOrchestrator {
+    pub fn new() -> Self {
+        NetbenchOrchestrator {
+            peer_state: NetbenchState::Ready,
+        }
+    }
 }
 
 impl Protocol for NetbenchOrchestrator {
     type Message = NetbenchState;
 
-    fn curr_state(&self) -> Self::Message {
-        self.state
+    fn peer_state(&self) -> Self::Message {
+        self.peer_state
     }
 }
 
 #[derive(Copy, Clone)]
-enum NetbenchState {}
+pub enum NetbenchState {
+    Ready,
+    Run,
+    Done,
+}

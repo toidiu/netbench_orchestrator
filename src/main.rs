@@ -5,7 +5,7 @@
 use crate::report::orch_generate_report;
 use aws_types::region::Region;
 use error::{OrchError, OrchResult};
-use std::process::Command;
+use std::{net::SocketAddr, process::Command, str::FromStr};
 mod dashboard;
 mod ec2_utils;
 mod error;
@@ -17,6 +17,7 @@ mod state;
 
 use dashboard::*;
 use ec2_utils::*;
+use russula::*;
 use s3_utils::*;
 use ssm_utils::*;
 use state::*;
@@ -125,6 +126,23 @@ async fn main() -> OrchResult<()> {
         .await;
         println!("Server Finished!: Successful: {}", server_result);
     }
+
+    let server_addr = infra
+        .servers
+        .iter()
+        .map(|server| {
+            let addr = format!("{}:{}", server.ip, STATE.russula_port);
+            SocketAddr::from_str(&addr).unwrap()
+        })
+        .collect();
+    let russula = Russula::new_coordinator(server_addr, russula::NetbenchOrchestrator::new())
+        .connect()
+        .await;
+    russula.start().await;
+    russula.wait_peer_state(NetbenchState::Ready).await;
+    russula.wait_peer_state(NetbenchState::Run).await;
+    russula.wait_peer_state(NetbenchState::Done).await;
+    russula.kill().await;
 
     // Copy results back
     orch_generate_report(&s3_client, &unique_id).await;

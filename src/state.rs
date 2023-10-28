@@ -38,6 +38,7 @@ pub const STATE: State = State {
     },
     workspace_dir: "./target/netbench",
     shutdown_time_sec: Duration::from_secs(60),
+    russula_port: 8888,
 };
 
 pub struct State {
@@ -63,6 +64,7 @@ pub struct State {
     pub host_count: HostCount,
     pub workspace_dir: &'static str,
     pub shutdown_time_sec: Duration,
+    pub russula_port: u16,
 }
 
 #[derive(Clone)]
