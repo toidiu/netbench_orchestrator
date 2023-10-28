@@ -28,6 +28,7 @@ impl<P: Protocol> Russula<P> {
         match &self.role {
             Role::Coordinator(protocol_map) => {
                 for (addr, protocol) in protocol_map.iter() {
+                    println!("--------Hi");
                     protocol.connect_to_worker(*addr)
                 }
             }
@@ -95,13 +96,23 @@ impl Protocol for NetbenchOrchestrator {
     type Message = NetbenchState;
 
     fn wait_for_coordinator(&self) {
-        let listener = TcpListener::bind("127.0.0.1:8900").unwrap();
-        let conn = listener.accept().unwrap();
+        let listener = TcpListener::bind("127.0.0.1:8989").unwrap();
+        println!("------------listening");
+        match listener.accept() {
+            Ok((_socket, addr)) => println!("new client: {addr:?}"),
+            Err(e) => panic!("couldn't get client: {e:?}"),
+        }
     }
 
     fn connect_to_worker(&self, addr: SocketAddr) {
+        println!("------------connect");
         // FIXME fix this
-        let conn = TcpStream::connect(addr).unwrap();
+        // let _conn = TcpStream::connect(addr).unwrap();
+        if let Ok(_stream) = TcpStream::connect(addr) {
+            println!("Connected to the server!");
+        } else {
+            panic!("Couldn't connect to worker...");
+        }
     }
 
     fn peer_state(&self) -> Self::Message {
@@ -118,36 +129,26 @@ pub enum NetbenchState {
 
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr;
-
     use super::*;
-
-    //     #[derive(Copy, Clone)]
-    //     struct TestProtocol;
-
-    //     enum TestProtocolMessage {
-    //         Ready,
-    //         Done,
-    //     }
-
-    //     impl Protocol for TestProtocol {
-    //         type Message = TestProtocolMessage;
-
-    //         fn peer_state(&self) -> Self::Message {
-    //             todo!()
-    //         }
-    //     }
+    use std::str::FromStr;
 
     #[tokio::test]
     async fn test() {
         let test_protocol = NetbenchOrchestrator::new();
-        let addr = BTreeSet::from_iter([SocketAddr::from_str("127.0.0.1:8900").unwrap()]);
-        let _coord = Russula::new_coordinator(addr, test_protocol)
-            .connect()
-            .await;
+        let addr = BTreeSet::from_iter([SocketAddr::from_str("127.0.0.1:8989").unwrap()]);
 
-        let _worker = Russula::new_worker(test_protocol).connect().await;
+        let j1 = tokio::spawn(async move {
+            let _worker = Russula::new_worker(test_protocol).connect().await;
+        });
 
-        assert!(1 == 1)
+        let j2 = tokio::spawn(async move {
+            let _coord = Russula::new_coordinator(addr, test_protocol)
+                .connect()
+                .await;
+        });
+
+        let a = tokio::join!(j1, j2).0.unwrap();
+
+        assert!(1 == 43)
     }
 }

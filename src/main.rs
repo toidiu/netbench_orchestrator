@@ -139,7 +139,6 @@ async fn main() -> OrchResult<()> {
     russula.connect().await;
     russula.start().await;
     russula.wait_peer_state(NetbenchState::Ready).await;
-    russula.wait_peer_state(NetbenchState::Run).await;
     russula.wait_peer_state(NetbenchState::Done).await;
     russula.kill().await;
 
