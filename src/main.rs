@@ -47,8 +47,7 @@ async fn check_requirements(iam_client: &aws_sdk_iam::Client) -> OrchResult<()> 
     Ok(())
 }
 
-#[tokio::main]
-// async fn main() -> Result<(), String> {
+#[tokio::main(flavor = "current_thread")]
 async fn main() -> OrchResult<()> {
     tracing_subscriber::fmt::init();
 

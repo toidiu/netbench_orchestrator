@@ -16,7 +16,7 @@ aws-sdk-iam = "0.25.0"
 aws-sdk-ssm = "0.25.0"
 aws-sdk-s3 = "0.26.0"
 aws-types = "0.55.0"
-tokio = { version = "1.26.0", features = ["macros", "rt-multi-thread"] }
+tokio = { version = "1.26.0", features = ["macros", "rt", "net"] }
 tokio-stream = "0.1.14"
 structopt = { version = "0.3.26", default-features = false }
 tracing-subscriber = { version = "0.3.16", features = ["env-filter"] }
