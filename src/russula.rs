@@ -1,9 +1,14 @@
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
+
 use async_trait::async_trait;
-use std::{collections::BTreeMap, collections::BTreeSet, net::SocketAddr};
+use std::{collections::BTreeSet, net::SocketAddr};
 use tokio::net::{TcpListener, TcpStream};
 
+mod error;
 mod protocol;
 
+use error::{RussulaError, RussulaResult};
 use protocol::Protocol;
 use protocol::Role;
 
@@ -17,9 +22,9 @@ pub struct Russula<P: Protocol> {
 
 impl<P: Protocol> Russula<P> {
     pub fn new_coordinator(addr: BTreeSet<SocketAddr>, protocol: P) -> Self {
-        let mut map = BTreeMap::new();
+        let mut map = Vec::new();
         addr.into_iter().for_each(|addr| {
-            map.insert(addr, protocol.clone());
+            map.push((addr, protocol.clone()));
         });
         let role = Role::Coordinator(map);
         Self { role }
@@ -31,7 +36,7 @@ impl<P: Protocol> Russula<P> {
         }
     }
 
-    pub async fn connect(&self) {
+    pub async fn connect(&self) -> RussulaResult<()> {
         match &self.role {
             Role::Coordinator(protocol_map) => {
                 for (addr, protocol) in protocol_map.iter() {
@@ -39,36 +44,51 @@ impl<P: Protocol> Russula<P> {
                 }
             }
             Role::Worker((addr, protocol)) => {
-                protocol.wait_for_coordinator(addr).await;
+                let stream = protocol.wait_for_coordinator(addr).await?;
+
+                // TODO move to protocol.start
+                protocol.recv_msg(stream).await;
             }
         }
+
+        Ok(())
     }
 
     pub async fn start(&self) {
         match &self.role {
-            Role::Coordinator(_role) => todo!(),
-            Role::Worker(_role) => todo!(),
+            Role::Coordinator(map) => {
+                for (_addr, protocol) in map.iter() {
+                    protocol.start();
+                }
+            }
+            Role::Worker((_addr, protocol)) => protocol.start(),
         }
     }
 
     pub async fn kill(&self) {
         match &self.role {
-            Role::Coordinator(_) => todo!(),
+            Role::Coordinator(map) => {
+                for (_addr, protocol) in map.iter() {
+                    protocol.kill();
+                }
+            }
             Role::Worker(role) => role.1.kill(),
         }
     }
 
-    pub async fn wait_peer_state(&self, _state: P::Message) {}
+    pub async fn wait_peer_state(&self, _state: P::State) {}
 }
 
 #[derive(Clone, Copy)]
 pub struct NetbenchOrchestrator {
+    state: NetbenchState,
     peer_state: NetbenchState,
 }
 
 impl NetbenchOrchestrator {
     pub fn new() -> Self {
         NetbenchOrchestrator {
+            state: NetbenchState::Ready,
             peer_state: NetbenchState::Ready,
         }
     }
@@ -76,31 +96,22 @@ impl NetbenchOrchestrator {
 
 #[async_trait]
 impl Protocol for NetbenchOrchestrator {
-    type Message = NetbenchState;
+    type State = NetbenchState;
 
-    async fn wait_for_coordinator(&self, addr: &SocketAddr) {
+    async fn wait_for_coordinator(&self, addr: &SocketAddr) -> RussulaResult<TcpStream> {
         let listener = TcpListener::bind(addr).await.unwrap();
         println!("--- Worker listening on: {}", addr);
 
-        let mut buf = Vec::with_capacity(4096);
-        match listener.accept().await {
-            Ok((stream, _local_addr)) => {
-                println!("Worker success connection: {addr}");
-                stream.readable().await.unwrap();
+        let (stream, _local_addr) =
+            listener
+                .accept()
+                .await
+                .map_err(|err| RussulaError::Connect {
+                    dbg: err.to_string(),
+                })?;
+        println!("Worker success connection: {addr}");
 
-                match stream.try_read_buf(&mut buf) {
-                    Ok(n) => {
-                        let msg = std::str::from_utf8(&buf);
-                        println!("read {} bytes: {:?}", n, &msg);
-                    }
-                    Err(ref e) if e.kind() == tokio::io::ErrorKind::WouldBlock => {
-                        panic!("{}", e)
-                    }
-                    Err(e) => panic!("{}", e),
-                }
-            }
-            Err(e) => panic!("couldn't get client: {e:?}"),
-        }
+        Ok(stream)
     }
 
     async fn connect_to_worker(&self, addr: SocketAddr) {
@@ -110,21 +121,43 @@ impl Protocol for NetbenchOrchestrator {
         match connect.await {
             Ok(stream) => {
                 println!("Coordinator: successfully connected to {}", addr);
-                stream.writable().await.unwrap();
-
-                let msg = format!("hi {}", addr);
-                stream.try_write(msg.as_bytes()).unwrap();
+                self.send_msg(stream, self.state).await;
             }
             Err(_) => println!("failed to connect to worker {}", addr),
         }
     }
 
-    fn peer_state(&self) -> Self::Message {
+    async fn recv_msg(&self, stream: TcpStream) -> Self::State {
+        stream.readable().await.unwrap();
+
+        let mut buf = Vec::with_capacity(4096);
+        match stream.try_read_buf(&mut buf) {
+            Ok(n) => {
+                let msg = std::str::from_utf8(&buf);
+                println!("read {} bytes: {:?}", n, &msg);
+            }
+            Err(ref e) if e.kind() == tokio::io::ErrorKind::WouldBlock => {
+                panic!("{}", e)
+            }
+            Err(e) => panic!("{}", e),
+        }
+
+        self.state
+    }
+
+    async fn send_msg(&self, stream: TcpStream, msg: Self::State) {
+        stream.writable().await.unwrap();
+
+        let msg = format!("hi {:?}", msg);
+        stream.try_write(msg.as_bytes()).unwrap();
+    }
+
+    fn peer_state(&self) -> Self::State {
         self.peer_state
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub enum NetbenchState {
     Ready,
     Run,
@@ -144,20 +177,26 @@ mod tests {
         let w2_sock = SocketAddr::from_str("127.0.0.1:8992").unwrap();
 
         let w1 = tokio::spawn(async move {
-            let _worker = Russula::new_worker(w1_sock, test_protocol).connect().await;
+            let worker = Russula::new_worker(w1_sock, test_protocol);
+            worker.connect().await.unwrap();
+            worker
         });
         let w2 = tokio::spawn(async move {
-            let _worker = Russula::new_worker(w2_sock, test_protocol).connect().await;
+            let worker = Russula::new_worker(w2_sock, test_protocol);
+            worker.connect().await.unwrap();
+            worker
         });
 
         let c1 = tokio::spawn(async move {
             let addr = BTreeSet::from_iter([w1_sock, w2_sock]);
-            let _coord = Russula::new_coordinator(addr, test_protocol)
-                .connect()
-                .await;
+            let coord = Russula::new_coordinator(addr, test_protocol);
+            coord.connect().await.unwrap();
+            coord
         });
 
-        tokio::join!(w1, w2, c1).0.unwrap();
+        let join = tokio::join!(w1, w2, c1);
+        let coord = join.2.unwrap();
+        coord.kill().await;
 
         assert!(1 == 43)
     }
