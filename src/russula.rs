@@ -1,7 +1,5 @@
-use core::time::Duration;
 use std::{collections::BTreeMap, collections::BTreeSet, net::SocketAddr};
 use tokio::net::{TcpListener, TcpStream};
-use tokio::time::timeout;
 
 pub struct Russula<P: Protocol> {
     role: Role<P>,
@@ -31,8 +29,8 @@ impl<P: Protocol> Russula<P> {
                     // protocol.connect_to_worker(*addr)
 
                     let connect = TcpStream::connect(addr);
-                    match timeout(Duration::from_secs(2), connect).await {
-                        Ok(_) => println!("success Coordinator connect"),
+                    match connect.await {
+                        Ok(_) => println!("Coordinator: connected"),
                         Err(_) => println!("did not receive value within 10 ms"),
                     }
 
@@ -48,7 +46,7 @@ impl<P: Protocol> Russula<P> {
                 let listener = TcpListener::bind("127.0.0.1:8989").await.unwrap();
                 println!("------------listening");
                 match listener.accept().await {
-                    Ok((_socket, addr)) => println!("new client: {addr:?}"),
+                    Ok((_socket, addr)) => println!("Worker: {addr:?}"),
                     Err(e) => panic!("couldn't get client: {e:?}"),
                 }
             }
