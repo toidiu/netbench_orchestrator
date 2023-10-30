@@ -2,6 +2,11 @@ use async_trait::async_trait;
 use std::{collections::BTreeMap, collections::BTreeSet, net::SocketAddr};
 use tokio::net::{TcpListener, TcpStream};
 
+mod protocol;
+
+use protocol::Protocol;
+use protocol::Role;
+
 pub struct Russula<P: Protocol> {
     role: Role<P>,
 }
@@ -56,33 +61,6 @@ impl<P: Protocol> Russula<P> {
     pub async fn wait_peer_state(&self, _state: P::Message) {}
 }
 
-#[async_trait]
-pub trait Protocol: Clone {
-    type Message;
-
-    // TODO replace u8 with uuid
-    fn id(&self) -> u8 {
-        0
-    }
-    fn version(&self) {}
-    fn app(&self) {}
-
-    async fn connect_to_worker(&self, _addr: SocketAddr);
-    async fn wait_for_coordinator(&self, addr: &SocketAddr);
-
-    fn start(&self) {}
-    fn kill(&self) {}
-
-    fn recv(&self) {}
-    fn send(&self) {}
-    fn peer_state(&self) -> Self::Message;
-}
-
-enum Role<P: Protocol> {
-    Coordinator(BTreeMap<SocketAddr, P>),
-    Worker((SocketAddr, P)),
-}
-
 #[derive(Clone, Copy)]
 pub struct NetbenchOrchestrator {
     peer_state: NetbenchState,
@@ -103,8 +81,24 @@ impl Protocol for NetbenchOrchestrator {
     async fn wait_for_coordinator(&self, addr: &SocketAddr) {
         let listener = TcpListener::bind(addr).await.unwrap();
         println!("--- Worker listening on: {}", addr);
+
+        let mut buf = Vec::with_capacity(4096);
         match listener.accept().await {
-            Ok((_socket, _local_addr)) => println!("Worker success connection: {addr}"),
+            Ok((stream, _local_addr)) => {
+                println!("Worker success connection: {addr}");
+                stream.readable().await.unwrap();
+
+                match stream.try_read_buf(&mut buf) {
+                    Ok(n) => {
+                        let msg = std::str::from_utf8(&buf);
+                        println!("read {} bytes: {:?}", n, &msg);
+                    }
+                    Err(ref e) if e.kind() == tokio::io::ErrorKind::WouldBlock => {
+                        panic!("{}", e)
+                    }
+                    Err(e) => panic!("{}", e),
+                }
+            }
             Err(e) => panic!("couldn't get client: {e:?}"),
         }
     }
@@ -114,7 +108,13 @@ impl Protocol for NetbenchOrchestrator {
 
         let connect = TcpStream::connect(addr);
         match connect.await {
-            Ok(_) => println!("Coordinator: successfully connected to {}", addr),
+            Ok(stream) => {
+                println!("Coordinator: successfully connected to {}", addr);
+                stream.writable().await.unwrap();
+
+                let msg = format!("hi {}", addr);
+                stream.try_write(msg.as_bytes()).unwrap();
+            }
             Err(_) => println!("failed to connect to worker {}", addr),
         }
     }
@@ -138,20 +138,20 @@ mod tests {
 
     #[tokio::test]
     async fn test() {
-        let w1 = SocketAddr::from_str("127.0.0.1:8991").unwrap();
-        let w2 = SocketAddr::from_str("127.0.0.1:8992").unwrap();
-
         let test_protocol = NetbenchOrchestrator::new();
-        let addr = BTreeSet::from_iter([w1, w2]);
+
+        let w1_sock = SocketAddr::from_str("127.0.0.1:8991").unwrap();
+        let w2_sock = SocketAddr::from_str("127.0.0.1:8992").unwrap();
 
         let w1 = tokio::spawn(async move {
-            let _worker = Russula::new_worker(w1, test_protocol).connect().await;
+            let _worker = Russula::new_worker(w1_sock, test_protocol).connect().await;
         });
         let w2 = tokio::spawn(async move {
-            let _worker = Russula::new_worker(w2, test_protocol).connect().await;
+            let _worker = Russula::new_worker(w2_sock, test_protocol).connect().await;
         });
 
         let c1 = tokio::spawn(async move {
+            let addr = BTreeSet::from_iter([w1_sock, w2_sock]);
             let _coord = Russula::new_coordinator(addr, test_protocol)
                 .connect()
                 .await;
