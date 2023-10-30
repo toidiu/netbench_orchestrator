@@ -1,9 +1,14 @@
+use async_trait::async_trait;
 use std::{collections::BTreeMap, collections::BTreeSet, net::SocketAddr};
 use tokio::net::{TcpListener, TcpStream};
 
 pub struct Russula<P: Protocol> {
     role: Role<P>,
 }
+
+// TODO
+// - handle coord retry on connect
+// D- move connect to protocol impl
 
 impl<P: Protocol> Russula<P> {
     pub fn new_coordinator(addr: BTreeSet<SocketAddr>, protocol: P) -> Self {
@@ -24,31 +29,12 @@ impl<P: Protocol> Russula<P> {
     pub async fn connect(&self) {
         match &self.role {
             Role::Coordinator(protocol_map) => {
-                for (addr, _protocol) in protocol_map.iter() {
-                    println!("--- Coordinator: attempt to connect to worker on: {}", addr);
-                    // protocol.connect_to_worker(*addr)
-
-                    let connect = TcpStream::connect(addr);
-                    match connect.await {
-                        Ok(_) => println!("Coordinator: successfully connected to {}", addr),
-                        Err(_) => println!("failed to connect to worker {}", addr),
-                    }
-
-                    // if let Ok(_stream) = connect.await {
-                    //     println!("Connected to the server!");
-                    // } else {
-                    //     panic!("Couldn't connect to worker...");
-                    // }
+                for (addr, protocol) in protocol_map.iter() {
+                    protocol.connect_to_worker(*addr).await;
                 }
             }
-            Role::Worker((addr, _protocol)) => {
-                // protocol.wait_for_coordinator(),
-                let listener = TcpListener::bind(addr).await.unwrap();
-                println!("--- Worker listening on: {}", addr);
-                match listener.accept().await {
-                    Ok((_socket, _local_addr)) => println!("Worker success connection: {addr}"),
-                    Err(e) => panic!("couldn't get client: {e:?}"),
-                }
+            Role::Worker((addr, protocol)) => {
+                protocol.wait_for_coordinator(addr).await;
             }
         }
     }
@@ -70,6 +56,7 @@ impl<P: Protocol> Russula<P> {
     pub async fn wait_peer_state(&self, _state: P::Message) {}
 }
 
+#[async_trait]
 pub trait Protocol: Clone {
     type Message;
 
@@ -80,8 +67,8 @@ pub trait Protocol: Clone {
     fn version(&self) {}
     fn app(&self) {}
 
-    fn connect_to_worker(&self, _addr: SocketAddr);
-    fn wait_for_coordinator(&self);
+    async fn connect_to_worker(&self, _addr: SocketAddr);
+    async fn wait_for_coordinator(&self, addr: &SocketAddr);
 
     fn start(&self) {}
     fn kill(&self) {}
@@ -109,25 +96,27 @@ impl NetbenchOrchestrator {
     }
 }
 
+#[async_trait]
 impl Protocol for NetbenchOrchestrator {
     type Message = NetbenchState;
 
-    fn wait_for_coordinator(&self) {
-        // let listener = TcpListener::bind("127.0.0.1:8989").await.unwrap();
-        // match listener.accept() {
-        //     Ok((_socket, addr)) => println!("new client: {addr:?}"),
-        //     Err(e) => panic!("couldn't get client: {e:?}"),
-        // }
+    async fn wait_for_coordinator(&self, addr: &SocketAddr) {
+        let listener = TcpListener::bind(addr).await.unwrap();
+        println!("--- Worker listening on: {}", addr);
+        match listener.accept().await {
+            Ok((_socket, _local_addr)) => println!("Worker success connection: {addr}"),
+            Err(e) => panic!("couldn't get client: {e:?}"),
+        }
     }
 
-    fn connect_to_worker(&self, _addr: SocketAddr) {
-        // // FIXME fix this
-        // // let _conn = TcpStream::connect(addr).unwrap();
-        // if let Ok(_stream) = TcpStream::connect(addr).await {
-        //     println!("Connected to the server!");
-        // } else {
-        //     panic!("Couldn't connect to worker...");
-        // }
+    async fn connect_to_worker(&self, addr: SocketAddr) {
+        println!("--- Coordinator: attempt to connect to worker on: {}", addr);
+
+        let connect = TcpStream::connect(addr);
+        match connect.await {
+            Ok(_) => println!("Coordinator: successfully connected to {}", addr),
+            Err(_) => println!("failed to connect to worker {}", addr),
+        }
     }
 
     fn peer_state(&self) -> Self::Message {
