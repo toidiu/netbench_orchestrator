@@ -15,9 +15,9 @@ impl<P: Protocol> Russula<P> {
         Self { role }
     }
 
-    pub fn new_worker(protocol: P) -> Self {
+    pub fn new_worker(addr: SocketAddr, protocol: P) -> Self {
         Self {
-            role: Role::Worker(protocol),
+            role: Role::Worker((addr, protocol)),
         }
     }
 
@@ -25,13 +25,13 @@ impl<P: Protocol> Russula<P> {
         match &self.role {
             Role::Coordinator(protocol_map) => {
                 for (addr, _protocol) in protocol_map.iter() {
-                    println!("------------attempt to connect to worker");
+                    println!("--- Coordinator: attempt to connect to worker on: {}", addr);
                     // protocol.connect_to_worker(*addr)
 
                     let connect = TcpStream::connect(addr);
                     match connect.await {
-                        Ok(_) => println!("Coordinator: connected"),
-                        Err(_) => println!("did not receive value within 10 ms"),
+                        Ok(_) => println!("Coordinator: successfully connected to {}", addr),
+                        Err(_) => println!("failed to connect to worker {}", addr),
                     }
 
                     // if let Ok(_stream) = connect.await {
@@ -41,12 +41,12 @@ impl<P: Protocol> Russula<P> {
                     // }
                 }
             }
-            Role::Worker(_protocol) => {
+            Role::Worker((addr, _protocol)) => {
                 // protocol.wait_for_coordinator(),
-                let listener = TcpListener::bind("127.0.0.1:8989").await.unwrap();
-                println!("------------listening");
+                let listener = TcpListener::bind(addr).await.unwrap();
+                println!("--- Worker listening on: {}", addr);
                 match listener.accept().await {
-                    Ok((_socket, addr)) => println!("Worker: {addr:?}"),
+                    Ok((_socket, _local_addr)) => println!("Worker success connection: {addr}"),
                     Err(e) => panic!("couldn't get client: {e:?}"),
                 }
             }
@@ -63,7 +63,7 @@ impl<P: Protocol> Russula<P> {
     pub async fn kill(&self) {
         match &self.role {
             Role::Coordinator(_) => todo!(),
-            Role::Worker(role) => role.kill(),
+            Role::Worker(role) => role.1.kill(),
         }
     }
 
@@ -93,7 +93,7 @@ pub trait Protocol: Clone {
 
 enum Role<P: Protocol> {
     Coordinator(BTreeMap<SocketAddr, P>),
-    Worker(P),
+    Worker((SocketAddr, P)),
 }
 
 #[derive(Clone, Copy)]
@@ -113,7 +113,6 @@ impl Protocol for NetbenchOrchestrator {
     type Message = NetbenchState;
 
     fn wait_for_coordinator(&self) {
-        // println!("------------listening");
         // let listener = TcpListener::bind("127.0.0.1:8989").await.unwrap();
         // match listener.accept() {
         //     Ok((_socket, addr)) => println!("new client: {addr:?}"),
@@ -122,7 +121,6 @@ impl Protocol for NetbenchOrchestrator {
     }
 
     fn connect_to_worker(&self, _addr: SocketAddr) {
-        // println!("------------connect");
         // // FIXME fix this
         // // let _conn = TcpStream::connect(addr).unwrap();
         // if let Ok(_stream) = TcpStream::connect(addr).await {
@@ -151,11 +149,17 @@ mod tests {
 
     #[tokio::test]
     async fn test() {
+        let w1 = SocketAddr::from_str("127.0.0.1:8991").unwrap();
+        let w2 = SocketAddr::from_str("127.0.0.1:8992").unwrap();
+
         let test_protocol = NetbenchOrchestrator::new();
-        let addr = BTreeSet::from_iter([SocketAddr::from_str("127.0.0.1:8989").unwrap()]);
+        let addr = BTreeSet::from_iter([w1, w2]);
 
         let w1 = tokio::spawn(async move {
-            let _worker = Russula::new_worker(test_protocol).connect().await;
+            let _worker = Russula::new_worker(w1, test_protocol).connect().await;
+        });
+        let w2 = tokio::spawn(async move {
+            let _worker = Russula::new_worker(w2, test_protocol).connect().await;
         });
 
         let c1 = tokio::spawn(async move {
@@ -164,7 +168,7 @@ mod tests {
                 .await;
         });
 
-        tokio::join!(w1, c1).0.unwrap();
+        tokio::join!(w1, w2, c1).0.unwrap();
 
         assert!(1 == 43)
     }
