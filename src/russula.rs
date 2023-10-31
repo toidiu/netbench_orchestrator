@@ -95,19 +95,20 @@ impl<P: Protocol> Russula<P> {
     }
 
     #[allow(unused_variables)]
-    pub async fn is_peer_state(&self, state: P::State) -> RussulaResult<bool> {
+    pub async fn check_peer_state(&self, state: P::State) -> RussulaResult<bool> {
         let matches = match &self.role {
             Role::Coordinator(map) => {
                 let mut matches = true;
                 for (_addr, protocol) in map.iter() {
                     let protocol_state = protocol.peer_state();
-                    matches &= matches!(state, protocol_state);
+                    matches &= state.eq(protocol_state);
+                    println!("{:?} {:?} {}", protocol_state, state, matches);
                 }
                 matches
             }
             Role::Worker((_addr, protocol)) => {
                 let protocol_state = protocol.peer_state();
-                matches!(state, protocol_state)
+                state.eq(protocol_state)
             }
         };
         Ok(matches)
@@ -128,6 +129,9 @@ impl NetbenchOrchProtocol {
         }
     }
 }
+
+// impl Protocol for NetbenchServerProtocol {
+// impl Protocol for NetbenchClientProtocol {
 
 #[async_trait]
 impl Protocol for NetbenchOrchProtocol {
@@ -211,6 +215,14 @@ pub enum NetbenchOrchState {
 }
 
 impl StateApi for NetbenchOrchState {
+    fn eq(&self, other: Self) -> bool {
+        match self {
+            NetbenchOrchState::Ready => matches!(other, NetbenchOrchState::Ready),
+            NetbenchOrchState::WaitPeerDone => matches!(other, NetbenchOrchState::WaitPeerDone),
+            NetbenchOrchState::Done => matches!(other, NetbenchOrchState::Done),
+        }
+    }
+
     fn curr(&self) -> &Self {
         self
     }
@@ -296,13 +308,17 @@ mod tests {
             let addr = BTreeSet::from_iter([w1_sock, w2_sock]);
             let coord = Russula::new_coordinator(addr, test_protocol);
             coord.connect().await.unwrap();
+            // assert!(coord.state, Ready)
+            // do something
+            // assert!(coord.state, WaitPeerDone)
+            // assert!(coord.state, Done)
             coord
         });
 
         let join = tokio::join!(w1, w2, c1);
         let coord = join.2.unwrap();
         coord
-            .is_peer_state(NetbenchOrchState::WaitPeerDone)
+            .check_peer_state(NetbenchOrchState::WaitPeerDone)
             .await
             .unwrap();
         coord.kill().await;

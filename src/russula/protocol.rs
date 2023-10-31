@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use core::fmt::Debug;
 use std::net::SocketAddr;
 use tokio::net::TcpStream;
 
@@ -6,14 +7,14 @@ use super::RussulaResult;
 
 #[async_trait]
 pub trait Protocol: Clone {
-    type State: StateApi + Copy;
+    type State: StateApi + Copy + Debug;
 
     // TODO replace u8 with uuid
     fn id(&self) -> u8 {
         0
     }
-    // fn version(&self) {}
-    // fn app(&self) {}
+    // fn version(&self) {1, 2}
+    // fn app(&self) { "netbench" }
 
     async fn connect_to_worker(&self, addr: SocketAddr) -> RussulaResult<TcpStream>;
     async fn wait_for_coordinator(&self, addr: &SocketAddr) -> RussulaResult<TcpStream>;
@@ -40,6 +41,7 @@ pub enum NextTransitionMsg {
 }
 
 pub trait StateApi {
+    fn eq(&self, other: Self) -> bool;
     fn curr(&self) -> &Self;
     fn next_transition_msg(&self) -> Option<NextTransitionMsg>;
     fn next(&mut self) -> Self;
