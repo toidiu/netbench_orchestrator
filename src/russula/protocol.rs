@@ -42,7 +42,9 @@ pub enum NextTransitionMsg {
 
 pub trait StateApi {
     fn eq(&self, other: Self) -> bool;
-    fn curr(&self) -> &Self;
+    fn curr(&self) -> &Self {
+        self
+    }
     fn next_transition_msg(&self) -> Option<NextTransitionMsg>;
     fn next(&mut self) -> Self;
     fn process_msg(&mut self, msg: String) -> &Self;

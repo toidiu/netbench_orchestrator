@@ -223,10 +223,6 @@ impl StateApi for NetbenchOrchState {
         }
     }
 
-    fn curr(&self) -> &Self {
-        self
-    }
-
     fn next_transition_msg(&self) -> Option<protocol::NextTransitionMsg> {
         match self {
             NetbenchOrchState::Ready => None,
