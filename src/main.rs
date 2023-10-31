@@ -5,7 +5,7 @@
 use crate::report::orch_generate_report;
 use aws_types::region::Region;
 use error::{OrchError, OrchResult};
-use std::{net::SocketAddr, process::Command, str::FromStr};
+use std::process::Command;
 mod dashboard;
 mod ec2_utils;
 mod error;
@@ -17,7 +17,6 @@ mod state;
 
 use dashboard::*;
 use ec2_utils::*;
-use russula::*;
 use s3_utils::*;
 use ssm_utils::*;
 use state::*;

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::russula::NextTransitionMsg;
+use crate::russula::RussulaPeer;
 use crate::russula::StateApi;
 use async_trait::async_trait;
 use std::net::SocketAddr;
@@ -10,9 +11,8 @@ use tokio::net::{TcpListener, TcpStream};
 use crate::russula::error::{RussulaError, RussulaResult};
 use crate::russula::protocol::Protocol;
 
-#[derive(Default)]
+#[derive(Clone, Copy)]
 pub struct NetbenchWorkerProtocol {
-    stream: Option<TcpStream>,
     state: NetbenchWorkerState,
     peer_state: NetbenchWorkerState,
 }
@@ -20,7 +20,6 @@ pub struct NetbenchWorkerProtocol {
 impl NetbenchWorkerProtocol {
     pub fn new() -> Self {
         NetbenchWorkerProtocol {
-            stream: None,
             state: NetbenchWorkerState::Ready,
             peer_state: NetbenchWorkerState::Ready,
         }
@@ -47,15 +46,12 @@ impl Protocol for NetbenchWorkerProtocol {
         Ok(stream)
     }
 
-    async fn set_stream(&mut self, stream: TcpStream) {
-        self.stream = Some(stream);
+    async fn start(&self, stream: &TcpStream) -> RussulaResult<()> {
+        self.recv_msg(stream).await?;
+        Ok(())
     }
 
-    async fn stream(&self) -> Option<&TcpStream> {
-        (&self.stream).into()
-    }
-
-    async fn recv_msg(&self, stream: TcpStream) -> RussulaResult<Self::State> {
+    async fn recv_msg(&self, stream: &TcpStream) -> RussulaResult<Self::State> {
         stream.readable().await.unwrap();
 
         let mut buf = Vec::with_capacity(100);
@@ -74,7 +70,7 @@ impl Protocol for NetbenchWorkerProtocol {
         Ok(self.state)
     }
 
-    async fn send_msg(&self, stream: TcpStream, msg: Self::State) -> RussulaResult<()> {
+    async fn send_msg(&self, stream: &TcpStream, msg: Self::State) -> RussulaResult<()> {
         stream.writable().await.unwrap();
 
         stream.try_write(msg.as_bytes()).unwrap();
@@ -97,9 +93,8 @@ impl Protocol for NetbenchWorkerProtocol {
 //
 // A("name",                  Option(MSG_to_next),   Notify_peer_of_transition_to_next, Fn(Self)->Self )
 // B("name",                  Option(MSG_to_next),   Notify_peer_of_transition_to_next)
-#[derive(Copy, Clone, Debug, Default)]
+#[derive(Copy, Clone, Debug)]
 pub enum NetbenchWorkerState {
-    #[default]
     Ready,
     WaitPeerDone,
     Done,
@@ -159,7 +154,7 @@ impl NetbenchWorkerState {
             b"done" => NetbenchWorkerState::Done,
             bad_msg => {
                 return Err(RussulaError::BadMsg {
-                    dbg: format!("unrecognized msg {:?}", bad_msg),
+                    dbg: format!("unrecognized msg {:?}", std::str::from_utf8(bad_msg)),
                 })
             }
         };
@@ -168,9 +163,8 @@ impl NetbenchWorkerState {
     }
 }
 
-#[derive(Default)]
+#[derive(Clone, Copy)]
 pub struct NetbenchOrchProtocol {
-    stream: Option<TcpStream>,
     state: NetbenchOrchState,
     peer_state: NetbenchOrchState,
 }
@@ -178,7 +172,6 @@ pub struct NetbenchOrchProtocol {
 impl NetbenchOrchProtocol {
     pub fn new() -> Self {
         NetbenchOrchProtocol {
-            stream: None,
             state: NetbenchOrchState::Ready,
             peer_state: NetbenchOrchState::Ready,
         }
@@ -201,15 +194,12 @@ impl Protocol for NetbenchOrchProtocol {
         Ok(connect)
     }
 
-    async fn set_stream(&mut self, stream: TcpStream) {
-        self.stream = Some(stream);
+    async fn start(&self, stream: &TcpStream) -> RussulaResult<()> {
+        self.send_msg(stream, self.state()).await?;
+        Ok(())
     }
 
-    async fn stream(&self) -> Option<&TcpStream> {
-        (&self.stream).into()
-    }
-
-    async fn recv_msg(&self, stream: TcpStream) -> RussulaResult<Self::State> {
+    async fn recv_msg(&self, stream: &TcpStream) -> RussulaResult<Self::State> {
         stream.readable().await.unwrap();
 
         let mut buf = Vec::with_capacity(100);
@@ -228,7 +218,7 @@ impl Protocol for NetbenchOrchProtocol {
         Ok(self.state)
     }
 
-    async fn send_msg(&self, stream: TcpStream, msg: Self::State) -> RussulaResult<()> {
+    async fn send_msg(&self, stream: &TcpStream, msg: Self::State) -> RussulaResult<()> {
         stream.writable().await.unwrap();
 
         stream.try_write(msg.as_bytes()).unwrap();
@@ -251,9 +241,8 @@ impl Protocol for NetbenchOrchProtocol {
 //
 // A("name",                  Option(MSG_to_next),   Notify_peer_of_transition_to_next, Fn(Self)->Self )
 // B("name",                  Option(MSG_to_next),   Notify_peer_of_transition_to_next)
-#[derive(Copy, Clone, Debug, Default)]
+#[derive(Copy, Clone, Debug)]
 pub enum NetbenchOrchState {
-    #[default]
     Ready,
     WaitPeerDone,
     Done,
@@ -313,7 +302,7 @@ impl NetbenchOrchState {
             b"done" => NetbenchOrchState::Done,
             bad_msg => {
                 return Err(RussulaError::BadMsg {
-                    dbg: format!("unrecognized msg {:?}", bad_msg),
+                    dbg: format!("unrecognized msg {:?}", std::str::from_utf8(bad_msg)),
                 })
             }
         };

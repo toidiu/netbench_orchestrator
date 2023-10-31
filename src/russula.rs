@@ -26,7 +26,7 @@ use self::protocol::StateApi;
 // - worker groups (server, client)
 // D- move connect to protocol impl
 
-struct RussulaPeer<P: Protocol> {
+pub struct RussulaPeer<P: Protocol> {
     addr: SocketAddr,
     stream: TcpStream,
     protocol: P,
@@ -39,7 +39,7 @@ pub struct Russula<P: Protocol> {
 impl<P: Protocol> Russula<P> {
     pub async fn start(&self) {
         for peer in self.peer_list.iter() {
-            peer.protocol.start(&self.peer_list).unwrap();
+            peer.protocol.start(&peer.stream).await.unwrap();
         }
     }
 
@@ -60,10 +60,10 @@ pub struct RussulaBuilder<P: Protocol> {
 }
 
 impl<P: Protocol> RussulaBuilder<P> {
-    pub fn new(addr: BTreeSet<SocketAddr>, _protocol: P) -> Self {
+    pub fn new(addr: BTreeSet<SocketAddr>, protocol: P) -> Self {
         let mut map = Vec::new();
         addr.into_iter().for_each(|addr| {
-            map.push((addr, P::default()));
+            map.push((addr, protocol.clone()));
         });
         Self { peer_list: map }
     }
@@ -97,7 +97,7 @@ mod tests {
     #[tokio::test]
     async fn test() {
         let w1_sock = SocketAddr::from_str("127.0.0.1:8991").unwrap();
-        let w2_sock = SocketAddr::from_str("127.0.0.1:8992").unwrap();
+        let w2_sock = SocketAddr::from_str("127.0.0.1:8993").unwrap();
 
         let w1 = tokio::spawn(async move {
             let worker = RussulaBuilder::new(
