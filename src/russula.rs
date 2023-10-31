@@ -38,16 +38,24 @@ impl<P: Protocol> Russula<P> {
 
     pub async fn connect(&self) -> RussulaResult<()> {
         match &self.role {
-            Role::Coordinator(protocol_map) => {
-                for (addr, protocol) in protocol_map.iter() {
-                    protocol.connect_to_worker(*addr).await;
+            Role::Coordinator(worker_list) => {
+                let mut v = Vec::new();
+                for (addr, protocol) in worker_list.iter() {
+                    let stream = protocol.connect_to_worker(*addr).await?;
+                    println!("Coordinator: successfully connected to {}", addr);
+                    v.push((stream, protocol));
+                }
+
+                for (stream, protocol) in v.into_iter() {
+                    // TODO start instead
+                    protocol.send_msg(stream, protocol.state()).await?;
                 }
             }
             Role::Worker((addr, protocol)) => {
                 let stream = protocol.wait_for_coordinator(addr).await?;
 
-                // TODO move to protocol.start
-                protocol.recv_msg(stream).await;
+                // TODO start instead
+                protocol.recv_msg(stream).await?;
             }
         }
 
@@ -72,11 +80,28 @@ impl<P: Protocol> Russula<P> {
                     protocol.kill();
                 }
             }
-            Role::Worker(role) => role.1.kill(),
+            Role::Worker((_addr, protocol)) => protocol.kill(),
         }
     }
 
-    pub async fn wait_peer_state(&self, _state: P::State) {}
+    #[allow(unused_variables)]
+    pub async fn is_peer_state(&self, state: P::State) -> RussulaResult<bool> {
+        let matches = match &self.role {
+            Role::Coordinator(map) => {
+                let mut matches = true;
+                for (_addr, protocol) in map.iter() {
+                    let protocol_state = protocol.peer_state();
+                    matches &= matches!(state, protocol_state);
+                }
+                matches
+            }
+            Role::Worker((_addr, protocol)) => {
+                let protocol_state = protocol.peer_state();
+                matches!(state, protocol_state)
+            }
+        };
+        Ok(matches)
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -114,26 +139,25 @@ impl Protocol for NetbenchOrchestrator {
         Ok(stream)
     }
 
-    async fn connect_to_worker(&self, addr: SocketAddr) {
+    async fn connect_to_worker(&self, addr: SocketAddr) -> RussulaResult<TcpStream> {
         println!("--- Coordinator: attempt to connect to worker on: {}", addr);
 
-        let connect = TcpStream::connect(addr);
-        match connect.await {
-            Ok(stream) => {
-                println!("Coordinator: successfully connected to {}", addr);
-                self.send_msg(stream, self.state).await;
-            }
-            Err(_) => println!("failed to connect to worker {}", addr),
-        }
+        let connect = TcpStream::connect(addr)
+            .await
+            .map_err(|err| RussulaError::Connect {
+                dbg: err.to_string(),
+            })?;
+
+        Ok(connect)
     }
 
-    async fn recv_msg(&self, stream: TcpStream) -> Self::State {
+    async fn recv_msg(&self, stream: TcpStream) -> RussulaResult<Self::State> {
         stream.readable().await.unwrap();
 
-        let mut buf = Vec::with_capacity(4096);
+        let mut buf = Vec::with_capacity(100);
         match stream.try_read_buf(&mut buf) {
             Ok(n) => {
-                let msg = std::str::from_utf8(&buf);
+                let msg = NetbenchState::from_bytes(&buf)?;
                 println!("read {} bytes: {:?}", n, &msg);
             }
             Err(ref e) if e.kind() == tokio::io::ErrorKind::WouldBlock => {
@@ -142,16 +166,21 @@ impl Protocol for NetbenchOrchestrator {
             Err(e) => panic!("{}", e),
         }
 
-        self.state
+        // TODO
+        Ok(self.state)
     }
 
-    async fn send_msg(&self, stream: TcpStream, msg: Self::State) {
+    async fn send_msg(&self, stream: TcpStream, msg: Self::State) -> RussulaResult<()> {
         stream.writable().await.unwrap();
 
-        let msg = format!("hi {:?}", msg);
         stream.try_write(msg.as_bytes()).unwrap();
+
+        Ok(())
     }
 
+    fn state(&self) -> Self::State {
+        self.state
+    }
     fn peer_state(&self) -> Self::State {
         self.peer_state
     }
@@ -162,6 +191,31 @@ pub enum NetbenchState {
     Ready,
     Run,
     Done,
+}
+
+impl NetbenchState {
+    pub fn as_bytes(&self) -> &'static [u8] {
+        match self {
+            NetbenchState::Ready => b"ready",
+            NetbenchState::Run => b"run",
+            NetbenchState::Done => b"done",
+        }
+    }
+
+    pub fn from_bytes(bytes: &[u8]) -> RussulaResult<Self> {
+        let state = match bytes {
+            b"ready" => NetbenchState::Ready,
+            b"run" => NetbenchState::Run,
+            b"done" => NetbenchState::Done,
+            bad_msg => {
+                return Err(RussulaError::BadMsg {
+                    dbg: format!("unrecognized msg {:?}", bad_msg),
+                })
+            }
+        };
+
+        Ok(state)
+    }
 }
 
 #[cfg(test)]
@@ -196,6 +250,7 @@ mod tests {
 
         let join = tokio::join!(w1, w2, c1);
         let coord = join.2.unwrap();
+        coord.is_peer_state(NetbenchState::Run).await.unwrap();
         coord.kill().await;
 
         assert!(1 == 43)

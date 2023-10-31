@@ -136,10 +136,10 @@ async fn main() -> OrchResult<()> {
         .collect();
     let russula = Russula::new_coordinator(server_addr, russula::NetbenchOrchestrator::new());
     russula.connect().await.unwrap();
-    russula.start().await;
-    russula.wait_peer_state(NetbenchState::Ready).await;
-    russula.wait_peer_state(NetbenchState::Done).await;
-    russula.kill().await;
+    // russula.start().await;
+    // russula.is_peer_state(NetbenchState::Ready).await;
+    // russula.is_peer_state(NetbenchState::Done).await;
+    // russula.kill().await;
 
     // Copy results back
     orch_generate_report(&s3_client, &unique_id).await;

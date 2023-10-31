@@ -6,7 +6,7 @@ use super::RussulaResult;
 
 #[async_trait]
 pub trait Protocol: Clone {
-    type State;
+    type State: Copy;
 
     // TODO replace u8 with uuid
     fn id(&self) -> u8 {
@@ -15,14 +15,15 @@ pub trait Protocol: Clone {
     // fn version(&self) {}
     // fn app(&self) {}
 
-    async fn connect_to_worker(&self, _addr: SocketAddr);
+    async fn connect_to_worker(&self, addr: SocketAddr) -> RussulaResult<TcpStream>;
     async fn wait_for_coordinator(&self, addr: &SocketAddr) -> RussulaResult<TcpStream>;
+    async fn recv_msg(&self, stream: TcpStream) -> RussulaResult<Self::State>;
+    async fn send_msg(&self, stream: TcpStream, msg: Self::State) -> RussulaResult<()>;
 
     fn start(&self) {}
     fn kill(&self) {}
 
-    async fn recv_msg(&self, stream: TcpStream) -> Self::State;
-    async fn send_msg(&self, stream: TcpStream, msg: Self::State);
+    fn state(&self) -> Self::State;
     fn peer_state(&self) -> Self::State;
 }
 
