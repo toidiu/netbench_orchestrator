@@ -10,8 +10,9 @@ use tokio::net::{TcpListener, TcpStream};
 use crate::russula::error::{RussulaError, RussulaResult};
 use crate::russula::protocol::Protocol;
 
-#[derive(Clone, Copy)]
+#[derive(Default)]
 pub struct NetbenchWorkerProtocol {
+    stream: Option<TcpStream>,
     state: NetbenchWorkerState,
     peer_state: NetbenchWorkerState,
 }
@@ -19,6 +20,7 @@ pub struct NetbenchWorkerProtocol {
 impl NetbenchWorkerProtocol {
     pub fn new() -> Self {
         NetbenchWorkerProtocol {
+            stream: None,
             state: NetbenchWorkerState::Ready,
             peer_state: NetbenchWorkerState::Ready,
         }
@@ -43,6 +45,14 @@ impl Protocol for NetbenchWorkerProtocol {
         println!("Worker success connection: {addr}");
 
         Ok(stream)
+    }
+
+    async fn set_stream(&mut self, stream: TcpStream) {
+        self.stream = Some(stream);
+    }
+
+    async fn stream(&self) -> Option<&TcpStream> {
+        (&self.stream).into()
     }
 
     async fn recv_msg(&self, stream: TcpStream) -> RussulaResult<Self::State> {
@@ -87,8 +97,9 @@ impl Protocol for NetbenchWorkerProtocol {
 //
 // A("name",                  Option(MSG_to_next),   Notify_peer_of_transition_to_next, Fn(Self)->Self )
 // B("name",                  Option(MSG_to_next),   Notify_peer_of_transition_to_next)
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Default)]
 pub enum NetbenchWorkerState {
+    #[default]
     Ready,
     WaitPeerDone,
     Done,
@@ -156,10 +167,10 @@ impl NetbenchWorkerState {
         Ok(state)
     }
 }
-// ------------------
 
-#[derive(Clone, Copy)]
+#[derive(Default)]
 pub struct NetbenchOrchProtocol {
+    stream: Option<TcpStream>,
     state: NetbenchOrchState,
     peer_state: NetbenchOrchState,
 }
@@ -167,6 +178,7 @@ pub struct NetbenchOrchProtocol {
 impl NetbenchOrchProtocol {
     pub fn new() -> Self {
         NetbenchOrchProtocol {
+            stream: None,
             state: NetbenchOrchState::Ready,
             peer_state: NetbenchOrchState::Ready,
         }
@@ -187,6 +199,14 @@ impl Protocol for NetbenchOrchProtocol {
             })?;
 
         Ok(connect)
+    }
+
+    async fn set_stream(&mut self, stream: TcpStream) {
+        self.stream = Some(stream);
+    }
+
+    async fn stream(&self) -> Option<&TcpStream> {
+        (&self.stream).into()
     }
 
     async fn recv_msg(&self, stream: TcpStream) -> RussulaResult<Self::State> {
@@ -231,8 +251,9 @@ impl Protocol for NetbenchOrchProtocol {
 //
 // A("name",                  Option(MSG_to_next),   Notify_peer_of_transition_to_next, Fn(Self)->Self )
 // B("name",                  Option(MSG_to_next),   Notify_peer_of_transition_to_next)
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Default)]
 pub enum NetbenchOrchState {
+    #[default]
     Ready,
     WaitPeerDone,
     Done,

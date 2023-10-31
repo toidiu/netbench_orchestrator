@@ -1,3 +1,4 @@
+use crate::russula::RussulaPeer;
 use async_trait::async_trait;
 use core::fmt::Debug;
 use std::net::SocketAddr;
@@ -6,7 +7,7 @@ use tokio::net::TcpStream;
 use super::RussulaResult;
 
 #[async_trait]
-pub trait Protocol: Clone {
+pub trait Protocol: Sized + Default {
     type State: StateApi + Copy + Debug;
 
     // TODO replace u8 with uuid
@@ -17,11 +18,15 @@ pub trait Protocol: Clone {
     // fn app(&self) { "netbench" }
 
     async fn connect(&self, addr: &SocketAddr) -> RussulaResult<TcpStream>;
+    async fn set_stream(&mut self, stream: TcpStream);
+    async fn stream(&self) -> Option<&TcpStream>;
+
     async fn recv_msg(&self, stream: TcpStream) -> RussulaResult<Self::State>;
     async fn send_msg(&self, stream: TcpStream, msg: Self::State) -> RussulaResult<()>;
 
-    fn start(&self) {}
-    fn kill(&self) {}
+    fn start(&self, peer_list: &Vec<RussulaPeer<Self>>) -> RussulaResult<()> {
+        Ok(())
+    }
 
     fn state(&self) -> Self::State;
     fn peer_state(&self) -> Self::State;
