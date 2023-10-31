@@ -6,7 +6,7 @@ use super::RussulaResult;
 
 #[async_trait]
 pub trait Protocol: Clone {
-    type State: Copy;
+    type State: StateApi + Copy;
 
     // TODO replace u8 with uuid
     fn id(&self) -> u8 {
@@ -32,4 +32,16 @@ type SockProtocol<P> = (SocketAddr, P);
 pub enum Role<P: Protocol> {
     Coordinator(Vec<SockProtocol<P>>),
     Worker(SockProtocol<P>),
+}
+
+pub enum NextTransitionMsg {
+    SelfDriven,
+    PeerDriven(String),
+}
+
+pub trait StateApi {
+    fn curr(&self) -> &Self;
+    fn next_transition_msg(&self) -> Option<NextTransitionMsg>;
+    fn next(&mut self) -> Self;
+    fn process_msg(&mut self, msg: String) -> &Self;
 }

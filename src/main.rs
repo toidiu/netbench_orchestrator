@@ -126,16 +126,16 @@ async fn main() -> OrchResult<()> {
         println!("Server Finished!: Successful: {}", server_result);
     }
 
-    let server_addr = infra
-        .servers
-        .iter()
-        .map(|server| {
-            let addr = format!("{}:{}", server.ip, STATE.russula_port);
-            SocketAddr::from_str(&addr).unwrap()
-        })
-        .collect();
-    let russula = Russula::new_coordinator(server_addr, russula::NetbenchProtocol::new());
-    russula.connect().await.unwrap();
+    // let server_addr = infra
+    //     .servers
+    //     .iter()
+    //     .map(|server| {
+    //         let addr = format!("{}:{}", server.ip, STATE.russula_port);
+    //         SocketAddr::from_str(&addr).unwrap()
+    //     })
+    //     .collect();
+    // let russula = Russula::new_coordinator(server_addr, russula::NetbenchOrchProtocol::new());
+    // russula.connect().await.unwrap();
     // russula.start().await;
     // russula.is_peer_state(NetbenchState::Ready).await;
     // russula.is_peer_state(NetbenchState::Done).await;

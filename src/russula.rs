@@ -12,6 +12,9 @@ use error::{RussulaError, RussulaResult};
 use protocol::Protocol;
 use protocol::Role;
 
+use self::protocol::NextTransitionMsg;
+use self::protocol::StateApi;
+
 pub struct Russula<P: Protocol> {
     role: Role<P>,
 }
@@ -112,23 +115,23 @@ impl<P: Protocol> Russula<P> {
 }
 
 #[derive(Clone, Copy)]
-pub struct NetbenchProtocol {
-    state: NetbenchState,
-    peer_state: NetbenchState,
+pub struct NetbenchOrchProtocol {
+    state: NetbenchOrchState,
+    peer_state: NetbenchOrchState,
 }
 
-impl NetbenchProtocol {
+impl NetbenchOrchProtocol {
     pub fn new() -> Self {
-        NetbenchProtocol {
-            state: NetbenchState::Ready,
-            peer_state: NetbenchState::Ready,
+        NetbenchOrchProtocol {
+            state: NetbenchOrchState::Ready,
+            peer_state: NetbenchOrchState::Ready,
         }
     }
 }
 
 #[async_trait]
-impl Protocol for NetbenchProtocol {
-    type State = NetbenchState;
+impl Protocol for NetbenchOrchProtocol {
+    type State = NetbenchOrchState;
 
     async fn wait_for_coordinator(&self, addr: &SocketAddr) -> RussulaResult<TcpStream> {
         let listener = TcpListener::bind(addr).await.unwrap();
@@ -164,7 +167,7 @@ impl Protocol for NetbenchProtocol {
         let mut buf = Vec::with_capacity(100);
         match stream.try_read_buf(&mut buf) {
             Ok(n) => {
-                let msg = NetbenchState::from_bytes(&buf)?;
+                let msg = NetbenchOrchState::from_bytes(&buf)?;
                 println!("read {} bytes: {:?}", n, &msg);
             }
             Err(ref e) if e.kind() == tokio::io::ErrorKind::WouldBlock => {
@@ -201,26 +204,60 @@ impl Protocol for NetbenchProtocol {
 // A("name",                  Option(MSG_to_next),   Notify_peer_of_transition_to_next, Fn(Self)->Self )
 // B("name",                  Option(MSG_to_next),   Notify_peer_of_transition_to_next)
 #[derive(Copy, Clone, Debug)]
-pub enum NetbenchState {
+pub enum NetbenchOrchState {
     Ready,
-    Run,
+    WaitPeerDone,
     Done,
 }
 
-impl NetbenchState {
+impl StateApi for NetbenchOrchState {
+    fn curr(&self) -> &Self {
+        self
+    }
+
+    fn next_transition_msg(&self) -> Option<protocol::NextTransitionMsg> {
+        match self {
+            NetbenchOrchState::Ready => None,
+            NetbenchOrchState::WaitPeerDone => Some(NextTransitionMsg::PeerDriven(
+                "wait_peer_done_next".to_string(),
+            )),
+            NetbenchOrchState::Done => None,
+        }
+    }
+
+    fn next(&mut self) -> Self {
+        match self {
+            NetbenchOrchState::Ready => NetbenchOrchState::WaitPeerDone,
+            NetbenchOrchState::WaitPeerDone => NetbenchOrchState::Done,
+            NetbenchOrchState::Done => NetbenchOrchState::Done,
+        }
+    }
+
+    fn process_msg(&mut self, msg: String) -> &Self {
+        if let Some(NextTransitionMsg::PeerDriven(peer_msg)) = self.next_transition_msg() {
+            if peer_msg == msg {
+                self.next();
+            }
+        }
+
+        self
+    }
+}
+
+impl NetbenchOrchState {
     pub fn as_bytes(&self) -> &'static [u8] {
         match self {
-            NetbenchState::Ready => b"ready",
-            NetbenchState::Run => b"run",
-            NetbenchState::Done => b"done",
+            NetbenchOrchState::Ready => b"ready",
+            NetbenchOrchState::WaitPeerDone => b"wait_peer_done",
+            NetbenchOrchState::Done => b"done",
         }
     }
 
     pub fn from_bytes(bytes: &[u8]) -> RussulaResult<Self> {
         let state = match bytes {
-            b"ready" => NetbenchState::Ready,
-            b"run" => NetbenchState::Run,
-            b"done" => NetbenchState::Done,
+            b"ready" => NetbenchOrchState::Ready,
+            b"wait_peer_done" => NetbenchOrchState::WaitPeerDone,
+            b"done" => NetbenchOrchState::Done,
             bad_msg => {
                 return Err(RussulaError::BadMsg {
                     dbg: format!("unrecognized msg {:?}", bad_msg),
@@ -239,7 +276,7 @@ mod tests {
 
     #[tokio::test]
     async fn test() {
-        let test_protocol = NetbenchProtocol::new();
+        let test_protocol = NetbenchOrchProtocol::new();
 
         let w1_sock = SocketAddr::from_str("127.0.0.1:8991").unwrap();
         let w2_sock = SocketAddr::from_str("127.0.0.1:8992").unwrap();
@@ -264,7 +301,10 @@ mod tests {
 
         let join = tokio::join!(w1, w2, c1);
         let coord = join.2.unwrap();
-        coord.is_peer_state(NetbenchState::Run).await.unwrap();
+        coord
+            .is_peer_state(NetbenchOrchState::WaitPeerDone)
+            .await
+            .unwrap();
         coord.kill().await;
 
         assert!(1 == 43)
