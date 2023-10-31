@@ -16,8 +16,7 @@ pub trait Protocol: Clone {
     // fn version(&self) {1, 2}
     // fn app(&self) { "netbench" }
 
-    async fn connect_to_worker(&self, addr: SocketAddr) -> RussulaResult<TcpStream>;
-    async fn wait_for_coordinator(&self, addr: &SocketAddr) -> RussulaResult<TcpStream>;
+    async fn connect(&self, addr: &SocketAddr) -> RussulaResult<TcpStream>;
     async fn recv_msg(&self, stream: TcpStream) -> RussulaResult<Self::State>;
     async fn send_msg(&self, stream: TcpStream, msg: Self::State) -> RussulaResult<()>;
 
@@ -28,12 +27,7 @@ pub trait Protocol: Clone {
     fn peer_state(&self) -> Self::State;
 }
 
-type SockProtocol<P> = (SocketAddr, P);
-
-pub enum Role<P: Protocol> {
-    Coordinator(Vec<SockProtocol<P>>),
-    Worker(SockProtocol<P>),
-}
+pub type SockProtocol<P> = (SocketAddr, P);
 
 pub enum NextTransitionMsg {
     SelfDriven,

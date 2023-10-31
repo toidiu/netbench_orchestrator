@@ -11,6 +11,154 @@ use crate::russula::error::{RussulaError, RussulaResult};
 use crate::russula::protocol::Protocol;
 
 #[derive(Clone, Copy)]
+pub struct NetbenchWorkerProtocol {
+    state: NetbenchWorkerState,
+    peer_state: NetbenchWorkerState,
+}
+
+impl NetbenchWorkerProtocol {
+    pub fn new() -> Self {
+        NetbenchWorkerProtocol {
+            state: NetbenchWorkerState::Ready,
+            peer_state: NetbenchWorkerState::Ready,
+        }
+    }
+}
+
+#[async_trait]
+impl Protocol for NetbenchWorkerProtocol {
+    type State = NetbenchWorkerState;
+
+    async fn connect(&self, addr: &SocketAddr) -> RussulaResult<TcpStream> {
+        let listener = TcpListener::bind(addr).await.unwrap();
+        println!("--- Worker listening on: {}", addr);
+
+        let (stream, _local_addr) =
+            listener
+                .accept()
+                .await
+                .map_err(|err| RussulaError::Connect {
+                    dbg: err.to_string(),
+                })?;
+        println!("Worker success connection: {addr}");
+
+        Ok(stream)
+    }
+
+    async fn recv_msg(&self, stream: TcpStream) -> RussulaResult<Self::State> {
+        stream.readable().await.unwrap();
+
+        let mut buf = Vec::with_capacity(100);
+        match stream.try_read_buf(&mut buf) {
+            Ok(n) => {
+                let msg = NetbenchWorkerState::from_bytes(&buf)?;
+                println!("read {} bytes: {:?}", n, &msg);
+            }
+            Err(ref e) if e.kind() == tokio::io::ErrorKind::WouldBlock => {
+                panic!("{}", e)
+            }
+            Err(e) => panic!("{}", e),
+        }
+
+        // TODO
+        Ok(self.state)
+    }
+
+    async fn send_msg(&self, stream: TcpStream, msg: Self::State) -> RussulaResult<()> {
+        stream.writable().await.unwrap();
+
+        stream.try_write(msg.as_bytes()).unwrap();
+
+        Ok(())
+    }
+
+    fn state(&self) -> Self::State {
+        self.state
+    }
+    fn peer_state(&self) -> Self::State {
+        self.peer_state
+    }
+}
+
+//  curr_state                self/peer driven       notify peer of curr state          fn to go to next
+//
+//  Ready(Ip),                Some("ready_next"),    false,                             Running((Ip, TcpStream))
+//  Running((Ip, TcpStream)), None,                  true,                              Done((Ip, TcpStream))
+//
+// A("name",                  Option(MSG_to_next),   Notify_peer_of_transition_to_next, Fn(Self)->Self )
+// B("name",                  Option(MSG_to_next),   Notify_peer_of_transition_to_next)
+#[derive(Copy, Clone, Debug)]
+pub enum NetbenchWorkerState {
+    Ready,
+    WaitPeerDone,
+    Done,
+}
+
+impl StateApi for NetbenchWorkerState {
+    fn eq(&self, other: Self) -> bool {
+        match self {
+            NetbenchWorkerState::Ready => matches!(other, NetbenchWorkerState::Ready),
+            NetbenchWorkerState::WaitPeerDone => matches!(other, NetbenchWorkerState::WaitPeerDone),
+            NetbenchWorkerState::Done => matches!(other, NetbenchWorkerState::Done),
+        }
+    }
+
+    fn next_transition_msg(&self) -> Option<NextTransitionMsg> {
+        match self {
+            NetbenchWorkerState::Ready => None,
+            NetbenchWorkerState::WaitPeerDone => Some(NextTransitionMsg::PeerDriven(
+                "wait_peer_done_next".to_string(),
+            )),
+            NetbenchWorkerState::Done => None,
+        }
+    }
+
+    fn next(&mut self) -> Self {
+        match self {
+            NetbenchWorkerState::Ready => NetbenchWorkerState::WaitPeerDone,
+            NetbenchWorkerState::WaitPeerDone => NetbenchWorkerState::Done,
+            NetbenchWorkerState::Done => NetbenchWorkerState::Done,
+        }
+    }
+
+    fn process_msg(&mut self, msg: String) -> &Self {
+        if let Some(NextTransitionMsg::PeerDriven(peer_msg)) = self.next_transition_msg() {
+            if peer_msg == msg {
+                self.next();
+            }
+        }
+
+        self
+    }
+}
+
+impl NetbenchWorkerState {
+    pub fn as_bytes(&self) -> &'static [u8] {
+        match self {
+            NetbenchWorkerState::Ready => b"ready",
+            NetbenchWorkerState::WaitPeerDone => b"wait_peer_done",
+            NetbenchWorkerState::Done => b"done",
+        }
+    }
+
+    pub fn from_bytes(bytes: &[u8]) -> RussulaResult<Self> {
+        let state = match bytes {
+            b"ready" => NetbenchWorkerState::Ready,
+            b"wait_peer_done" => NetbenchWorkerState::WaitPeerDone,
+            b"done" => NetbenchWorkerState::Done,
+            bad_msg => {
+                return Err(RussulaError::BadMsg {
+                    dbg: format!("unrecognized msg {:?}", bad_msg),
+                })
+            }
+        };
+
+        Ok(state)
+    }
+}
+// ------------------
+
+#[derive(Clone, Copy)]
 pub struct NetbenchOrchProtocol {
     state: NetbenchOrchState,
     peer_state: NetbenchOrchState,
@@ -29,23 +177,7 @@ impl NetbenchOrchProtocol {
 impl Protocol for NetbenchOrchProtocol {
     type State = NetbenchOrchState;
 
-    async fn wait_for_coordinator(&self, addr: &SocketAddr) -> RussulaResult<TcpStream> {
-        let listener = TcpListener::bind(addr).await.unwrap();
-        println!("--- Worker listening on: {}", addr);
-
-        let (stream, _local_addr) =
-            listener
-                .accept()
-                .await
-                .map_err(|err| RussulaError::Connect {
-                    dbg: err.to_string(),
-                })?;
-        println!("Worker success connection: {addr}");
-
-        Ok(stream)
-    }
-
-    async fn connect_to_worker(&self, addr: SocketAddr) -> RussulaResult<TcpStream> {
+    async fn connect(&self, addr: &SocketAddr) -> RussulaResult<TcpStream> {
         println!("--- Coordinator: attempt to connect to worker on: {}", addr);
 
         let connect = TcpStream::connect(addr)
