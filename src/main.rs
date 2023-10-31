@@ -134,7 +134,7 @@ async fn main() -> OrchResult<()> {
             SocketAddr::from_str(&addr).unwrap()
         })
         .collect();
-    let russula = Russula::new_coordinator(server_addr, russula::NetbenchOrchestrator::new());
+    let russula = Russula::new_coordinator(server_addr, russula::NetbenchProtocol::new());
     russula.connect().await.unwrap();
     // russula.start().await;
     // russula.is_peer_state(NetbenchState::Ready).await;

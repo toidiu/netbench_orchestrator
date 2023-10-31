@@ -18,6 +18,13 @@ pub struct Russula<P: Protocol> {
 
 // TODO
 // - handle coord retry on connect
+//
+// - curr_state ()
+// - peer_state_update (to, from)
+//   - ack msg (send curr state)
+// - self_state_updated (to, from)
+//
+// - worker groups (server, client)
 // D- move connect to protocol impl
 
 impl<P: Protocol> Russula<P> {
@@ -105,14 +112,14 @@ impl<P: Protocol> Russula<P> {
 }
 
 #[derive(Clone, Copy)]
-pub struct NetbenchOrchestrator {
+pub struct NetbenchProtocol {
     state: NetbenchState,
     peer_state: NetbenchState,
 }
 
-impl NetbenchOrchestrator {
+impl NetbenchProtocol {
     pub fn new() -> Self {
-        NetbenchOrchestrator {
+        NetbenchProtocol {
             state: NetbenchState::Ready,
             peer_state: NetbenchState::Ready,
         }
@@ -120,7 +127,7 @@ impl NetbenchOrchestrator {
 }
 
 #[async_trait]
-impl Protocol for NetbenchOrchestrator {
+impl Protocol for NetbenchProtocol {
     type State = NetbenchState;
 
     async fn wait_for_coordinator(&self, addr: &SocketAddr) -> RussulaResult<TcpStream> {
@@ -186,6 +193,13 @@ impl Protocol for NetbenchOrchestrator {
     }
 }
 
+//  curr_state                self/peer driven       notify peer of curr state          fn to go to next
+//
+//  Ready(Ip),                Some("ready_next"),    false,                             Running((Ip, TcpStream))
+//  Running((Ip, TcpStream)), None,                  true,                              Done((Ip, TcpStream))
+//
+// A("name",                  Option(MSG_to_next),   Notify_peer_of_transition_to_next, Fn(Self)->Self )
+// B("name",                  Option(MSG_to_next),   Notify_peer_of_transition_to_next)
 #[derive(Copy, Clone, Debug)]
 pub enum NetbenchState {
     Ready,
@@ -225,7 +239,7 @@ mod tests {
 
     #[tokio::test]
     async fn test() {
-        let test_protocol = NetbenchOrchestrator::new();
+        let test_protocol = NetbenchProtocol::new();
 
         let w1_sock = SocketAddr::from_str("127.0.0.1:8991").unwrap();
         let w2_sock = SocketAddr::from_str("127.0.0.1:8992").unwrap();
