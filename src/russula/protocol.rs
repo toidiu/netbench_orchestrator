@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use bytes::Bytes;
 use core::fmt::Debug;
 use std::net::SocketAddr;
 use tokio::net::TcpStream;
@@ -19,7 +20,7 @@ pub trait Protocol: Clone + Sync {
     async fn connect(&self, addr: &SocketAddr) -> RussulaResult<TcpStream>;
     async fn start(&mut self, stream: &TcpStream) -> RussulaResult<()>;
 
-    async fn recv_msg(&self, stream: &TcpStream) -> RussulaResult<Self::State>;
+    async fn recv_msg(&self, stream: &TcpStream) -> RussulaResult<Bytes>;
     async fn send_msg(&self, stream: &TcpStream, msg: Self::State) -> RussulaResult<()>;
 
     fn state(&self) -> Self::State;
@@ -37,5 +38,5 @@ pub trait StateApi {
     fn eq(&self, other: Self) -> bool;
     fn expect_peer_msg(&self) -> Option<NextTransitionMsg>;
     fn next(&mut self);
-    fn process_msg(&mut self, msg: String);
+    fn process_msg(&mut self, msg: Bytes);
 }
