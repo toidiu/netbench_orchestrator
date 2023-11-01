@@ -23,22 +23,18 @@ pub trait Protocol: Clone + Sync {
     async fn send_msg(&self, stream: &TcpStream, msg: Self::State) -> RussulaResult<()>;
 
     fn state(&self) -> Self::State;
-    fn peer_state(&self) -> Self::State;
 }
 
 pub type SockProtocol<P> = (SocketAddr, P);
 
 pub enum NextTransitionMsg {
     SelfDriven,
-    PeerDriven(String),
+    PeerDriven(&'static [u8]),
 }
 
 pub trait StateApi {
     fn eq(&self, other: Self) -> bool;
-    fn curr(&self) -> &Self {
-        self
-    }
-    fn next_transition_msg(&self) -> Option<NextTransitionMsg>;
+    fn expect_peer_msg(&self) -> Option<NextTransitionMsg>;
     fn next(&mut self);
     fn process_msg(&mut self, msg: String);
 }

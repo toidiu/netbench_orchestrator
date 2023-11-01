@@ -56,13 +56,7 @@ impl<P: Protocol> Russula<P> {
 
     #[allow(unused_variables)]
     pub async fn check_peer_state(&self, state: P::State) -> RussulaResult<bool> {
-        let mut matches = true;
-        for peer in self.peer_list.iter() {
-            let protocol_state = peer.protocol.peer_state();
-            matches &= state.eq(protocol_state);
-            println!("{:?} {:?} {}", protocol_state, state, matches);
-        }
-        Ok(matches)
+        todo!()
     }
 }
 
@@ -146,12 +140,12 @@ mod tests {
 
         let worker1 = join.0.unwrap();
         worker1
-            .check_self_state(NetbenchWorkerServerState::WaitPeerDone)
+            .check_self_state(NetbenchWorkerServerState::ServerRun)
             .await
             .unwrap();
         let coord = join.2.unwrap();
         coord
-            .check_self_state(NetbenchCoordServerState::WaitPeerDone)
+            .check_self_state(NetbenchCoordServerState::CoordWaitPeerDone)
             .await
             .unwrap();
 

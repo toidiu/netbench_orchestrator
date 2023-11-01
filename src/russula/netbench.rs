@@ -38,14 +38,12 @@ enum NetbenchServerStateMachine {
 #[derive(Clone, Copy)]
 pub struct NetbenchWorkerServerProtocol {
     state: NetbenchWorkerServerState,
-    peer_state: NetbenchWorkerServerState,
 }
 
 impl NetbenchWorkerServerProtocol {
     pub fn new() -> Self {
         NetbenchWorkerServerProtocol {
-            state: NetbenchWorkerServerState::Ready,
-            peer_state: NetbenchWorkerServerState::Ready,
+            state: NetbenchWorkerServerState::ServerWaitCoordInit,
         }
     }
 }
@@ -108,9 +106,6 @@ impl Protocol for NetbenchWorkerServerProtocol {
     fn state(&self) -> Self::State {
         self.state
     }
-    fn peer_state(&self) -> Self::State {
-        self.peer_state
-    }
 }
 
 //  curr_state                self/peer driven       notify peer of curr state          fn to go to next
@@ -122,46 +117,64 @@ impl Protocol for NetbenchWorkerServerProtocol {
 // B("name",                  Option(MSG_to_next),   Notify_peer_of_transition_to_next)
 #[derive(Copy, Clone, Debug)]
 pub enum NetbenchWorkerServerState {
-    Ready,
-    WaitPeerDone,
-    Done,
+    ServerWaitCoordInit,
+    ServerReady,
+    ServerRun,
+    ServerDone,
 }
 
 impl StateApi for NetbenchWorkerServerState {
     fn eq(&self, other: Self) -> bool {
         match self {
-            NetbenchWorkerServerState::Ready => matches!(other, NetbenchWorkerServerState::Ready),
-            NetbenchWorkerServerState::WaitPeerDone => {
-                matches!(other, NetbenchWorkerServerState::WaitPeerDone)
+            NetbenchWorkerServerState::ServerWaitCoordInit => {
+                matches!(other, NetbenchWorkerServerState::ServerWaitCoordInit)
             }
-            NetbenchWorkerServerState::Done => matches!(other, NetbenchWorkerServerState::Done),
+            NetbenchWorkerServerState::ServerReady => {
+                matches!(other, NetbenchWorkerServerState::ServerReady)
+            }
+            NetbenchWorkerServerState::ServerRun => {
+                matches!(other, NetbenchWorkerServerState::ServerRun)
+            }
+            NetbenchWorkerServerState::ServerDone => {
+                matches!(other, NetbenchWorkerServerState::ServerDone)
+            }
         }
     }
 
-    fn next_transition_msg(&self) -> Option<NextTransitionMsg> {
+    fn expect_peer_msg(&self) -> Option<NextTransitionMsg> {
         match self {
-            NetbenchWorkerServerState::Ready => {
-                Some(NextTransitionMsg::PeerDriven("ready_next".to_string()))
-            }
-            NetbenchWorkerServerState::WaitPeerDone => Some(NextTransitionMsg::PeerDriven(
-                "wait_peer_done_next".to_string(),
+            NetbenchWorkerServerState::ServerWaitCoordInit => Some(NextTransitionMsg::PeerDriven(
+                NetbenchCoordServerState::CoordCheckPeer.as_bytes(),
             )),
-            NetbenchWorkerServerState::Done => None,
+            NetbenchWorkerServerState::ServerReady => Some(NextTransitionMsg::PeerDriven(
+                // FIXME
+                // NetbenchCoordServerState::CoordRunPeer.as_bytes(),
+                NetbenchCoordServerState::CoordCheckPeer.as_bytes(),
+            )),
+            NetbenchWorkerServerState::ServerRun => Some(NextTransitionMsg::PeerDriven(
+                // FIXME
+                // NetbenchCoordServerState::CoordKillPeer.as_bytes(),
+                NetbenchCoordServerState::CoordCheckPeer.as_bytes(),
+            )),
+            NetbenchWorkerServerState::ServerDone => None,
         }
     }
 
     fn next(&mut self) {
         let a = match self {
-            NetbenchWorkerServerState::Ready => NetbenchWorkerServerState::WaitPeerDone,
-            NetbenchWorkerServerState::WaitPeerDone => NetbenchWorkerServerState::Done,
-            NetbenchWorkerServerState::Done => NetbenchWorkerServerState::Done,
+            NetbenchWorkerServerState::ServerWaitCoordInit => {
+                NetbenchWorkerServerState::ServerReady
+            }
+            NetbenchWorkerServerState::ServerReady => NetbenchWorkerServerState::ServerRun,
+            NetbenchWorkerServerState::ServerRun => NetbenchWorkerServerState::ServerDone,
+            NetbenchWorkerServerState::ServerDone => NetbenchWorkerServerState::ServerDone,
         };
         *self = a;
     }
 
     fn process_msg(&mut self, msg: String) {
-        if let Some(NextTransitionMsg::PeerDriven(peer_msg)) = self.next_transition_msg() {
-            if peer_msg == msg {
+        if let Some(NextTransitionMsg::PeerDriven(peer_msg)) = self.expect_peer_msg() {
+            if peer_msg == msg.as_bytes() {
                 self.next();
             }
         }
@@ -171,17 +184,19 @@ impl StateApi for NetbenchWorkerServerState {
 impl NetbenchWorkerServerState {
     pub fn as_bytes(&self) -> &'static [u8] {
         match self {
-            NetbenchWorkerServerState::Ready => b"ready",
-            NetbenchWorkerServerState::WaitPeerDone => b"wait_peer_done",
-            NetbenchWorkerServerState::Done => b"done",
+            NetbenchWorkerServerState::ServerWaitCoordInit => b"server_wait_coord_init",
+            NetbenchWorkerServerState::ServerReady => b"server_ready",
+            NetbenchWorkerServerState::ServerRun => b"server_wait_peer_done",
+            NetbenchWorkerServerState::ServerDone => b"server_done",
         }
     }
 
     pub fn from_bytes(bytes: &[u8]) -> RussulaResult<Self> {
         let state = match bytes {
-            b"ready" => NetbenchWorkerServerState::Ready,
-            b"wait_peer_done" => NetbenchWorkerServerState::WaitPeerDone,
-            b"done" => NetbenchWorkerServerState::Done,
+            b"server_wait_coord_init" => NetbenchWorkerServerState::ServerWaitCoordInit,
+            b"server_ready" => NetbenchWorkerServerState::ServerReady,
+            b"server_wait_peer_done" => NetbenchWorkerServerState::ServerRun,
+            b"server_done" => NetbenchWorkerServerState::ServerDone,
             bad_msg => {
                 return Err(RussulaError::BadMsg {
                     dbg: format!("unrecognized msg {:?}", std::str::from_utf8(bad_msg)),
@@ -196,14 +211,12 @@ impl NetbenchWorkerServerState {
 #[derive(Clone, Copy)]
 pub struct NetbenchCoordServerProtocol {
     state: NetbenchCoordServerState,
-    peer_state: NetbenchCoordServerState,
 }
 
 impl NetbenchCoordServerProtocol {
     pub fn new() -> Self {
         NetbenchCoordServerProtocol {
-            state: NetbenchCoordServerState::Ready,
-            peer_state: NetbenchCoordServerState::Ready,
+            state: NetbenchCoordServerState::CoordCheckPeer,
         }
     }
 }
@@ -259,50 +272,59 @@ impl Protocol for NetbenchCoordServerProtocol {
     fn state(&self) -> Self::State {
         self.state
     }
-    fn peer_state(&self) -> Self::State {
-        self.peer_state
-    }
 }
 
 #[derive(Copy, Clone, Debug)]
 pub enum NetbenchCoordServerState {
-    Ready,
-    WaitPeerDone,
-    Done,
+    CoordCheckPeer,
+    CoordReady,
+    CoordWaitPeerDone,
+    CoordDone,
 }
 
 impl StateApi for NetbenchCoordServerState {
     fn eq(&self, other: Self) -> bool {
         match self {
-            NetbenchCoordServerState::Ready => matches!(other, NetbenchCoordServerState::Ready),
-            NetbenchCoordServerState::WaitPeerDone => {
-                matches!(other, NetbenchCoordServerState::WaitPeerDone)
+            NetbenchCoordServerState::CoordCheckPeer => {
+                matches!(other, NetbenchCoordServerState::CoordCheckPeer)
             }
-            NetbenchCoordServerState::Done => matches!(other, NetbenchCoordServerState::Done),
+            NetbenchCoordServerState::CoordReady => {
+                matches!(other, NetbenchCoordServerState::CoordReady)
+            }
+            NetbenchCoordServerState::CoordWaitPeerDone => {
+                matches!(other, NetbenchCoordServerState::CoordWaitPeerDone)
+            }
+            NetbenchCoordServerState::CoordDone => {
+                matches!(other, NetbenchCoordServerState::CoordDone)
+            }
         }
     }
 
-    fn next_transition_msg(&self) -> Option<NextTransitionMsg> {
+    fn expect_peer_msg(&self) -> Option<NextTransitionMsg> {
         match self {
-            NetbenchCoordServerState::Ready => None,
-            NetbenchCoordServerState::WaitPeerDone => Some(NextTransitionMsg::PeerDriven(
-                "wait_peer_done_next".to_string(),
+            NetbenchCoordServerState::CoordCheckPeer => Some(NextTransitionMsg::PeerDriven(
+                NetbenchWorkerServerState::ServerReady.as_bytes(),
             )),
-            NetbenchCoordServerState::Done => None,
+            NetbenchCoordServerState::CoordReady => None,
+            NetbenchCoordServerState::CoordWaitPeerDone => Some(NextTransitionMsg::PeerDriven(
+                NetbenchWorkerServerState::ServerDone.as_bytes(),
+            )),
+            NetbenchCoordServerState::CoordDone => None,
         }
     }
 
     fn next(&mut self) {
         match self {
-            NetbenchCoordServerState::Ready => NetbenchCoordServerState::WaitPeerDone,
-            NetbenchCoordServerState::WaitPeerDone => NetbenchCoordServerState::Done,
-            NetbenchCoordServerState::Done => NetbenchCoordServerState::Done,
+            NetbenchCoordServerState::CoordCheckPeer => NetbenchCoordServerState::CoordReady,
+            NetbenchCoordServerState::CoordReady => NetbenchCoordServerState::CoordWaitPeerDone,
+            NetbenchCoordServerState::CoordWaitPeerDone => NetbenchCoordServerState::CoordDone,
+            NetbenchCoordServerState::CoordDone => NetbenchCoordServerState::CoordDone,
         };
     }
 
     fn process_msg(&mut self, msg: String) {
-        if let Some(NextTransitionMsg::PeerDriven(peer_msg)) = self.next_transition_msg() {
-            if peer_msg == msg {
+        if let Some(NextTransitionMsg::PeerDriven(peer_msg)) = self.expect_peer_msg() {
+            if peer_msg == msg.as_bytes() {
                 self.next();
             }
         }
@@ -312,17 +334,18 @@ impl StateApi for NetbenchCoordServerState {
 impl NetbenchCoordServerState {
     pub fn as_bytes(&self) -> &'static [u8] {
         match self {
-            NetbenchCoordServerState::Ready => b"ready",
-            NetbenchCoordServerState::WaitPeerDone => b"wait_peer_done",
-            NetbenchCoordServerState::Done => b"done",
+            NetbenchCoordServerState::CoordCheckPeer => b"coord_check_peer",
+            NetbenchCoordServerState::CoordReady => b"coord_ready",
+            NetbenchCoordServerState::CoordWaitPeerDone => b"coord_wait_peer_done",
+            NetbenchCoordServerState::CoordDone => b"coord_done",
         }
     }
 
     pub fn from_bytes(bytes: &[u8]) -> RussulaResult<Self> {
         let state = match bytes {
-            b"ready" => NetbenchCoordServerState::Ready,
-            b"wait_peer_done" => NetbenchCoordServerState::WaitPeerDone,
-            b"done" => NetbenchCoordServerState::Done,
+            b"coord_ready" => NetbenchCoordServerState::CoordReady,
+            b"coord_wait_peer_done" => NetbenchCoordServerState::CoordWaitPeerDone,
+            b"coord_done" => NetbenchCoordServerState::CoordDone,
             bad_msg => {
                 return Err(RussulaError::BadMsg {
                     dbg: format!("unrecognized msg {:?}", std::str::from_utf8(bad_msg)),
