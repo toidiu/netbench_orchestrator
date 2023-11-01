@@ -6,8 +6,8 @@ use std::{collections::BTreeSet, net::SocketAddr};
 use tokio::net::TcpStream;
 
 mod error;
-mod netbench_server;
 mod netbench_server_coord;
+mod netbench_server_worker;
 mod protocol;
 mod wip_netbench_server;
 
@@ -95,11 +95,11 @@ impl<P: Protocol> RussulaBuilder<P> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::russula::netbench_server::{
-        NetbenchWorkerServerProtocol, NetbenchWorkerServerState,
-    };
     use crate::russula::netbench_server_coord::{
         NetbenchCoordServerProtocol, NetbenchCoordServerState,
+    };
+    use crate::russula::netbench_server_worker::{
+        NetbenchWorkerServerProtocol, NetbenchWorkerServerState,
     };
     use std::str::FromStr;
 
@@ -146,12 +146,16 @@ mod tests {
             .check_self_state(NetbenchWorkerServerState::ServerReady)
             .await
             .unwrap());
+        let worker2 = join.1.unwrap();
+        assert!(worker2
+            .check_self_state(NetbenchWorkerServerState::ServerReady)
+            .await
+            .unwrap());
+
         let coord = join.2.unwrap();
-        coord
+        assert!(coord
             .check_self_state(NetbenchCoordServerState::CoordWaitPeerDone)
             .await
-            .unwrap();
-
-        assert!(1 == 43)
+            .unwrap());
     }
 }

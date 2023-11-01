@@ -1,7 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::russula::netbench_server::NetbenchWorkerServerState;
+use crate::russula::netbench_server_worker::NetbenchWorkerServerState;
 use crate::russula::NextTransitionMsg;
 use crate::russula::StateApi;
 use async_trait::async_trait;
@@ -11,6 +11,14 @@ use tokio::net::TcpStream;
 
 use crate::russula::error::{RussulaError, RussulaResult};
 use crate::russula::protocol::Protocol;
+
+#[derive(Copy, Clone, Debug)]
+pub enum NetbenchCoordServerState {
+    CoordCheckPeer,
+    CoordReady,
+    CoordWaitPeerDone,
+    CoordDone,
+}
 
 #[derive(Clone, Copy)]
 pub struct NetbenchCoordServerProtocol {
@@ -77,14 +85,6 @@ impl Protocol for NetbenchCoordServerProtocol {
     fn state(&self) -> Self::State {
         self.state
     }
-}
-
-#[derive(Copy, Clone, Debug)]
-pub enum NetbenchCoordServerState {
-    CoordCheckPeer,
-    CoordReady,
-    CoordWaitPeerDone,
-    CoordDone,
 }
 
 impl StateApi for NetbenchCoordServerState {
