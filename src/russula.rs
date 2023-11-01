@@ -16,17 +16,16 @@ use self::protocol::NextTransitionMsg;
 use self::protocol::StateApi;
 
 // TODO
+// - add PeerState type to Protocol
+// - loop over send/recv
+// - ack state update to peer
+// - make state transitions nicer..
+//
 // - handle coord retry on connect
-//
-// - curr_state ()
-// - peer_state_update (to, from)
-//   - ack msg (send curr state)
-// - self_state_updated (to, from)
-//
 // - worker groups (server, client)
 // D- move connect to protocol impl
 
-pub struct RussulaPeer<P: Protocol> {
+struct RussulaPeer<P: Protocol> {
     addr: SocketAddr,
     stream: TcpStream,
     protocol: P,
@@ -37,10 +36,21 @@ pub struct Russula<P: Protocol> {
 }
 
 impl<P: Protocol> Russula<P> {
-    pub async fn start(&self) {
-        for peer in self.peer_list.iter() {
+    pub async fn start(&mut self) {
+        for peer in self.peer_list.iter_mut() {
             peer.protocol.start(&peer.stream).await.unwrap();
         }
+    }
+
+    #[allow(unused_variables)]
+    pub async fn check_self_state(&self, state: P::State) -> RussulaResult<bool> {
+        let mut matches = true;
+        for peer in self.peer_list.iter() {
+            let protocol_state = peer.protocol.state();
+            matches &= state.eq(protocol_state);
+            println!("{:?} {:?} {}", protocol_state, state, matches);
+        }
+        Ok(matches)
     }
 
     #[allow(unused_variables)]
@@ -90,7 +100,7 @@ impl<P: Protocol> RussulaBuilder<P> {
 mod tests {
     use super::*;
     use crate::russula::netbench::{
-        NetbenchOrchProtocol, NetbenchOrchState, NetbenchWorkerProtocol,
+        NetbenchOrchProtocol, NetbenchOrchState, NetbenchWorkerProtocol, NetbenchWorkerState,
     };
     use std::str::FromStr;
 
@@ -104,7 +114,7 @@ mod tests {
                 BTreeSet::from_iter([w1_sock]),
                 NetbenchWorkerProtocol::new(),
             );
-            let worker = worker.build().await.unwrap();
+            let mut worker = worker.build().await.unwrap();
             worker.start().await;
             worker
         });
@@ -113,7 +123,7 @@ mod tests {
                 BTreeSet::from_iter([w2_sock]),
                 NetbenchWorkerProtocol::new(),
             );
-            let worker = worker.build().await.unwrap();
+            let mut worker = worker.build().await.unwrap();
             worker.start().await;
             worker
         });
@@ -121,7 +131,7 @@ mod tests {
         let c1 = tokio::spawn(async move {
             let addr = BTreeSet::from_iter([w1_sock, w2_sock]);
             let coord = RussulaBuilder::new(addr, NetbenchOrchProtocol::new());
-            let coord = coord.build().await.unwrap();
+            let mut coord = coord.build().await.unwrap();
             // assert!(coord.state, Ready)
             // do something
             // assert!(coord.state, WaitPeerDone)
@@ -131,9 +141,15 @@ mod tests {
         });
 
         let join = tokio::join!(w1, w2, c1);
+
+        let worker1 = join.0.unwrap();
+        worker1
+            .check_self_state(NetbenchWorkerState::WaitPeerDone)
+            .await
+            .unwrap();
         let coord = join.2.unwrap();
         coord
-            .check_peer_state(NetbenchOrchState::WaitPeerDone)
+            .check_self_state(NetbenchOrchState::WaitPeerDone)
             .await
             .unwrap();
 

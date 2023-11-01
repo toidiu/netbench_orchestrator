@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::russula::NextTransitionMsg;
-use crate::russula::RussulaPeer;
 use crate::russula::StateApi;
 use async_trait::async_trait;
 use std::net::SocketAddr;
@@ -46,8 +45,11 @@ impl Protocol for NetbenchWorkerProtocol {
         Ok(stream)
     }
 
-    async fn start(&self, stream: &TcpStream) -> RussulaResult<()> {
-        self.recv_msg(stream).await?;
+    async fn start(&mut self, stream: &TcpStream) -> RussulaResult<()> {
+        let msg = self.recv_msg(stream).await?;
+
+        self.state.process_msg("ready_next".to_string());
+
         Ok(())
     }
 
@@ -111,7 +113,9 @@ impl StateApi for NetbenchWorkerState {
 
     fn next_transition_msg(&self) -> Option<NextTransitionMsg> {
         match self {
-            NetbenchWorkerState::Ready => None,
+            NetbenchWorkerState::Ready => {
+                Some(NextTransitionMsg::PeerDriven("ready_next".to_string()))
+            }
             NetbenchWorkerState::WaitPeerDone => Some(NextTransitionMsg::PeerDriven(
                 "wait_peer_done_next".to_string(),
             )),
@@ -119,22 +123,26 @@ impl StateApi for NetbenchWorkerState {
         }
     }
 
-    fn next(&mut self) -> Self {
-        match self {
+    fn next(&mut self) {
+        let a = match self {
             NetbenchWorkerState::Ready => NetbenchWorkerState::WaitPeerDone,
             NetbenchWorkerState::WaitPeerDone => NetbenchWorkerState::Done,
             NetbenchWorkerState::Done => NetbenchWorkerState::Done,
-        }
+        };
+        *self = a;
+        println!("o- updated--------------{:?} {:?}", a, *self);
     }
 
-    fn process_msg(&mut self, msg: String) -> &Self {
+    fn process_msg(&mut self, msg: String) {
         if let Some(NextTransitionMsg::PeerDriven(peer_msg)) = self.next_transition_msg() {
+            println!("o---------------{} {}", msg, peer_msg);
             if peer_msg == msg {
+                println!("o---------------match!  {} {}", msg, peer_msg);
+                println!("o---------------try update  {:?}", *self);
                 self.next();
+                println!("o- updated?--------------{:?}", *self);
             }
         }
-
-        self
     }
 }
 
@@ -194,7 +202,7 @@ impl Protocol for NetbenchOrchProtocol {
         Ok(connect)
     }
 
-    async fn start(&self, stream: &TcpStream) -> RussulaResult<()> {
+    async fn start(&mut self, stream: &TcpStream) -> RussulaResult<()> {
         self.send_msg(stream, self.state()).await?;
         Ok(())
     }
@@ -267,22 +275,20 @@ impl StateApi for NetbenchOrchState {
         }
     }
 
-    fn next(&mut self) -> Self {
+    fn next(&mut self) {
         match self {
             NetbenchOrchState::Ready => NetbenchOrchState::WaitPeerDone,
             NetbenchOrchState::WaitPeerDone => NetbenchOrchState::Done,
             NetbenchOrchState::Done => NetbenchOrchState::Done,
-        }
+        };
     }
 
-    fn process_msg(&mut self, msg: String) -> &Self {
+    fn process_msg(&mut self, msg: String) {
         if let Some(NextTransitionMsg::PeerDriven(peer_msg)) = self.next_transition_msg() {
             if peer_msg == msg {
                 self.next();
             }
         }
-
-        self
     }
 }
 
