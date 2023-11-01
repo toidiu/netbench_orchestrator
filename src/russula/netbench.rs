@@ -11,23 +11,23 @@ use crate::russula::error::{RussulaError, RussulaResult};
 use crate::russula::protocol::Protocol;
 
 #[derive(Clone, Copy)]
-pub struct NetbenchWorkerProtocol {
-    state: NetbenchWorkerState,
-    peer_state: NetbenchWorkerState,
+pub struct NetbenchWorkerServerProtocol {
+    state: NetbenchWorkerServerState,
+    peer_state: NetbenchWorkerServerState,
 }
 
-impl NetbenchWorkerProtocol {
+impl NetbenchWorkerServerProtocol {
     pub fn new() -> Self {
-        NetbenchWorkerProtocol {
-            state: NetbenchWorkerState::Ready,
-            peer_state: NetbenchWorkerState::Ready,
+        NetbenchWorkerServerProtocol {
+            state: NetbenchWorkerServerState::Ready,
+            peer_state: NetbenchWorkerServerState::Ready,
         }
     }
 }
 
 #[async_trait]
-impl Protocol for NetbenchWorkerProtocol {
-    type State = NetbenchWorkerState;
+impl Protocol for NetbenchWorkerServerProtocol {
+    type State = NetbenchWorkerServerState;
 
     async fn connect(&self, addr: &SocketAddr) -> RussulaResult<TcpStream> {
         let listener = TcpListener::bind(addr).await.unwrap();
@@ -59,7 +59,7 @@ impl Protocol for NetbenchWorkerProtocol {
         let mut buf = Vec::with_capacity(100);
         match stream.try_read_buf(&mut buf) {
             Ok(n) => {
-                let msg = NetbenchWorkerState::from_bytes(&buf)?;
+                let msg = NetbenchWorkerServerState::from_bytes(&buf)?;
                 println!("read {} bytes: {:?}", n, &msg);
             }
             Err(ref e) if e.kind() == tokio::io::ErrorKind::WouldBlock => {
@@ -96,70 +96,67 @@ impl Protocol for NetbenchWorkerProtocol {
 // A("name",                  Option(MSG_to_next),   Notify_peer_of_transition_to_next, Fn(Self)->Self )
 // B("name",                  Option(MSG_to_next),   Notify_peer_of_transition_to_next)
 #[derive(Copy, Clone, Debug)]
-pub enum NetbenchWorkerState {
+pub enum NetbenchWorkerServerState {
     Ready,
     WaitPeerDone,
     Done,
 }
 
-impl StateApi for NetbenchWorkerState {
+impl StateApi for NetbenchWorkerServerState {
     fn eq(&self, other: Self) -> bool {
         match self {
-            NetbenchWorkerState::Ready => matches!(other, NetbenchWorkerState::Ready),
-            NetbenchWorkerState::WaitPeerDone => matches!(other, NetbenchWorkerState::WaitPeerDone),
-            NetbenchWorkerState::Done => matches!(other, NetbenchWorkerState::Done),
+            NetbenchWorkerServerState::Ready => matches!(other, NetbenchWorkerServerState::Ready),
+            NetbenchWorkerServerState::WaitPeerDone => {
+                matches!(other, NetbenchWorkerServerState::WaitPeerDone)
+            }
+            NetbenchWorkerServerState::Done => matches!(other, NetbenchWorkerServerState::Done),
         }
     }
 
     fn next_transition_msg(&self) -> Option<NextTransitionMsg> {
         match self {
-            NetbenchWorkerState::Ready => {
+            NetbenchWorkerServerState::Ready => {
                 Some(NextTransitionMsg::PeerDriven("ready_next".to_string()))
             }
-            NetbenchWorkerState::WaitPeerDone => Some(NextTransitionMsg::PeerDriven(
+            NetbenchWorkerServerState::WaitPeerDone => Some(NextTransitionMsg::PeerDriven(
                 "wait_peer_done_next".to_string(),
             )),
-            NetbenchWorkerState::Done => None,
+            NetbenchWorkerServerState::Done => None,
         }
     }
 
     fn next(&mut self) {
         let a = match self {
-            NetbenchWorkerState::Ready => NetbenchWorkerState::WaitPeerDone,
-            NetbenchWorkerState::WaitPeerDone => NetbenchWorkerState::Done,
-            NetbenchWorkerState::Done => NetbenchWorkerState::Done,
+            NetbenchWorkerServerState::Ready => NetbenchWorkerServerState::WaitPeerDone,
+            NetbenchWorkerServerState::WaitPeerDone => NetbenchWorkerServerState::Done,
+            NetbenchWorkerServerState::Done => NetbenchWorkerServerState::Done,
         };
         *self = a;
-        println!("o- updated--------------{:?} {:?}", a, *self);
     }
 
     fn process_msg(&mut self, msg: String) {
         if let Some(NextTransitionMsg::PeerDriven(peer_msg)) = self.next_transition_msg() {
-            println!("o---------------{} {}", msg, peer_msg);
             if peer_msg == msg {
-                println!("o---------------match!  {} {}", msg, peer_msg);
-                println!("o---------------try update  {:?}", *self);
                 self.next();
-                println!("o- updated?--------------{:?}", *self);
             }
         }
     }
 }
 
-impl NetbenchWorkerState {
+impl NetbenchWorkerServerState {
     pub fn as_bytes(&self) -> &'static [u8] {
         match self {
-            NetbenchWorkerState::Ready => b"ready",
-            NetbenchWorkerState::WaitPeerDone => b"wait_peer_done",
-            NetbenchWorkerState::Done => b"done",
+            NetbenchWorkerServerState::Ready => b"ready",
+            NetbenchWorkerServerState::WaitPeerDone => b"wait_peer_done",
+            NetbenchWorkerServerState::Done => b"done",
         }
     }
 
     pub fn from_bytes(bytes: &[u8]) -> RussulaResult<Self> {
         let state = match bytes {
-            b"ready" => NetbenchWorkerState::Ready,
-            b"wait_peer_done" => NetbenchWorkerState::WaitPeerDone,
-            b"done" => NetbenchWorkerState::Done,
+            b"ready" => NetbenchWorkerServerState::Ready,
+            b"wait_peer_done" => NetbenchWorkerServerState::WaitPeerDone,
+            b"done" => NetbenchWorkerServerState::Done,
             bad_msg => {
                 return Err(RussulaError::BadMsg {
                     dbg: format!("unrecognized msg {:?}", std::str::from_utf8(bad_msg)),
@@ -172,23 +169,23 @@ impl NetbenchWorkerState {
 }
 
 #[derive(Clone, Copy)]
-pub struct NetbenchOrchProtocol {
-    state: NetbenchOrchState,
-    peer_state: NetbenchOrchState,
+pub struct NetbenchCoordServerProtocol {
+    state: NetbenchCoordServerState,
+    peer_state: NetbenchCoordServerState,
 }
 
-impl NetbenchOrchProtocol {
+impl NetbenchCoordServerProtocol {
     pub fn new() -> Self {
-        NetbenchOrchProtocol {
-            state: NetbenchOrchState::Ready,
-            peer_state: NetbenchOrchState::Ready,
+        NetbenchCoordServerProtocol {
+            state: NetbenchCoordServerState::Ready,
+            peer_state: NetbenchCoordServerState::Ready,
         }
     }
 }
 
 #[async_trait]
-impl Protocol for NetbenchOrchProtocol {
-    type State = NetbenchOrchState;
+impl Protocol for NetbenchCoordServerProtocol {
+    type State = NetbenchCoordServerState;
 
     async fn connect(&self, addr: &SocketAddr) -> RussulaResult<TcpStream> {
         println!("--- Coordinator: attempt to connect to worker on: {}", addr);
@@ -213,7 +210,7 @@ impl Protocol for NetbenchOrchProtocol {
         let mut buf = Vec::with_capacity(100);
         match stream.try_read_buf(&mut buf) {
             Ok(n) => {
-                let msg = NetbenchOrchState::from_bytes(&buf)?;
+                let msg = NetbenchCoordServerState::from_bytes(&buf)?;
                 println!("read {} bytes: {:?}", n, &msg);
             }
             Err(ref e) if e.kind() == tokio::io::ErrorKind::WouldBlock => {
@@ -250,36 +247,38 @@ impl Protocol for NetbenchOrchProtocol {
 // A("name",                  Option(MSG_to_next),   Notify_peer_of_transition_to_next, Fn(Self)->Self )
 // B("name",                  Option(MSG_to_next),   Notify_peer_of_transition_to_next)
 #[derive(Copy, Clone, Debug)]
-pub enum NetbenchOrchState {
+pub enum NetbenchCoordServerState {
     Ready,
     WaitPeerDone,
     Done,
 }
 
-impl StateApi for NetbenchOrchState {
+impl StateApi for NetbenchCoordServerState {
     fn eq(&self, other: Self) -> bool {
         match self {
-            NetbenchOrchState::Ready => matches!(other, NetbenchOrchState::Ready),
-            NetbenchOrchState::WaitPeerDone => matches!(other, NetbenchOrchState::WaitPeerDone),
-            NetbenchOrchState::Done => matches!(other, NetbenchOrchState::Done),
+            NetbenchCoordServerState::Ready => matches!(other, NetbenchCoordServerState::Ready),
+            NetbenchCoordServerState::WaitPeerDone => {
+                matches!(other, NetbenchCoordServerState::WaitPeerDone)
+            }
+            NetbenchCoordServerState::Done => matches!(other, NetbenchCoordServerState::Done),
         }
     }
 
     fn next_transition_msg(&self) -> Option<NextTransitionMsg> {
         match self {
-            NetbenchOrchState::Ready => None,
-            NetbenchOrchState::WaitPeerDone => Some(NextTransitionMsg::PeerDriven(
+            NetbenchCoordServerState::Ready => None,
+            NetbenchCoordServerState::WaitPeerDone => Some(NextTransitionMsg::PeerDriven(
                 "wait_peer_done_next".to_string(),
             )),
-            NetbenchOrchState::Done => None,
+            NetbenchCoordServerState::Done => None,
         }
     }
 
     fn next(&mut self) {
         match self {
-            NetbenchOrchState::Ready => NetbenchOrchState::WaitPeerDone,
-            NetbenchOrchState::WaitPeerDone => NetbenchOrchState::Done,
-            NetbenchOrchState::Done => NetbenchOrchState::Done,
+            NetbenchCoordServerState::Ready => NetbenchCoordServerState::WaitPeerDone,
+            NetbenchCoordServerState::WaitPeerDone => NetbenchCoordServerState::Done,
+            NetbenchCoordServerState::Done => NetbenchCoordServerState::Done,
         };
     }
 
@@ -292,20 +291,20 @@ impl StateApi for NetbenchOrchState {
     }
 }
 
-impl NetbenchOrchState {
+impl NetbenchCoordServerState {
     pub fn as_bytes(&self) -> &'static [u8] {
         match self {
-            NetbenchOrchState::Ready => b"ready",
-            NetbenchOrchState::WaitPeerDone => b"wait_peer_done",
-            NetbenchOrchState::Done => b"done",
+            NetbenchCoordServerState::Ready => b"ready",
+            NetbenchCoordServerState::WaitPeerDone => b"wait_peer_done",
+            NetbenchCoordServerState::Done => b"done",
         }
     }
 
     pub fn from_bytes(bytes: &[u8]) -> RussulaResult<Self> {
         let state = match bytes {
-            b"ready" => NetbenchOrchState::Ready,
-            b"wait_peer_done" => NetbenchOrchState::WaitPeerDone,
-            b"done" => NetbenchOrchState::Done,
+            b"ready" => NetbenchCoordServerState::Ready,
+            b"wait_peer_done" => NetbenchCoordServerState::WaitPeerDone,
+            b"done" => NetbenchCoordServerState::Done,
             bad_msg => {
                 return Err(RussulaError::BadMsg {
                     dbg: format!("unrecognized msg {:?}", std::str::from_utf8(bad_msg)),
@@ -315,4 +314,36 @@ impl NetbenchOrchState {
 
         Ok(state)
     }
+}
+
+// enum NetbenchServerCoordState {
+struct CoordCheckPeer;
+struct CoordReady;
+struct CoordRunPeer;
+struct CoordKillPeer;
+struct CoordDone;
+
+// enum NetbenchServerWorkerState {
+struct ServerWaitPeerReady;
+struct ServerReady;
+struct ServerRun;
+struct ServerDone;
+
+#[allow(non_camel_case_types)]
+enum NetbenchServerStateMachine {
+    AA_1((CoordCheckPeer, ServerWaitPeerReady)),
+    AB_2((CoordCheckPeer, ServerReady)),
+    BB_3((CoordReady, ServerReady)),
+    CB_4((CoordRunPeer, ServerReady)),
+    CC_5((CoordRunPeer, ServerRun)),
+    DC_6((CoordKillPeer, ServerRun)),
+    DD_7((CoordKillPeer, ServerDone)),
+    ED_8((CoordDone, ServerDone)),
+}
+
+#[cfg(test)]
+mod tests {
+
+    #[tokio::test]
+    async fn netbench_state() {}
 }

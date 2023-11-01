@@ -100,19 +100,20 @@ impl<P: Protocol> RussulaBuilder<P> {
 mod tests {
     use super::*;
     use crate::russula::netbench::{
-        NetbenchOrchProtocol, NetbenchOrchState, NetbenchWorkerProtocol, NetbenchWorkerState,
+        NetbenchCoordServerProtocol, NetbenchCoordServerState, NetbenchWorkerServerProtocol,
+        NetbenchWorkerServerState,
     };
     use std::str::FromStr;
 
     #[tokio::test]
-    async fn test() {
+    async fn russula_netbench() {
         let w1_sock = SocketAddr::from_str("127.0.0.1:8991").unwrap();
         let w2_sock = SocketAddr::from_str("127.0.0.1:8993").unwrap();
 
         let w1 = tokio::spawn(async move {
             let worker = RussulaBuilder::new(
                 BTreeSet::from_iter([w1_sock]),
-                NetbenchWorkerProtocol::new(),
+                NetbenchWorkerServerProtocol::new(),
             );
             let mut worker = worker.build().await.unwrap();
             worker.start().await;
@@ -121,7 +122,7 @@ mod tests {
         let w2 = tokio::spawn(async move {
             let worker = RussulaBuilder::new(
                 BTreeSet::from_iter([w2_sock]),
-                NetbenchWorkerProtocol::new(),
+                NetbenchWorkerServerProtocol::new(),
             );
             let mut worker = worker.build().await.unwrap();
             worker.start().await;
@@ -130,7 +131,7 @@ mod tests {
 
         let c1 = tokio::spawn(async move {
             let addr = BTreeSet::from_iter([w1_sock, w2_sock]);
-            let coord = RussulaBuilder::new(addr, NetbenchOrchProtocol::new());
+            let coord = RussulaBuilder::new(addr, NetbenchCoordServerProtocol::new());
             let mut coord = coord.build().await.unwrap();
             // assert!(coord.state, Ready)
             // do something
@@ -144,12 +145,12 @@ mod tests {
 
         let worker1 = join.0.unwrap();
         worker1
-            .check_self_state(NetbenchWorkerState::WaitPeerDone)
+            .check_self_state(NetbenchWorkerServerState::WaitPeerDone)
             .await
             .unwrap();
         let coord = join.2.unwrap();
         coord
-            .check_self_state(NetbenchOrchState::WaitPeerDone)
+            .check_self_state(NetbenchCoordServerState::WaitPeerDone)
             .await
             .unwrap();
 
