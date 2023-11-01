@@ -7,6 +7,7 @@ use tokio::net::TcpStream;
 
 mod error;
 mod netbench;
+mod netbench_server;
 mod protocol;
 
 use error::RussulaResult;

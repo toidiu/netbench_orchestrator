@@ -10,6 +10,31 @@ use tokio::net::{TcpListener, TcpStream};
 use crate::russula::error::{RussulaError, RussulaResult};
 use crate::russula::protocol::Protocol;
 
+// enum NetbenchServerCoordState {
+struct CoordCheckPeer;
+struct CoordReady;
+struct CoordRunPeer;
+struct CoordKillPeer;
+struct CoordDone;
+
+// enum NetbenchServerWorkerState {
+struct ServerWaitPeerReady;
+struct ServerReady;
+struct ServerRun;
+struct ServerDone;
+
+#[allow(non_camel_case_types)]
+enum NetbenchServerStateMachine {
+    AA_1((CoordCheckPeer, ServerWaitPeerReady)),
+    AB_2((CoordCheckPeer, ServerReady)),
+    BB_3((CoordReady, ServerReady)),
+    CB_4((CoordRunPeer, ServerReady)),
+    CC_5((CoordRunPeer, ServerRun)),
+    DC_6((CoordKillPeer, ServerRun)),
+    DD_7((CoordKillPeer, ServerDone)),
+    ED_8((CoordDone, ServerDone)),
+}
+
 #[derive(Clone, Copy)]
 pub struct NetbenchWorkerServerProtocol {
     state: NetbenchWorkerServerState,
@@ -239,13 +264,6 @@ impl Protocol for NetbenchCoordServerProtocol {
     }
 }
 
-//  curr_state                self/peer driven       notify peer of curr state          fn to go to next
-//
-//  Ready(Ip),                Some("ready_next"),    false,                             Running((Ip, TcpStream))
-//  Running((Ip, TcpStream)), None,                  true,                              Done((Ip, TcpStream))
-//
-// A("name",                  Option(MSG_to_next),   Notify_peer_of_transition_to_next, Fn(Self)->Self )
-// B("name",                  Option(MSG_to_next),   Notify_peer_of_transition_to_next)
 #[derive(Copy, Clone, Debug)]
 pub enum NetbenchCoordServerState {
     Ready,
@@ -314,31 +332,6 @@ impl NetbenchCoordServerState {
 
         Ok(state)
     }
-}
-
-// enum NetbenchServerCoordState {
-struct CoordCheckPeer;
-struct CoordReady;
-struct CoordRunPeer;
-struct CoordKillPeer;
-struct CoordDone;
-
-// enum NetbenchServerWorkerState {
-struct ServerWaitPeerReady;
-struct ServerReady;
-struct ServerRun;
-struct ServerDone;
-
-#[allow(non_camel_case_types)]
-enum NetbenchServerStateMachine {
-    AA_1((CoordCheckPeer, ServerWaitPeerReady)),
-    AB_2((CoordCheckPeer, ServerReady)),
-    BB_3((CoordReady, ServerReady)),
-    CB_4((CoordRunPeer, ServerReady)),
-    CC_5((CoordRunPeer, ServerRun)),
-    DC_6((CoordKillPeer, ServerRun)),
-    DD_7((CoordKillPeer, ServerDone)),
-    ED_8((CoordDone, ServerDone)),
 }
 
 #[cfg(test)]
