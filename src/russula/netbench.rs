@@ -71,7 +71,7 @@ impl Protocol for NetbenchWorkerServerProtocol {
     async fn start(&mut self, stream: &TcpStream) -> RussulaResult<()> {
         let msg = self.recv_msg(stream).await?;
 
-        self.state.process_msg("ready_next".to_string());
+        self.state.process_msg("coord_check_peer".to_string());
 
         Ok(())
     }
@@ -82,8 +82,8 @@ impl Protocol for NetbenchWorkerServerProtocol {
         let mut buf = Vec::with_capacity(100);
         match stream.try_read_buf(&mut buf) {
             Ok(n) => {
-                let msg = NetbenchWorkerServerState::from_bytes(&buf)?;
-                println!("read {} bytes: {:?}", n, &msg);
+                // let msg = NetbenchCoordServerState::from_bytes(&buf)?;
+                // println!("read {} bytes: {:?}", n, &msg);
             }
             Err(ref e) if e.kind() == tokio::io::ErrorKind::WouldBlock => {
                 panic!("{}", e)
@@ -174,6 +174,7 @@ impl StateApi for NetbenchWorkerServerState {
 
     fn process_msg(&mut self, msg: String) {
         if let Some(NextTransitionMsg::PeerDriven(peer_msg)) = self.expect_peer_msg() {
+            println!("{:?} {:?}", peer_msg, self.expect_peer_msg());
             if peer_msg == msg.as_bytes() {
                 self.next();
             }
@@ -248,7 +249,7 @@ impl Protocol for NetbenchCoordServerProtocol {
         let mut buf = Vec::with_capacity(100);
         match stream.try_read_buf(&mut buf) {
             Ok(n) => {
-                let msg = NetbenchCoordServerState::from_bytes(&buf)?;
+                let msg = NetbenchWorkerServerState::from_bytes(&buf)?;
                 println!("read {} bytes: {:?}", n, &msg);
             }
             Err(ref e) if e.kind() == tokio::io::ErrorKind::WouldBlock => {

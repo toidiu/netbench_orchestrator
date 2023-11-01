@@ -27,6 +27,7 @@ pub trait Protocol: Clone + Sync {
 
 pub type SockProtocol<P> = (SocketAddr, P);
 
+#[derive(Debug)]
 pub enum NextTransitionMsg {
     SelfDriven,
     PeerDriven(&'static [u8]),

@@ -7,8 +7,8 @@ use tokio::net::TcpStream;
 
 mod error;
 mod netbench;
-mod netbench_server;
 mod protocol;
+mod wip_netbench_server;
 
 use error::RussulaResult;
 use protocol::Protocol;
@@ -140,7 +140,7 @@ mod tests {
 
         let worker1 = join.0.unwrap();
         worker1
-            .check_self_state(NetbenchWorkerServerState::ServerRun)
+            .check_self_state(NetbenchWorkerServerState::ServerReady)
             .await
             .unwrap();
         let coord = join.2.unwrap();
