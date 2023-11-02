@@ -31,7 +31,7 @@ pub type SockProtocol<P> = (SocketAddr, P);
 
 #[derive(Debug)]
 pub enum NextTransitionMsg {
-    SelfDriven,
+    UserDriven,
     PeerDriven(&'static [u8]),
 }
 

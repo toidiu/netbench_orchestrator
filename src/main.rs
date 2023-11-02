@@ -137,6 +137,16 @@ async fn main() -> OrchResult<()> {
     // russula.connect().await.unwrap();
     // russula.start().await;
     // russula.kill().await;
+    // let server_russula = { [hosts] };
+    // let client = {}...;
+    //
+    // server.run_till_ready()
+    // client.run_till_ready()
+    //
+    // server.start
+    // client.run_till_done()
+    //
+    // server.kill()
 
     // Copy results back
     orch_generate_report(&s3_client, &unique_id).await;

@@ -131,10 +131,6 @@ mod tests {
             let addr = BTreeSet::from_iter([w1_sock, w2_sock]);
             let coord = RussulaBuilder::new(addr, NetbenchCoordServerProtocol::new());
             let mut coord = coord.build().await.unwrap();
-            // assert!(coord.state, Ready)
-            // do something
-            // assert!(coord.state, WaitPeerDone)
-            // assert!(coord.state, Done)
             coord.start().await;
             coord
         });
