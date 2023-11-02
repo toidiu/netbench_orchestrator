@@ -49,8 +49,15 @@ impl Protocol for NetbenchCoordServerProtocol {
         Ok(connect)
     }
 
-    async fn start(&mut self, stream: &TcpStream) -> RussulaResult<()> {
-        self.state.run(stream).await;
+    async fn run_till_done(&mut self, stream: &TcpStream) -> RussulaResult<()> {
+        self.run_till_state(stream, NetbenchCoordServerState::CoordDone).await
+    }
+
+    async fn run_till_state(&mut self, stream: &TcpStream, state: Self::State) -> RussulaResult<()> {
+        while !self.state.eq(state) {
+            println!("curr coord state--------{:?}", self.state);
+            self.state.run(stream).await;
+        }
         Ok(())
     }
 
@@ -98,9 +105,9 @@ impl StateApi for NetbenchCoordServerState {
                 let msg = self.recv_msg(stream).await.unwrap();
                 self.process_msg(msg);
             }
-            NetbenchCoordServerState::CoordReady => todo!(),
-            NetbenchCoordServerState::CoordWaitPeerDone => todo!(),
-            NetbenchCoordServerState::CoordDone => todo!(),
+            NetbenchCoordServerState::CoordReady => self.next(),
+            NetbenchCoordServerState::CoordWaitPeerDone => self.next(),
+            NetbenchCoordServerState::CoordDone => self.next(),
         }
     }
 
@@ -159,6 +166,10 @@ impl StateApi for NetbenchCoordServerState {
 }
 
 impl NetbenchCoordServerState {
+    pub fn is_done(&self) -> bool {
+        matches!(self, NetbenchCoordServerState::CoordDone)
+    }
+
     pub fn as_bytes(&self) -> &'static [u8] {
         match self {
             NetbenchCoordServerState::CoordCheckPeer => b"coord_check_peer",
@@ -197,7 +208,7 @@ impl NetbenchCoordServerState {
         let mut buf = Vec::with_capacity(100);
         match stream.try_read_buf(&mut buf) {
             Ok(n) => {
-                let msg = NetbenchWorkerServerState::from_bytes(&buf)?;
+                let msg = NetbenchWorkerServerState::from_bytes(&buf)?  ;
                 println!("read {} bytes: {:?}", n, &msg);
                 Ok(Bytes::from_iter(buf))
             }

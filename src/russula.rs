@@ -40,7 +40,7 @@ pub struct Russula<P: Protocol> {
 impl<P: Protocol> Russula<P> {
     pub async fn start(&mut self) {
         for peer in self.peer_list.iter_mut() {
-            peer.protocol.start(&peer.stream).await.unwrap();
+            peer.protocol.run_till_done(&peer.stream).await.unwrap();
         }
     }
 

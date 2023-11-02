@@ -18,7 +18,8 @@ pub trait Protocol: Clone + Sync {
     // fn app(&self) { "netbench" }
 
     async fn connect(&self, addr: &SocketAddr) -> RussulaResult<TcpStream>;
-    async fn start(&mut self, stream: &TcpStream) -> RussulaResult<()>;
+    async fn run_till_done(&mut self, stream: &TcpStream) -> RussulaResult<()>;
+    async fn run_till_state(&mut self, stream: &TcpStream, state: Self::State) -> RussulaResult<()>;
 
     async fn recv_msg(&self, stream: &TcpStream) -> RussulaResult<Bytes>;
     async fn send_msg(&self, stream: &TcpStream, msg: Self::State) -> RussulaResult<()>;
