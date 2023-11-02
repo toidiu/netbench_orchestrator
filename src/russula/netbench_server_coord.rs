@@ -49,8 +49,8 @@ impl Protocol for NetbenchCoordServerProtocol {
         Ok(connect)
     }
 
-    async fn run_till_done(&mut self, stream: &TcpStream) -> RussulaResult<()> {
-        self.run_till_state(stream, NetbenchCoordServerState::CoordDone).await
+    async fn run_till_ready(&mut self, stream: &TcpStream) -> RussulaResult<()> {
+        self.run_till_state(stream, NetbenchCoordServerState::CoordReady).await
     }
 
     async fn run_till_state(&mut self, stream: &TcpStream, state: Self::State) -> RussulaResult<()> {

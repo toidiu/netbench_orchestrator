@@ -53,8 +53,8 @@ impl Protocol for NetbenchWorkerServerProtocol {
         Ok(stream)
     }
 
-    async fn run_till_done(&mut self, stream: &TcpStream) -> RussulaResult<()> {
-        self.run_till_state(stream, NetbenchWorkerServerState::ServerDone).await
+    async fn run_till_ready(&mut self, stream: &TcpStream) -> RussulaResult<()> {
+        self.run_till_state(stream, NetbenchWorkerServerState::ServerReady).await
     }
 
     async fn run_till_state(&mut self, stream: &TcpStream, state: Self::State) -> RussulaResult<()> {
@@ -106,9 +106,9 @@ impl StateApi for NetbenchWorkerServerState {
                 let state = self.as_bytes();
                 self.send_msg(stream, state.into()).await.unwrap();
             }
-            NetbenchWorkerServerState::ServerReady => todo!(),
-            NetbenchWorkerServerState::ServerRun => todo!(),
-            NetbenchWorkerServerState::ServerDone => todo!(),
+            NetbenchWorkerServerState::ServerReady => self.next(),
+            NetbenchWorkerServerState::ServerRun => self.next(),
+            NetbenchWorkerServerState::ServerDone => self.next(),
         }
     }
 
