@@ -34,7 +34,9 @@ pub enum NextTransitionMsg {
     PeerDriven(&'static [u8]),
 }
 
+#[async_trait]
 pub trait StateApi {
+    async fn run(&mut self, stream: &TcpStream) {}
     fn eq(&self, other: Self) -> bool;
     fn expect_peer_msg(&self) -> Option<NextTransitionMsg>;
     fn next(&mut self);

@@ -50,7 +50,7 @@ impl Protocol for NetbenchCoordServerProtocol {
     }
 
     async fn start(&mut self, stream: &TcpStream) -> RussulaResult<()> {
-        self.send_msg(stream, self.state()).await?;
+        self.state.run(stream).await;
         Ok(())
     }
 
@@ -87,7 +87,23 @@ impl Protocol for NetbenchCoordServerProtocol {
     }
 }
 
+#[async_trait]
 impl StateApi for NetbenchCoordServerState {
+    async fn run(&mut self, stream: &TcpStream) {
+        match self {
+            NetbenchCoordServerState::CoordCheckPeer => {
+                stream.writable().await.unwrap();
+                stream.try_write(self.as_bytes()).unwrap();
+
+                let msg = self.recv_msg(stream).await.unwrap();
+                self.process_msg(msg);
+            }
+            NetbenchCoordServerState::CoordReady => todo!(),
+            NetbenchCoordServerState::CoordWaitPeerDone => todo!(),
+            NetbenchCoordServerState::CoordDone => todo!(),
+        }
+    }
+
     fn eq(&self, other: Self) -> bool {
         match self {
             NetbenchCoordServerState::CoordCheckPeer => {
@@ -119,7 +135,7 @@ impl StateApi for NetbenchCoordServerState {
     }
 
     fn next(&mut self) {
-        match self {
+        *self = match self {
             NetbenchCoordServerState::CoordCheckPeer => NetbenchCoordServerState::CoordReady,
             NetbenchCoordServerState::CoordReady => NetbenchCoordServerState::CoordWaitPeerDone,
             NetbenchCoordServerState::CoordWaitPeerDone => NetbenchCoordServerState::CoordDone,
@@ -129,14 +145,15 @@ impl StateApi for NetbenchCoordServerState {
 
     fn process_msg(&mut self, msg: Bytes) {
         if let Some(NextTransitionMsg::PeerDriven(peer_msg)) = self.expect_peer_msg() {
-            println!(
-                "coord {:?} {:?}",
-                std::str::from_utf8(peer_msg),
-                std::str::from_utf8(&msg)
-            );
             if peer_msg == msg {
                 self.next();
             }
+            println!(
+                "coord {:?} {:?} {:?}",
+                std::str::from_utf8(peer_msg),
+                std::str::from_utf8(&msg),
+                self
+            );
         }
     }
 }
@@ -164,6 +181,34 @@ impl NetbenchCoordServerState {
         };
 
         Ok(state)
+    }
+
+    async fn send_msg(&self, stream: &TcpStream, msg: Bytes) -> RussulaResult<()> {
+        stream.writable().await.unwrap();
+
+        stream.try_write(&msg).unwrap();
+
+        Ok(())
+    }
+
+    async fn recv_msg(&self, stream: &TcpStream) -> RussulaResult<Bytes> {
+        stream.readable().await.unwrap();
+
+        let mut buf = Vec::with_capacity(100);
+        match stream.try_read_buf(&mut buf) {
+            Ok(n) => {
+                let msg = NetbenchWorkerServerState::from_bytes(&buf)?;
+                println!("read {} bytes: {:?}", n, &msg);
+                Ok(Bytes::from_iter(buf))
+            }
+            Err(ref e) if e.kind() == tokio::io::ErrorKind::WouldBlock => {
+                panic!("{}", e)
+            }
+            Err(e) => panic!("{}", e),
+        }
+
+        // TODO
+        // Ok(self.state)
     }
 }
 

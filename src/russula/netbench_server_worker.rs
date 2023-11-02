@@ -54,9 +54,7 @@ impl Protocol for NetbenchWorkerServerProtocol {
     }
 
     async fn start(&mut self, stream: &TcpStream) -> RussulaResult<()> {
-        let msg = self.recv_msg(stream).await?;
-
-        self.state.process_msg(msg);
+        self.state.run(stream).await;
 
         Ok(())
     }
@@ -90,7 +88,23 @@ impl Protocol for NetbenchWorkerServerProtocol {
     }
 }
 
+#[async_trait]
 impl StateApi for NetbenchWorkerServerState {
+    async fn run(&mut self, stream: &TcpStream) {
+        match self {
+            NetbenchWorkerServerState::ServerWaitCoordInit => {
+                let msg = self.recv_msg(stream).await.unwrap();
+                self.process_msg(msg);
+
+                let state = self.as_bytes();
+                self.send_msg(stream, state.into()).await.unwrap();
+            }
+            NetbenchWorkerServerState::ServerReady => todo!(),
+            NetbenchWorkerServerState::ServerRun => todo!(),
+            NetbenchWorkerServerState::ServerDone => todo!(),
+        }
+    }
+
     fn eq(&self, other: Self) -> bool {
         match self {
             NetbenchWorkerServerState::ServerWaitCoordInit => {
@@ -128,7 +142,7 @@ impl StateApi for NetbenchWorkerServerState {
     }
 
     fn next(&mut self) {
-        let a = match self {
+        *self = match self {
             NetbenchWorkerServerState::ServerWaitCoordInit => {
                 NetbenchWorkerServerState::ServerReady
             }
@@ -136,19 +150,19 @@ impl StateApi for NetbenchWorkerServerState {
             NetbenchWorkerServerState::ServerRun => NetbenchWorkerServerState::ServerDone,
             NetbenchWorkerServerState::ServerDone => NetbenchWorkerServerState::ServerDone,
         };
-        *self = a;
     }
 
     fn process_msg(&mut self, msg: Bytes) {
         if let Some(NextTransitionMsg::PeerDriven(peer_msg)) = self.expect_peer_msg() {
-            println!(
-                "worker {:?} {:?}",
-                std::str::from_utf8(peer_msg),
-                std::str::from_utf8(&msg)
-            );
             if peer_msg == msg {
                 self.next();
             }
+            println!(
+                "worker {:?} {:?} {:?}",
+                std::str::from_utf8(peer_msg),
+                std::str::from_utf8(&msg),
+                self
+            );
         }
     }
 }
@@ -177,6 +191,30 @@ impl NetbenchWorkerServerState {
         };
 
         Ok(state)
+    }
+
+    async fn recv_msg(&self, stream: &TcpStream) -> RussulaResult<Bytes> {
+        stream.readable().await.unwrap();
+
+        let mut buf = Vec::with_capacity(100);
+        match stream.try_read_buf(&mut buf) {
+            Ok(_n) => Ok(Bytes::from_iter(buf)),
+            Err(ref e) if e.kind() == tokio::io::ErrorKind::WouldBlock => {
+                panic!("{}", e)
+            }
+            Err(e) => panic!("{}", e),
+        }
+
+        // TODO
+        // Ok(self.state)
+    }
+
+    async fn send_msg(&self, stream: &TcpStream, msg: Bytes) -> RussulaResult<()> {
+        stream.writable().await.unwrap();
+
+        stream.try_write(&msg).unwrap();
+
+        Ok(())
     }
 }
 

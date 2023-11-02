@@ -154,8 +154,10 @@ mod tests {
 
         let coord = join.2.unwrap();
         assert!(coord
-            .check_self_state(NetbenchCoordServerState::CoordWaitPeerDone)
+            .check_self_state(NetbenchCoordServerState::CoordReady)
             .await
             .unwrap());
+
+        assert!(21 == 22);
     }
 }
