@@ -141,14 +141,8 @@ impl StateApi for CoordNetbenchServerState {
             );
         }
     }
-}
 
-impl CoordNetbenchServerState {
-    pub fn is_done(&self) -> bool {
-        matches!(self, CoordNetbenchServerState::Done)
-    }
-
-    pub fn as_bytes(&self) -> &'static [u8] {
+    fn as_bytes(&self) -> &'static [u8] {
         match self {
             CoordNetbenchServerState::CheckPeer => b"coord_check_peer",
             CoordNetbenchServerState::Ready => b"coord_ready",
@@ -157,7 +151,7 @@ impl CoordNetbenchServerState {
         }
     }
 
-    pub fn from_bytes(bytes: &[u8]) -> RussulaResult<Self> {
+    fn from_bytes(bytes: &[u8]) -> RussulaResult<Self> {
         let state = match bytes {
             b"coord_ready" => CoordNetbenchServerState::Ready,
             b"coord_wait_peer_done" => CoordNetbenchServerState::WaitPeerDone,

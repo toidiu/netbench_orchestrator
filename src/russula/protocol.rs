@@ -33,10 +33,12 @@ pub enum NextTransitionStep {
 }
 
 #[async_trait]
-pub trait StateApi {
-    async fn run(&mut self, stream: &TcpStream) {}
+pub trait StateApi: Sized {
+    async fn run(&mut self, stream: &TcpStream);
     fn eq(&self, other: Self) -> bool;
     fn next_transition_step(&self) -> NextTransitionStep;
     fn next(&mut self);
     fn process_msg(&mut self, msg: Bytes);
+    fn as_bytes(&self) -> &'static [u8];
+    fn from_bytes(bytes: &[u8]) -> RussulaResult<Self>;
 }

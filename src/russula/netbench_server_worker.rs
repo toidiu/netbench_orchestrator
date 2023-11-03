@@ -152,10 +152,8 @@ impl StateApi for WorkerNetbenchServerState {
             );
         }
     }
-}
 
-impl WorkerNetbenchServerState {
-    pub fn as_bytes(&self) -> &'static [u8] {
+    fn as_bytes(&self) -> &'static [u8] {
         match self {
             WorkerNetbenchServerState::WaitCoordInit => b"server_wait_coord_init",
             WorkerNetbenchServerState::Ready => b"server_ready",
@@ -164,7 +162,7 @@ impl WorkerNetbenchServerState {
         }
     }
 
-    pub fn from_bytes(bytes: &[u8]) -> RussulaResult<Self> {
+    fn from_bytes(bytes: &[u8]) -> RussulaResult<Self> {
         let state = match bytes {
             b"server_wait_coord_init" => WorkerNetbenchServerState::WaitCoordInit,
             b"server_ready" => WorkerNetbenchServerState::Ready,
