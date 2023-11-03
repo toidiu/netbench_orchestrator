@@ -13,7 +13,7 @@ pub(crate) struct RussulaPeer<P: Protocol> {
 }
 
 #[async_trait]
-pub trait Protocol: Clone + Sync {
+pub trait Protocol: Clone {
     type State: StateApi + Debug;
 
     // TODO use version and app to negotiate version
