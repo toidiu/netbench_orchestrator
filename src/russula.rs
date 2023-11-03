@@ -134,12 +134,12 @@ mod tests {
 
         let join = tokio::join!(w1, w2, c1);
 
-        let worker1 = join.0.unwrap();
+        let mut worker1 = join.0.unwrap();
         assert!(worker1
             .check_self_state(WorkerNetbenchServerState::Ready)
             .await
             .unwrap());
-        let worker2 = join.1.unwrap();
+        let mut worker2 = join.1.unwrap();
         assert!(worker2
             .check_self_state(WorkerNetbenchServerState::Ready)
             .await
@@ -151,6 +151,15 @@ mod tests {
             .await
             .unwrap());
 
-        // assert!(21 == 22);
+        // worker1.run_till_done().await;
+        // worker2.run_till_done().await;
+        // coord.run_till_done().await;
+
+        // assert!(coord
+        //     .check_self_state(CoordNetbenchServerState::Done)
+        //     .await
+        //     .unwrap());
+
+        assert!(21 == 22);
     }
 }

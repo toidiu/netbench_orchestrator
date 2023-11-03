@@ -69,6 +69,7 @@ impl Protocol for NetbenchCoordServerProtocol {
         while !self.state.eq(state) {
             println!("curr coord state--------{:?}", self.state);
             self.state.run(stream).await;
+            println!("new coord state--------{:?}", self.state);
         }
         Ok(())
     }

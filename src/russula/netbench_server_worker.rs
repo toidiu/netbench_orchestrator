@@ -72,6 +72,7 @@ impl Protocol for NetbenchWorkerServerProtocol {
         while !self.state.eq(state) {
             println!("curr worker state--------{:?}", self.state);
             self.state.run(stream).await;
+            println!("new worker state--------{:?}", self.state);
         }
 
         Ok(())
