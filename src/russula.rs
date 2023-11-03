@@ -1,9 +1,9 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::russula::protocol::RussulaPeer;
 use crate::russula::protocol::SockProtocol;
 use std::{collections::BTreeSet, net::SocketAddr};
-use tokio::net::TcpStream;
 
 mod error;
 mod netbench_server_coord;
@@ -27,12 +27,6 @@ use self::protocol::StateApi;
 // - handle coord retry on connect
 // - worker groups (server, client)
 // D- move connect to protocol impl
-
-struct RussulaPeer<P: Protocol> {
-    addr: SocketAddr,
-    stream: TcpStream,
-    protocol: P,
-}
 
 pub struct Russula<P: Protocol> {
     peer_list: Vec<RussulaPeer<P>>,

@@ -6,16 +6,19 @@ use tokio::net::TcpStream;
 
 use super::RussulaResult;
 
+pub(crate) struct RussulaPeer<P: Protocol> {
+    pub addr: SocketAddr,
+    pub stream: TcpStream,
+    pub protocol: P,
+}
+
 #[async_trait]
 pub trait Protocol: Clone + Sync {
     type State: StateApi + Copy + Debug;
 
-    // TODO replace u8 with uuid
-    fn id(&self) -> u8 {
-        0
-    }
+    // TODO use version and app to negotiate version
     // fn version(&self) {1, 2}
-    // fn app(&self) { "netbench" }
+    // fn app_name(&self) { "netbench" }
 
     async fn connect(&self, addr: &SocketAddr) -> RussulaResult<TcpStream>;
     async fn run_till_ready(&mut self, stream: &TcpStream) -> RussulaResult<()>;
