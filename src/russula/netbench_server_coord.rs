@@ -1,17 +1,16 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::russula::error::{RussulaError, RussulaResult};
 use crate::russula::netbench_server_worker::WorkerNetbenchServerState;
 use crate::russula::network_utils;
+use crate::russula::protocol::Protocol;
 use crate::russula::StateApi;
 use crate::russula::TransitionStep;
 use async_trait::async_trait;
 use bytes::Bytes;
 use std::net::SocketAddr;
 use tokio::net::TcpStream;
-
-use crate::russula::error::{RussulaError, RussulaResult};
-use crate::russula::protocol::Protocol;
 
 #[derive(Copy, Clone, Debug)]
 pub enum CoordNetbenchServerState {
@@ -66,7 +65,7 @@ impl Protocol for NetbenchCoordServerProtocol {
         stream: &TcpStream,
         state: Self::State,
     ) -> RussulaResult<()> {
-        while !self.state.eq(state) {
+        while !self.state.eq(&state) {
             let prev = self.state;
             self.state.run(stream).await;
             println!("coord state--------{:?} -> {:?}", prev, self.state);
@@ -74,8 +73,8 @@ impl Protocol for NetbenchCoordServerProtocol {
         Ok(())
     }
 
-    fn state(&self) -> Self::State {
-        self.state
+    fn state(&self) -> &Self::State {
+        &self.state
     }
 }
 
@@ -98,7 +97,7 @@ impl StateApi for CoordNetbenchServerState {
         }
     }
 
-    fn eq(&self, other: Self) -> bool {
+    fn eq(&self, other: &Self) -> bool {
         match self {
             CoordNetbenchServerState::CheckPeer => {
                 matches!(other, CoordNetbenchServerState::CheckPeer)

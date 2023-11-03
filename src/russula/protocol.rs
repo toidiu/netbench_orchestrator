@@ -14,7 +14,7 @@ pub(crate) struct RussulaPeer<P: Protocol> {
 
 #[async_trait]
 pub trait Protocol: Clone + Sync {
-    type State: StateApi + Copy + Debug;
+    type State: StateApi + Debug;
 
     // TODO use version and app to negotiate version
     // fn version(&self) {1, 2}
@@ -25,7 +25,7 @@ pub trait Protocol: Clone + Sync {
     async fn run_till_done(&mut self, stream: &TcpStream) -> RussulaResult<()>;
     async fn run_till_state(&mut self, stream: &TcpStream, state: Self::State)
         -> RussulaResult<()>;
-    fn state(&self) -> Self::State;
+    fn state(&self) -> &Self::State;
 }
 
 pub type SockProtocol<P> = (SocketAddr, P);
@@ -40,7 +40,7 @@ pub enum TransitionStep {
 #[async_trait]
 pub trait StateApi: Sized {
     async fn run(&mut self, stream: &TcpStream);
-    fn eq(&self, other: Self) -> bool;
+    fn eq(&self, other: &Self) -> bool;
     fn transition_step(&self) -> TransitionStep;
     fn next(&mut self);
     fn process_msg(&mut self, msg: Bytes);

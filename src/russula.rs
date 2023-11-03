@@ -47,7 +47,7 @@ impl<P: Protocol> Russula<P> {
         for peer in self.peer_list.iter() {
             let protocol_state = peer.protocol.state();
             matches &= state.eq(protocol_state);
-            println!("{:?} {:?} {}", protocol_state, state, matches);
+            // println!("{:?} {:?} {}", protocol_state, state, matches);
         }
         Ok(matches)
     }

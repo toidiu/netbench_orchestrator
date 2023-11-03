@@ -1,17 +1,16 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::russula::error::{RussulaError, RussulaResult};
 use crate::russula::netbench_server_coord::CoordNetbenchServerState;
 use crate::russula::network_utils;
+use crate::russula::protocol::Protocol;
 use crate::russula::StateApi;
 use crate::russula::TransitionStep;
 use async_trait::async_trait;
 use bytes::Bytes;
 use std::net::SocketAddr;
 use tokio::net::{TcpListener, TcpStream};
-
-use crate::russula::error::{RussulaError, RussulaResult};
-use crate::russula::protocol::Protocol;
 
 #[derive(Copy, Clone, Debug)]
 pub enum WorkerNetbenchServerState {
@@ -69,7 +68,7 @@ impl Protocol for NetbenchWorkerServerProtocol {
         stream: &TcpStream,
         state: Self::State,
     ) -> RussulaResult<()> {
-        while !self.state.eq(state) {
+        while !self.state.eq(&state) {
             let prev = self.state;
             self.state.run(stream).await;
             println!("worker state--------{:?} -> {:?}", prev, self.state);
@@ -78,8 +77,8 @@ impl Protocol for NetbenchWorkerServerProtocol {
         Ok(())
     }
 
-    fn state(&self) -> Self::State {
-        self.state
+    fn state(&self) -> &Self::State {
+        &self.state
     }
 }
 
@@ -101,7 +100,7 @@ impl StateApi for WorkerNetbenchServerState {
         }
     }
 
-    fn eq(&self, other: Self) -> bool {
+    fn eq(&self, other: &Self) -> bool {
         match self {
             WorkerNetbenchServerState::WaitPeerInit => {
                 matches!(other, WorkerNetbenchServerState::WaitPeerInit)
