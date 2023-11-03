@@ -59,6 +59,11 @@ impl Protocol for NetbenchWorkerServerProtocol {
             .await
     }
 
+    async fn run_till_done(&mut self, stream: &TcpStream) -> RussulaResult<()> {
+        self.run_till_state(stream, WorkerNetbenchServerState::Done)
+            .await
+    }
+
     async fn run_till_state(
         &mut self,
         stream: &TcpStream,

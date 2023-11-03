@@ -19,13 +19,9 @@ use self::protocol::StateApi;
 use self::protocol::TransitionStep;
 
 // TODO
-// - add PeerState type to Protocol
-// - loop over send/recv
-// - ack state update to peer
 // - make state transitions nicer..
 //
 // - handle coord retry on connect
-// - worker groups (server, client)
 // D- move connect to protocol impl
 
 pub struct Russula<P: Protocol> {
@@ -36,6 +32,12 @@ impl<P: Protocol> Russula<P> {
     pub async fn start(&mut self) {
         for peer in self.peer_list.iter_mut() {
             peer.protocol.run_till_ready(&peer.stream).await.unwrap();
+        }
+    }
+
+    pub async fn run_till_done(&mut self) {
+        for peer in self.peer_list.iter_mut() {
+            peer.protocol.run_till_done(&peer.stream).await.unwrap();
         }
     }
 
@@ -143,12 +145,12 @@ mod tests {
             .await
             .unwrap());
 
-        let coord = join.2.unwrap();
+        let mut coord = join.2.unwrap();
         assert!(coord
             .check_self_state(CoordNetbenchServerState::Ready)
             .await
             .unwrap());
 
-        assert!(21 == 22);
+        // assert!(21 == 22);
     }
 }
