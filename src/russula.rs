@@ -10,6 +10,7 @@ mod netbench_server_coord;
 mod netbench_server_worker;
 mod network_utils;
 mod protocol;
+mod state_action;
 mod wip_netbench_server;
 
 use error::RussulaResult;
