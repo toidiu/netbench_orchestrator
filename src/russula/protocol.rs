@@ -1,10 +1,12 @@
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
+
+use super::RussulaResult;
 use async_trait::async_trait;
 use bytes::Bytes;
 use core::fmt::Debug;
 use std::net::SocketAddr;
 use tokio::net::TcpStream;
-
-use super::RussulaResult;
 
 pub(crate) struct RussulaPeer<P: Protocol> {
     pub addr: SocketAddr,
