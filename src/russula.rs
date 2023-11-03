@@ -41,7 +41,6 @@ impl<P: Protocol> Russula<P> {
         }
     }
 
-    #[allow(unused_variables)]
     pub async fn check_self_state(&self, state: P::State) -> RussulaResult<bool> {
         let mut matches = true;
         for peer in self.peer_list.iter() {
@@ -50,11 +49,6 @@ impl<P: Protocol> Russula<P> {
             println!("{:?} {:?} {}", protocol_state, state, matches);
         }
         Ok(matches)
-    }
-
-    #[allow(unused_variables)]
-    pub async fn check_peer_state(&self, state: P::State) -> RussulaResult<bool> {
-        todo!()
     }
 }
 

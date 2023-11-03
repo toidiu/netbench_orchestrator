@@ -70,9 +70,9 @@ impl Protocol for NetbenchWorkerServerProtocol {
         state: Self::State,
     ) -> RussulaResult<()> {
         while !self.state.eq(state) {
-            println!("curr worker state--------{:?}", self.state);
+            let prev = self.state;
             self.state.run(stream).await;
-            println!("new worker state--------{:?}", self.state);
+            println!("worker state--------{:?} -> {:?}", prev, self.state);
         }
 
         Ok(())
@@ -91,8 +91,9 @@ impl StateApi for WorkerNetbenchServerState {
                 let msg = network_utils::recv_msg(stream).await.unwrap();
                 self.process_msg(msg);
 
-                let state = self.as_bytes();
-                network_utils::send_msg(stream, state.into()).await.unwrap();
+                network_utils::send_msg(stream, self.as_bytes().into())
+                    .await
+                    .unwrap();
             }
             WorkerNetbenchServerState::Ready => self.next(),
             WorkerNetbenchServerState::Run => self.next(),

@@ -67,9 +67,9 @@ impl Protocol for NetbenchCoordServerProtocol {
         state: Self::State,
     ) -> RussulaResult<()> {
         while !self.state.eq(state) {
-            println!("curr coord state--------{:?}", self.state);
+            let prev = self.state;
             self.state.run(stream).await;
-            println!("new coord state--------{:?}", self.state);
+            println!("coord state--------{:?} -> {:?}", prev, self.state);
         }
         Ok(())
     }
@@ -84,8 +84,9 @@ impl StateApi for CoordNetbenchServerState {
     async fn run(&mut self, stream: &TcpStream) {
         match self {
             CoordNetbenchServerState::CheckPeer => {
-                stream.writable().await.unwrap();
-                stream.try_write(self.as_bytes()).unwrap();
+                network_utils::send_msg(stream, self.as_bytes().into())
+                    .await
+                    .unwrap();
 
                 let msg = network_utils::recv_msg(stream).await.unwrap();
                 self.process_msg(msg);
