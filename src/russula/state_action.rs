@@ -10,31 +10,31 @@ use std::net::SocketAddr;
 use tokio::net::TcpStream;
 
 pub trait StateAction: Debug {
-    fn run(&self) {}
+    fn run_action(&self) {}
 }
 #[derive(Clone, Debug)]
 pub struct NotifyPeer {}
 impl StateAction for NotifyPeer {}
 #[derive(Clone, Debug)]
 pub struct WaitPeerState {}
-pub struct RunSome {}
-pub struct Sleep {}
 impl StateAction for WaitPeerState {}
 
 #[derive(Debug)]
 pub enum MyProtocolState {
     CheckPeer(Vec<Box<dyn StateAction>>),
-    Bla(Vec<Box<dyn StateAction>>),
 }
 
 unsafe impl Send for MyProtocolState {}
 
 impl Clone for MyProtocolState {
     fn clone(&self) -> Self {
-        todo!()
-        // match self {
-        //     Self::CheckPeer(arg0) => Self::CheckPeer(arg0.clone().to_vec()),
-        // }
+        match self {
+            Self::CheckPeer(_) => {
+                let a: Vec<Box<dyn StateAction>> =
+                    vec![Box::new(NotifyPeer {}), Box::new(NotifyPeer {})];
+                Self::CheckPeer(a)
+            }
+        }
     }
 }
 
@@ -67,10 +67,7 @@ impl MyProtocolState {
             MyProtocolState::CheckPeer(vec![Box::new(NotifyPeer {}), Box::new(WaitPeerState {})]);
         match state {
             MyProtocolState::CheckPeer(v) => v.iter().for_each(|s| {
-                s.run();
-            }),
-            MyProtocolState::Bla(v) => v.iter().for_each(|s| {
-                s.run();
+                s.run_action();
             }),
         }
     }
