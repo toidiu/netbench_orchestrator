@@ -22,8 +22,11 @@ use self::protocol::TransitionStep;
 // TODO
 // - make state transitions nicer..
 //
+// - look at NTP for synchronization: start_at(time)
 // - handle coord retry on connect
 // D- move connect to protocol impl
+// https://statecharts.dev/
+// halting problem https://en.wikipedia.org/wiki/Halting_problem
 
 pub struct Russula<P: Protocol> {
     peer_list: Vec<RussulaPeer<P>>,

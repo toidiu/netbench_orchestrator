@@ -125,6 +125,8 @@ async fn main() -> OrchResult<()> {
         println!("Server Finished!: Successful: {}", server_result);
     }
 
+    // ---------------------- running, git pull, cargo build, rusulla.start()
+
     // let server = { [server_hosts] };
     // let client = { [client_hosts] };
     //
@@ -132,6 +134,8 @@ async fn main() -> OrchResult<()> {
     // client.run_till_ready()
     //
     // server.start()
+    // sleep(10)
+    //
     // client.run_till_done()
     //
     // server.kill()
