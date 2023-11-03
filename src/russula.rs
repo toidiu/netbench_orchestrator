@@ -151,14 +151,14 @@ mod tests {
             .await
             .unwrap());
 
-        // worker1.run_till_done().await;
-        // worker2.run_till_done().await;
-        // coord.run_till_done().await;
+        worker1.run_till_done().await;
+        worker2.run_till_done().await;
+        coord.run_till_done().await;
 
-        // assert!(coord
-        //     .check_self_state(CoordNetbenchServerState::Done)
-        //     .await
-        //     .unwrap());
+        assert!(coord
+            .check_self_state(CoordNetbenchServerState::Done)
+            .await
+            .unwrap());
 
         assert!(21 == 22);
     }

@@ -125,7 +125,7 @@ async fn main() -> OrchResult<()> {
         println!("Server Finished!: Successful: {}", server_result);
     }
 
-    // let server_russula = { [server_hosts] };
+    // let server = { [server_hosts] };
     // let client = { [client_hosts] };
     //
     // server.run_till_ready()
