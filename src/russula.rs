@@ -15,8 +15,8 @@ mod wip_netbench_server;
 use error::RussulaResult;
 use protocol::Protocol;
 
-use self::protocol::NextTransitionStep;
 use self::protocol::StateApi;
+use self::protocol::TransitionStep;
 
 // TODO
 // - add PeerState type to Protocol

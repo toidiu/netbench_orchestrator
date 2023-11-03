@@ -3,8 +3,8 @@
 
 use crate::russula::netbench_server_coord::CoordNetbenchServerState;
 use crate::russula::network_utils;
-use crate::russula::NextTransitionStep;
 use crate::russula::StateApi;
+use crate::russula::TransitionStep;
 use async_trait::async_trait;
 use bytes::Bytes;
 use std::net::SocketAddr;
@@ -15,7 +15,7 @@ use crate::russula::protocol::Protocol;
 
 #[derive(Copy, Clone, Debug)]
 pub enum WorkerNetbenchServerState {
-    WaitCoordInit,
+    WaitPeerInit,
     Ready,
     Run,
     Done,
@@ -29,7 +29,7 @@ pub struct NetbenchWorkerServerProtocol {
 impl NetbenchWorkerServerProtocol {
     pub fn new() -> Self {
         NetbenchWorkerServerProtocol {
-            state: WorkerNetbenchServerState::WaitCoordInit,
+            state: WorkerNetbenchServerState::WaitPeerInit,
         }
     }
 }
@@ -81,7 +81,7 @@ impl Protocol for NetbenchWorkerServerProtocol {
 impl StateApi for WorkerNetbenchServerState {
     async fn run(&mut self, stream: &TcpStream) {
         match self {
-            WorkerNetbenchServerState::WaitCoordInit => {
+            WorkerNetbenchServerState::WaitPeerInit => {
                 let msg = network_utils::recv_msg(stream).await.unwrap();
                 self.process_msg(msg);
 
@@ -96,8 +96,8 @@ impl StateApi for WorkerNetbenchServerState {
 
     fn eq(&self, other: Self) -> bool {
         match self {
-            WorkerNetbenchServerState::WaitCoordInit => {
-                matches!(other, WorkerNetbenchServerState::WaitCoordInit)
+            WorkerNetbenchServerState::WaitPeerInit => {
+                matches!(other, WorkerNetbenchServerState::WaitPeerInit)
             }
             WorkerNetbenchServerState::Ready => {
                 matches!(other, WorkerNetbenchServerState::Ready)
@@ -111,28 +111,24 @@ impl StateApi for WorkerNetbenchServerState {
         }
     }
 
-    fn next_transition_step(&self) -> NextTransitionStep {
+    fn transition_step(&self) -> TransitionStep {
         match self {
-            WorkerNetbenchServerState::WaitCoordInit => {
-                NextTransitionStep::PeerDriven(CoordNetbenchServerState::CheckPeer.as_bytes())
+            WorkerNetbenchServerState::WaitPeerInit => {
+                TransitionStep::PeerDriven(CoordNetbenchServerState::CheckPeer.as_bytes())
             }
-            WorkerNetbenchServerState::Ready => NextTransitionStep::PeerDriven(
-                // FIXME
-                // NetbenchCoordServerState::CoordRunPeer.as_bytes(),
-                CoordNetbenchServerState::CheckPeer.as_bytes(),
-            ),
-            WorkerNetbenchServerState::Run => NextTransitionStep::PeerDriven(
-                // FIXME
-                // NetbenchCoordServerState::CoordKillPeer.as_bytes(),
-                CoordNetbenchServerState::CheckPeer.as_bytes(),
-            ),
-            WorkerNetbenchServerState::Done => NextTransitionStep::UserDriven,
+            WorkerNetbenchServerState::Ready => {
+                TransitionStep::PeerDriven(CoordNetbenchServerState::RunPeer.as_bytes())
+            }
+            WorkerNetbenchServerState::Run => {
+                TransitionStep::PeerDriven(CoordNetbenchServerState::KillPeer.as_bytes())
+            }
+            WorkerNetbenchServerState::Done => TransitionStep::Finished,
         }
     }
 
     fn next(&mut self) {
         *self = match self {
-            WorkerNetbenchServerState::WaitCoordInit => WorkerNetbenchServerState::Ready,
+            WorkerNetbenchServerState::WaitPeerInit => WorkerNetbenchServerState::Ready,
             WorkerNetbenchServerState::Ready => WorkerNetbenchServerState::Run,
             WorkerNetbenchServerState::Run => WorkerNetbenchServerState::Done,
             WorkerNetbenchServerState::Done => WorkerNetbenchServerState::Done,
@@ -140,7 +136,7 @@ impl StateApi for WorkerNetbenchServerState {
     }
 
     fn process_msg(&mut self, msg: Bytes) {
-        if let NextTransitionStep::PeerDriven(peer_msg) = self.next_transition_step() {
+        if let TransitionStep::PeerDriven(peer_msg) = self.transition_step() {
             if peer_msg == msg {
                 self.next();
             }
@@ -155,7 +151,7 @@ impl StateApi for WorkerNetbenchServerState {
 
     fn as_bytes(&self) -> &'static [u8] {
         match self {
-            WorkerNetbenchServerState::WaitCoordInit => b"server_wait_coord_init",
+            WorkerNetbenchServerState::WaitPeerInit => b"server_wait_coord_init",
             WorkerNetbenchServerState::Ready => b"server_ready",
             WorkerNetbenchServerState::Run => b"server_wait_peer_done",
             WorkerNetbenchServerState::Done => b"server_done",
@@ -164,7 +160,7 @@ impl StateApi for WorkerNetbenchServerState {
 
     fn from_bytes(bytes: &[u8]) -> RussulaResult<Self> {
         let state = match bytes {
-            b"server_wait_coord_init" => WorkerNetbenchServerState::WaitCoordInit,
+            b"server_wait_coord_init" => WorkerNetbenchServerState::WaitPeerInit,
             b"server_ready" => WorkerNetbenchServerState::Ready,
             b"server_wait_peer_done" => WorkerNetbenchServerState::Run,
             b"server_done" => WorkerNetbenchServerState::Done,

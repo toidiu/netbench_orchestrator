@@ -30,16 +30,17 @@ pub trait Protocol: Clone + Sync {
 pub type SockProtocol<P> = (SocketAddr, P);
 
 #[derive(Debug)]
-pub enum NextTransitionStep {
+pub enum TransitionStep {
     UserDriven,
     PeerDriven(&'static [u8]),
+    Finished,
 }
 
 #[async_trait]
 pub trait StateApi: Sized {
     async fn run(&mut self, stream: &TcpStream);
     fn eq(&self, other: Self) -> bool;
-    fn next_transition_step(&self) -> NextTransitionStep;
+    fn transition_step(&self) -> TransitionStep;
     fn next(&mut self);
     fn process_msg(&mut self, msg: Bytes);
     fn as_bytes(&self) -> &'static [u8];
