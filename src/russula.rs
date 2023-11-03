@@ -1,8 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::russula::protocol::RussulaPeer;
-use crate::russula::protocol::SockProtocol;
+use crate::russula::protocol::{RussulaPeer, SockProtocol};
 use std::{collections::BTreeSet, net::SocketAddr};
 
 mod error;
@@ -16,8 +15,7 @@ mod wip_netbench_server;
 use error::RussulaResult;
 use protocol::Protocol;
 
-use self::protocol::StateApi;
-use self::protocol::TransitionStep;
+use self::protocol::{StateApi, TransitionStep};
 
 // TODO
 // - make state transitions nicer..
@@ -90,11 +88,9 @@ impl<P: Protocol> RussulaBuilder<P> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::russula::netbench_server_coord::{
-        CoordNetbenchServerState, NetbenchCoordServerProtocol,
-    };
-    use crate::russula::netbench_server_worker::{
-        NetbenchWorkerServerProtocol, WorkerNetbenchServerState,
+    use crate::russula::{
+        netbench_server_coord::{CoordNetbenchServerState, NetbenchCoordServerProtocol},
+        netbench_server_worker::{NetbenchWorkerServerProtocol, WorkerNetbenchServerState},
     };
     use std::str::FromStr;
 

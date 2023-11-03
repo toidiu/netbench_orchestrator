@@ -1,7 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-use super::RussulaResult;
+use crate::russula::{network_utils, RussulaResult};
 use async_trait::async_trait;
 use bytes::Bytes;
 use core::fmt::Debug;
@@ -35,17 +35,41 @@ pub type SockProtocol<P> = (SocketAddr, P);
 #[derive(Debug)]
 pub enum TransitionStep {
     UserDriven,
-    PeerDriven(&'static [u8]),
+    AwaitPeerState(&'static [u8]),
     Finished,
 }
 
 #[async_trait]
-pub trait StateApi: Sized {
+pub trait StateApi: Sized + Send + Sync + Debug {
     async fn run(&mut self, stream: &TcpStream);
     fn eq(&self, other: &Self) -> bool;
     fn transition_step(&self) -> TransitionStep;
     fn next(&mut self);
-    fn process_msg(&mut self, msg: Bytes);
+
+    fn process_msg(&mut self, msg: Bytes) {
+        if let TransitionStep::AwaitPeerState(peer_msg) = self.transition_step() {
+            if peer_msg == msg {
+                self.next();
+            }
+            println!(
+                "{:?} {:?} {:?}",
+                std::str::from_utf8(peer_msg),
+                std::str::from_utf8(&msg),
+                self
+            );
+        }
+    }
+
     fn as_bytes(&self) -> &'static [u8];
     fn from_bytes(bytes: &[u8]) -> RussulaResult<Self>;
+    async fn notify_peer(&self, stream: &TcpStream) {
+        network_utils::send_msg(stream, self.as_bytes().into())
+            .await
+            .unwrap();
+    }
+
+    async fn await_peer_msg(&mut self, stream: &TcpStream) {
+        let msg = network_utils::recv_msg(stream).await.unwrap();
+        self.process_msg(msg);
+    }
 }

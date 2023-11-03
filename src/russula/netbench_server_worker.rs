@@ -1,14 +1,13 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::russula::error::{RussulaError, RussulaResult};
-use crate::russula::netbench_server_coord::CoordNetbenchServerState;
-use crate::russula::network_utils;
-use crate::russula::protocol::Protocol;
-use crate::russula::StateApi;
-use crate::russula::TransitionStep;
+use crate::russula::{
+    error::{RussulaError, RussulaResult},
+    netbench_server_coord::CoordNetbenchServerState,
+    protocol::Protocol,
+    StateApi, TransitionStep,
+};
 use async_trait::async_trait;
-use bytes::Bytes;
 use std::net::SocketAddr;
 use tokio::net::{TcpListener, TcpStream};
 
@@ -87,12 +86,15 @@ impl StateApi for WorkerNetbenchServerState {
     async fn run(&mut self, stream: &TcpStream) {
         match self {
             WorkerNetbenchServerState::WaitPeerInit => {
-                let msg = network_utils::recv_msg(stream).await.unwrap();
-                self.process_msg(msg);
+                // let msg = network_utils::recv_msg(stream).await.unwrap();
+                // self.process_msg(msg);
 
-                network_utils::send_msg(stream, self.as_bytes().into())
-                    .await
-                    .unwrap();
+                // network_utils::send_msg(stream, self.as_bytes().into())
+                //     .await
+                //     .unwrap();
+
+                self.await_peer_msg(stream).await;
+                self.notify_peer(stream).await;
             }
             WorkerNetbenchServerState::Ready => self.next(),
             WorkerNetbenchServerState::Run => self.next(),
@@ -120,13 +122,13 @@ impl StateApi for WorkerNetbenchServerState {
     fn transition_step(&self) -> TransitionStep {
         match self {
             WorkerNetbenchServerState::WaitPeerInit => {
-                TransitionStep::PeerDriven(CoordNetbenchServerState::CheckPeer.as_bytes())
+                TransitionStep::AwaitPeerState(CoordNetbenchServerState::CheckPeer.as_bytes())
             }
             WorkerNetbenchServerState::Ready => {
-                TransitionStep::PeerDriven(CoordNetbenchServerState::RunPeer.as_bytes())
+                TransitionStep::AwaitPeerState(CoordNetbenchServerState::RunPeer.as_bytes())
             }
             WorkerNetbenchServerState::Run => {
-                TransitionStep::PeerDriven(CoordNetbenchServerState::KillPeer.as_bytes())
+                TransitionStep::AwaitPeerState(CoordNetbenchServerState::KillPeer.as_bytes())
             }
             WorkerNetbenchServerState::Done => TransitionStep::Finished,
         }
@@ -139,20 +141,6 @@ impl StateApi for WorkerNetbenchServerState {
             WorkerNetbenchServerState::Run => WorkerNetbenchServerState::Done,
             WorkerNetbenchServerState::Done => WorkerNetbenchServerState::Done,
         };
-    }
-
-    fn process_msg(&mut self, msg: Bytes) {
-        if let TransitionStep::PeerDriven(peer_msg) = self.transition_step() {
-            if peer_msg == msg {
-                self.next();
-            }
-            println!(
-                "worker {:?} {:?} {:?}",
-                std::str::from_utf8(peer_msg),
-                std::str::from_utf8(&msg),
-                self
-            );
-        }
     }
 
     fn as_bytes(&self) -> &'static [u8] {
