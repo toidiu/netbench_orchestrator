@@ -1,8 +1,9 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::russula::netbench_server_coord::NetbenchCoordServerState;
-use crate::russula::NextTransitionMsg;
+use crate::russula::netbench_server_coord::CoordNetbenchServerState;
+use crate::russula::network_utils;
+use crate::russula::NextTransitionStep;
 use crate::russula::StateApi;
 use async_trait::async_trait;
 use bytes::Bytes;
@@ -13,29 +14,29 @@ use crate::russula::error::{RussulaError, RussulaResult};
 use crate::russula::protocol::Protocol;
 
 #[derive(Copy, Clone, Debug)]
-pub enum NetbenchWorkerServerState {
-    ServerWaitCoordInit,
-    ServerReady,
-    ServerRun,
-    ServerDone,
+pub enum WorkerNetbenchServerState {
+    WaitCoordInit,
+    Ready,
+    Run,
+    Done,
 }
 
 #[derive(Clone, Copy)]
 pub struct NetbenchWorkerServerProtocol {
-    state: NetbenchWorkerServerState,
+    state: WorkerNetbenchServerState,
 }
 
 impl NetbenchWorkerServerProtocol {
     pub fn new() -> Self {
         NetbenchWorkerServerProtocol {
-            state: NetbenchWorkerServerState::ServerWaitCoordInit,
+            state: WorkerNetbenchServerState::WaitCoordInit,
         }
     }
 }
 
 #[async_trait]
 impl Protocol for NetbenchWorkerServerProtocol {
-    type State = NetbenchWorkerServerState;
+    type State = WorkerNetbenchServerState;
 
     async fn connect(&self, addr: &SocketAddr) -> RussulaResult<TcpStream> {
         let listener = TcpListener::bind(addr).await.unwrap();
@@ -54,38 +55,19 @@ impl Protocol for NetbenchWorkerServerProtocol {
     }
 
     async fn run_till_ready(&mut self, stream: &TcpStream) -> RussulaResult<()> {
-        self.run_till_state(stream, NetbenchWorkerServerState::ServerReady).await
+        self.run_till_state(stream, WorkerNetbenchServerState::Ready)
+            .await
     }
 
-    async fn run_till_state(&mut self, stream: &TcpStream, state: Self::State) -> RussulaResult<()> {
+    async fn run_till_state(
+        &mut self,
+        stream: &TcpStream,
+        state: Self::State,
+    ) -> RussulaResult<()> {
         while !self.state.eq(state) {
             println!("curr worker state--------{:?}", self.state);
             self.state.run(stream).await;
         }
-
-        Ok(())
-    }
-
-    async fn recv_msg(&self, stream: &TcpStream) -> RussulaResult<Bytes> {
-        stream.readable().await.unwrap();
-
-        let mut buf = Vec::with_capacity(100);
-        match stream.try_read_buf(&mut buf) {
-            Ok(_n) => Ok(Bytes::from_iter(buf)),
-            Err(ref e) if e.kind() == tokio::io::ErrorKind::WouldBlock => {
-                panic!("{}", e)
-            }
-            Err(e) => panic!("{}", e),
-        }
-
-        // TODO
-        // Ok(self.state)
-    }
-
-    async fn send_msg(&self, stream: &TcpStream, msg: Self::State) -> RussulaResult<()> {
-        stream.writable().await.unwrap();
-
-        stream.try_write(msg.as_bytes()).unwrap();
 
         Ok(())
     }
@@ -96,71 +78,69 @@ impl Protocol for NetbenchWorkerServerProtocol {
 }
 
 #[async_trait]
-impl StateApi for NetbenchWorkerServerState {
+impl StateApi for WorkerNetbenchServerState {
     async fn run(&mut self, stream: &TcpStream) {
         match self {
-            NetbenchWorkerServerState::ServerWaitCoordInit => {
-                let msg = self.recv_msg(stream).await.unwrap();
+            WorkerNetbenchServerState::WaitCoordInit => {
+                let msg = network_utils::recv_msg(stream).await.unwrap();
                 self.process_msg(msg);
 
                 let state = self.as_bytes();
-                self.send_msg(stream, state.into()).await.unwrap();
+                network_utils::send_msg(stream, state.into()).await.unwrap();
             }
-            NetbenchWorkerServerState::ServerReady => self.next(),
-            NetbenchWorkerServerState::ServerRun => self.next(),
-            NetbenchWorkerServerState::ServerDone => self.next(),
+            WorkerNetbenchServerState::Ready => self.next(),
+            WorkerNetbenchServerState::Run => self.next(),
+            WorkerNetbenchServerState::Done => self.next(),
         }
     }
 
     fn eq(&self, other: Self) -> bool {
         match self {
-            NetbenchWorkerServerState::ServerWaitCoordInit => {
-                matches!(other, NetbenchWorkerServerState::ServerWaitCoordInit)
+            WorkerNetbenchServerState::WaitCoordInit => {
+                matches!(other, WorkerNetbenchServerState::WaitCoordInit)
             }
-            NetbenchWorkerServerState::ServerReady => {
-                matches!(other, NetbenchWorkerServerState::ServerReady)
+            WorkerNetbenchServerState::Ready => {
+                matches!(other, WorkerNetbenchServerState::Ready)
             }
-            NetbenchWorkerServerState::ServerRun => {
-                matches!(other, NetbenchWorkerServerState::ServerRun)
+            WorkerNetbenchServerState::Run => {
+                matches!(other, WorkerNetbenchServerState::Run)
             }
-            NetbenchWorkerServerState::ServerDone => {
-                matches!(other, NetbenchWorkerServerState::ServerDone)
+            WorkerNetbenchServerState::Done => {
+                matches!(other, WorkerNetbenchServerState::Done)
             }
         }
     }
 
-    fn expect_peer_msg(&self) -> Option<NextTransitionMsg> {
+    fn next_transition_step(&self) -> NextTransitionStep {
         match self {
-            NetbenchWorkerServerState::ServerWaitCoordInit => Some(NextTransitionMsg::PeerDriven(
-                NetbenchCoordServerState::CoordCheckPeer.as_bytes(),
-            )),
-            NetbenchWorkerServerState::ServerReady => Some(NextTransitionMsg::PeerDriven(
+            WorkerNetbenchServerState::WaitCoordInit => {
+                NextTransitionStep::PeerDriven(CoordNetbenchServerState::CheckPeer.as_bytes())
+            }
+            WorkerNetbenchServerState::Ready => NextTransitionStep::PeerDriven(
                 // FIXME
                 // NetbenchCoordServerState::CoordRunPeer.as_bytes(),
-                NetbenchCoordServerState::CoordCheckPeer.as_bytes(),
-            )),
-            NetbenchWorkerServerState::ServerRun => Some(NextTransitionMsg::PeerDriven(
+                CoordNetbenchServerState::CheckPeer.as_bytes(),
+            ),
+            WorkerNetbenchServerState::Run => NextTransitionStep::PeerDriven(
                 // FIXME
                 // NetbenchCoordServerState::CoordKillPeer.as_bytes(),
-                NetbenchCoordServerState::CoordCheckPeer.as_bytes(),
-            )),
-            NetbenchWorkerServerState::ServerDone => None,
+                CoordNetbenchServerState::CheckPeer.as_bytes(),
+            ),
+            WorkerNetbenchServerState::Done => NextTransitionStep::UserDriven,
         }
     }
 
     fn next(&mut self) {
         *self = match self {
-            NetbenchWorkerServerState::ServerWaitCoordInit => {
-                NetbenchWorkerServerState::ServerReady
-            }
-            NetbenchWorkerServerState::ServerReady => NetbenchWorkerServerState::ServerRun,
-            NetbenchWorkerServerState::ServerRun => NetbenchWorkerServerState::ServerDone,
-            NetbenchWorkerServerState::ServerDone => NetbenchWorkerServerState::ServerDone,
+            WorkerNetbenchServerState::WaitCoordInit => WorkerNetbenchServerState::Ready,
+            WorkerNetbenchServerState::Ready => WorkerNetbenchServerState::Run,
+            WorkerNetbenchServerState::Run => WorkerNetbenchServerState::Done,
+            WorkerNetbenchServerState::Done => WorkerNetbenchServerState::Done,
         };
     }
 
     fn process_msg(&mut self, msg: Bytes) {
-        if let Some(NextTransitionMsg::PeerDriven(peer_msg)) = self.expect_peer_msg() {
+        if let NextTransitionStep::PeerDriven(peer_msg) = self.next_transition_step() {
             if peer_msg == msg {
                 self.next();
             }
@@ -174,22 +154,22 @@ impl StateApi for NetbenchWorkerServerState {
     }
 }
 
-impl NetbenchWorkerServerState {
+impl WorkerNetbenchServerState {
     pub fn as_bytes(&self) -> &'static [u8] {
         match self {
-            NetbenchWorkerServerState::ServerWaitCoordInit => b"server_wait_coord_init",
-            NetbenchWorkerServerState::ServerReady => b"server_ready",
-            NetbenchWorkerServerState::ServerRun => b"server_wait_peer_done",
-            NetbenchWorkerServerState::ServerDone => b"server_done",
+            WorkerNetbenchServerState::WaitCoordInit => b"server_wait_coord_init",
+            WorkerNetbenchServerState::Ready => b"server_ready",
+            WorkerNetbenchServerState::Run => b"server_wait_peer_done",
+            WorkerNetbenchServerState::Done => b"server_done",
         }
     }
 
     pub fn from_bytes(bytes: &[u8]) -> RussulaResult<Self> {
         let state = match bytes {
-            b"server_wait_coord_init" => NetbenchWorkerServerState::ServerWaitCoordInit,
-            b"server_ready" => NetbenchWorkerServerState::ServerReady,
-            b"server_wait_peer_done" => NetbenchWorkerServerState::ServerRun,
-            b"server_done" => NetbenchWorkerServerState::ServerDone,
+            b"server_wait_coord_init" => WorkerNetbenchServerState::WaitCoordInit,
+            b"server_ready" => WorkerNetbenchServerState::Ready,
+            b"server_wait_peer_done" => WorkerNetbenchServerState::Run,
+            b"server_done" => WorkerNetbenchServerState::Done,
             bad_msg => {
                 return Err(RussulaError::BadMsg {
                     dbg: format!("unrecognized msg {:?}", std::str::from_utf8(bad_msg)),
@@ -198,30 +178,6 @@ impl NetbenchWorkerServerState {
         };
 
         Ok(state)
-    }
-
-    async fn recv_msg(&self, stream: &TcpStream) -> RussulaResult<Bytes> {
-        stream.readable().await.unwrap();
-
-        let mut buf = Vec::with_capacity(100);
-        match stream.try_read_buf(&mut buf) {
-            Ok(_n) => Ok(Bytes::from_iter(buf)),
-            Err(ref e) if e.kind() == tokio::io::ErrorKind::WouldBlock => {
-                panic!("{}", e)
-            }
-            Err(e) => panic!("{}", e),
-        }
-
-        // TODO
-        // Ok(self.state)
-    }
-
-    async fn send_msg(&self, stream: &TcpStream, msg: Bytes) -> RussulaResult<()> {
-        stream.writable().await.unwrap();
-
-        stream.try_write(&msg).unwrap();
-
-        Ok(())
     }
 }
 

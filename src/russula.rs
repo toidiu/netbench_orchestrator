@@ -8,13 +8,14 @@ use tokio::net::TcpStream;
 mod error;
 mod netbench_server_coord;
 mod netbench_server_worker;
+mod network_utils;
 mod protocol;
 mod wip_netbench_server;
 
 use error::RussulaResult;
 use protocol::Protocol;
 
-use self::protocol::NextTransitionMsg;
+use self::protocol::NextTransitionStep;
 use self::protocol::StateApi;
 
 // TODO
@@ -96,10 +97,10 @@ impl<P: Protocol> RussulaBuilder<P> {
 mod tests {
     use super::*;
     use crate::russula::netbench_server_coord::{
-        NetbenchCoordServerProtocol, NetbenchCoordServerState,
+        CoordNetbenchServerState, NetbenchCoordServerProtocol,
     };
     use crate::russula::netbench_server_worker::{
-        NetbenchWorkerServerProtocol, NetbenchWorkerServerState,
+        NetbenchWorkerServerProtocol, WorkerNetbenchServerState,
     };
     use std::str::FromStr;
 
@@ -139,18 +140,18 @@ mod tests {
 
         let worker1 = join.0.unwrap();
         assert!(worker1
-            .check_self_state(NetbenchWorkerServerState::ServerReady)
+            .check_self_state(WorkerNetbenchServerState::Ready)
             .await
             .unwrap());
         let worker2 = join.1.unwrap();
         assert!(worker2
-            .check_self_state(NetbenchWorkerServerState::ServerReady)
+            .check_self_state(WorkerNetbenchServerState::Ready)
             .await
             .unwrap());
 
         let coord = join.2.unwrap();
         assert!(coord
-            .check_self_state(NetbenchCoordServerState::CoordReady)
+            .check_self_state(CoordNetbenchServerState::Ready)
             .await
             .unwrap());
 
