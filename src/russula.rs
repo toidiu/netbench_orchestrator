@@ -12,7 +12,7 @@ mod protocol;
 mod state_action;
 mod wip_netbench_server;
 
-use error::RussulaResult;
+use error::{RussulaError, RussulaResult};
 use protocol::Protocol;
 
 use self::protocol::{StateApi, TransitionStep};
@@ -145,9 +145,10 @@ mod tests {
             .await
             .unwrap());
 
+        FIXME need to return Poll and run in loop
+        coord.run_till_done().await;
         worker1.run_till_done().await;
         worker2.run_till_done().await;
-        coord.run_till_done().await;
 
         assert!(coord
             .check_self_state(CoordNetbenchServerState::Done)

@@ -41,7 +41,7 @@ pub enum TransitionStep {
 
 #[async_trait]
 pub trait StateApi: Sized + Send + Sync + Debug {
-    async fn run(&mut self, stream: &TcpStream);
+    async fn run(&mut self, stream: &TcpStream) -> RussulaResult<()>;
     fn eq(&self, other: &Self) -> bool;
     fn transition_step(&self) -> TransitionStep;
     fn next(&mut self);
@@ -62,14 +62,13 @@ pub trait StateApi: Sized + Send + Sync + Debug {
 
     fn as_bytes(&self) -> &'static [u8];
     fn from_bytes(bytes: &[u8]) -> RussulaResult<Self>;
-    async fn notify_peer(&self, stream: &TcpStream) {
-        network_utils::send_msg(stream, self.as_bytes().into())
-            .await
-            .unwrap();
+    async fn notify_peer(&self, stream: &TcpStream) -> RussulaResult<()> {
+        network_utils::send_msg(stream, self.as_bytes().into()).await
     }
 
-    async fn await_peer_msg(&mut self, stream: &TcpStream) {
-        let msg = network_utils::recv_msg(stream).await.unwrap();
+    async fn await_peer_msg(&mut self, stream: &TcpStream) -> RussulaResult<()> {
+        let msg = network_utils::recv_msg(stream).await?;
         self.process_msg(msg);
+        Ok(())
     }
 }

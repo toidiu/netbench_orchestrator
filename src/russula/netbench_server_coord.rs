@@ -8,6 +8,7 @@ use crate::russula::{
     StateApi, TransitionStep,
 };
 use async_trait::async_trait;
+use core::time::Duration;
 use std::net::SocketAddr;
 use tokio::net::TcpStream;
 
@@ -42,7 +43,7 @@ impl Protocol for NetbenchCoordServerProtocol {
 
         let connect = TcpStream::connect(addr)
             .await
-            .map_err(|err| RussulaError::Connect {
+            .map_err(|err| RussulaError::NetworkFail {
                 dbg: err.to_string(),
             })?;
 
@@ -66,7 +67,7 @@ impl Protocol for NetbenchCoordServerProtocol {
     ) -> RussulaResult<()> {
         while !self.state.eq(&state) {
             let prev = self.state;
-            self.state.run(stream).await;
+            self.state.run(stream).await?;
             println!("coord state--------{:?} -> {:?}", prev, self.state);
         }
         Ok(())
@@ -79,17 +80,26 @@ impl Protocol for NetbenchCoordServerProtocol {
 
 #[async_trait]
 impl StateApi for CoordNetbenchServerState {
-    async fn run(&mut self, stream: &TcpStream) {
+    async fn run(&mut self, stream: &TcpStream) -> RussulaResult<()> {
         match self {
             CoordNetbenchServerState::CheckPeer => {
-                self.notify_peer(stream).await;
-                self.await_peer_msg(stream).await;
+                self.notify_peer(stream).await?;
+                self.await_peer_msg(stream).await?;
             }
-            CoordNetbenchServerState::Ready => self.next(),
-            CoordNetbenchServerState::RunPeer => self.next(),
+            CoordNetbenchServerState::Ready => {
+                // tokio::time::sleep(Duration::from_secs(5)).await;
+                // self.notify_peer(stream).await?;
+                self.next()
+            }
+            CoordNetbenchServerState::RunPeer => {
+                // tokio::time::sleep(Duration::from_secs(5)).await;
+                self.notify_peer(stream).await?;
+                self.next()
+            }
             CoordNetbenchServerState::KillPeer => self.next(),
             CoordNetbenchServerState::Done => self.next(),
         }
+        Ok(())
     }
 
     fn eq(&self, other: &Self) -> bool {

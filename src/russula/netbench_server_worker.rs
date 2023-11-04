@@ -8,6 +8,7 @@ use crate::russula::{
     StateApi, TransitionStep,
 };
 use async_trait::async_trait;
+use core::time::Duration;
 use std::net::SocketAddr;
 use tokio::net::{TcpListener, TcpStream};
 
@@ -44,7 +45,7 @@ impl Protocol for NetbenchWorkerServerProtocol {
             listener
                 .accept()
                 .await
-                .map_err(|err| RussulaError::Connect {
+                .map_err(|err| RussulaError::NetworkFail {
                     dbg: err.to_string(),
                 })?;
         println!("Worker success connection: {addr}");
@@ -69,7 +70,7 @@ impl Protocol for NetbenchWorkerServerProtocol {
     ) -> RussulaResult<()> {
         while !self.state.eq(&state) {
             let prev = self.state;
-            self.state.run(stream).await;
+            self.state.run(stream).await?;
             println!("worker state--------{:?} -> {:?}", prev, self.state);
         }
 
@@ -83,23 +84,24 @@ impl Protocol for NetbenchWorkerServerProtocol {
 
 #[async_trait]
 impl StateApi for WorkerNetbenchServerState {
-    async fn run(&mut self, stream: &TcpStream) {
+    async fn run(&mut self, stream: &TcpStream) -> RussulaResult<()> {
         match self {
             WorkerNetbenchServerState::WaitPeerInit => {
-                // let msg = network_utils::recv_msg(stream).await.unwrap();
-                // self.process_msg(msg);
-
-                // network_utils::send_msg(stream, self.as_bytes().into())
-                //     .await
-                //     .unwrap();
-
-                self.await_peer_msg(stream).await;
-                self.notify_peer(stream).await;
+                self.await_peer_msg(stream).await?;
+                self.notify_peer(stream).await?;
             }
-            WorkerNetbenchServerState::Ready => self.next(),
+            WorkerNetbenchServerState::Ready => {
+                if let Err(RussulaError::NetworkBlocked { dbg }) = self.await_peer_msg(stream).await
+                {
+                    tokio::time::sleep(Duration::from_secs(1)).await;
+                    panic!("{}", dbg);
+                }
+            }
             WorkerNetbenchServerState::Run => self.next(),
             WorkerNetbenchServerState::Done => self.next(),
         }
+
+        Ok(())
     }
 
     fn eq(&self, other: &Self) -> bool {

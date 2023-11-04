@@ -1,4 +1,4 @@
-use crate::russula::RussulaResult;
+use crate::russula::{RussulaError, RussulaResult};
 use bytes::Bytes;
 use tokio::net::TcpStream;
 
@@ -8,10 +8,14 @@ pub async fn recv_msg(stream: &TcpStream) -> RussulaResult<Bytes> {
     let mut buf = Vec::with_capacity(100);
     match stream.try_read_buf(&mut buf) {
         Ok(_n) => Ok(Bytes::from_iter(buf)),
-        Err(ref e) if e.kind() == tokio::io::ErrorKind::WouldBlock => {
-            panic!("{}", e)
+        Err(ref err) if err.kind() == tokio::io::ErrorKind::WouldBlock => {
+            Err(RussulaError::NetworkBlocked {
+                dbg: err.to_string(),
+            })
         }
-        Err(e) => panic!("{}", e),
+        Err(err) => Err(RussulaError::NetworkFail {
+            dbg: err.to_string(),
+        }),
     }
 
     // TODO
