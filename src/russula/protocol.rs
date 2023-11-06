@@ -39,7 +39,6 @@ pub trait Protocol: Clone {
 
     async fn poll_next(&mut self, stream: &TcpStream) -> RussulaResult<Poll<()>> {
         let state = self.state().next_state();
-
         self.poll_state(stream, state).await
     }
 

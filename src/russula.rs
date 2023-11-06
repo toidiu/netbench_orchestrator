@@ -44,11 +44,22 @@ impl<P: Protocol + Send> Russula<P> {
         }
     }
 
+    // pub async fn poll_current(&mut self) -> Poll<()> {
+    //     for peer in self.peer_list.iter_mut() {
+    //         // poll till state and break if Pending
+    //         let poll = peer.protocol.poll_current(&peer.stream).await.unwrap();
+    //         if poll.is_pending() {
+    //             return Poll::Pending;
+    //         }
+    //     }
+    //     Poll::Ready(())
+    // }
+
     pub async fn poll_next(&mut self, state: P::State) -> Poll<()> {
         for peer in self.peer_list.iter_mut() {
             // poll till state and break if Pending
             while !peer.protocol.state().eq(&state) {
-                let poll = peer.protocol.poll_state(&peer.stream, state).await.unwrap();
+                let poll = peer.protocol.poll_next(&peer.stream).await.unwrap();
                 if poll.is_pending() {
                     return Poll::Pending;
                 }
