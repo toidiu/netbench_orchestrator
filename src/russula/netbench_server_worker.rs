@@ -5,7 +5,7 @@ use crate::russula::{
     error::{RussulaError, RussulaResult},
     netbench_server_coord::CoordNetbenchServerState,
     protocol::Protocol,
-    StateApi, TransitionStep,
+    RussulaPoll, StateApi, TransitionStep,
 };
 use async_trait::async_trait;
 use core::time::Duration;
@@ -77,6 +77,24 @@ impl Protocol for NetbenchWorkerServerProtocol {
         Ok(())
     }
 
+    async fn poll_state(
+        &mut self,
+        stream: &TcpStream,
+        state: Self::State,
+    ) -> RussulaResult<RussulaPoll> {
+        if !self.state.eq(&state) {
+            let prev = self.state;
+            self.state.run(stream).await?;
+            println!("coord state--------{:?} -> {:?}", prev, self.state);
+        }
+        let poll = if self.state.eq(&state) {
+            RussulaPoll::Ready
+        } else {
+            RussulaPoll::Pending(self.state.transition_step())
+        };
+        Ok(poll)
+    }
+
     fn state(&self) -> &Self::State {
         &self.state
     }
@@ -91,10 +109,11 @@ impl StateApi for WorkerNetbenchServerState {
                 self.notify_peer(stream).await?;
             }
             WorkerNetbenchServerState::Ready => {
-                if let Err(RussulaError::NetworkBlocked { dbg }) = self.await_peer_msg(stream).await
+                if let Err(RussulaError::NetworkBlocked { dbg: _ }) =
+                    self.await_peer_msg(stream).await
                 {
-                    tokio::time::sleep(Duration::from_secs(1)).await;
-                    panic!("{}", dbg);
+                    tokio::time::sleep(Duration::from_secs(1)).await
+                    // panic!(dbg);
                 }
             }
             WorkerNetbenchServerState::Run => self.next(),

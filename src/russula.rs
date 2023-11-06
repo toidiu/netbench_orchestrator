@@ -49,6 +49,7 @@ impl<P: Protocol + Send> Russula<P> {
             while !peer.protocol.state().eq(&state) {
                 let poll = peer.protocol.poll_state(&peer.stream, state).await.unwrap();
                 if let RussulaPoll::Pending(p) = poll {
+                    println!("in a pending state {:?}", p);
                     return RussulaPoll::Pending(p);
                 }
             }
@@ -162,11 +163,20 @@ mod tests {
             coord.poll_state(CoordNetbenchServerState::Ready).await,
             RussulaPoll::Ready
         ));
-
         assert!(matches!(
-            coord.poll_state(CoordNetbenchServerState::RunPeer).await,
+            worker1.poll_state(WorkerNetbenchServerState::Ready).await,
             RussulaPoll::Ready
         ));
+
+        let _s = CoordNetbenchServerState::RunPeer.as_bytes();
+        assert!(matches!(
+            worker1.poll_state(WorkerNetbenchServerState::Run).await,
+            RussulaPoll::Pending(TransitionStep::AwaitPeerState(_s))
+        ));
+        // assert!(matches!(
+        //     coord.poll_state(CoordNetbenchServerState::RunPeer).await,
+        //     RussulaPoll::Ready
+        // ));
 
         // FIXME need to return Poll and run in loop
         // coord.run_till_done().await;

@@ -9,7 +9,7 @@ use crate::russula::{
     StateApi, TransitionStep,
 };
 use async_trait::async_trait;
-use core::{fmt::Debug, task::Poll};
+use core::fmt::Debug;
 use std::net::SocketAddr;
 use tokio::net::TcpStream;
 
@@ -108,7 +108,7 @@ impl StateApi for CoordNetbenchServerState {
             CoordNetbenchServerState::Ready => {
                 // tokio::time::sleep(Duration::from_secs(5)).await;
                 // self.notify_peer(stream).await?;
-                self.next()
+                // self.next()
             }
             CoordNetbenchServerState::RunPeer => {
                 // tokio::time::sleep(Duration::from_secs(5)).await;

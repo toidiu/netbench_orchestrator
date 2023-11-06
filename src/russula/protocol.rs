@@ -31,9 +31,7 @@ pub trait Protocol: Clone {
         &mut self,
         stream: &TcpStream,
         state: Self::State,
-    ) -> RussulaResult<RussulaPoll> {
-        Ok(RussulaPoll::Ready)
-    }
+    ) -> RussulaResult<RussulaPoll>;
     fn state(&self) -> &Self::State;
 }
 
