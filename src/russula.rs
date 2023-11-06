@@ -21,8 +21,9 @@ use self::protocol::{StateApi, TransitionStep};
 // TODO
 // - make state transitions nicer..
 //
-// - r.transition_step // what is the next step one should take
-// - r.poll_state // take steps to go to next step if possible
+// - tag/len for msg
+// D- r.transition_step // what is the next step one should take
+// D- r.poll_state // take steps to go to next step if possible
 // - should poll current step until all peers are on next step
 //   - need api to ask peer state and track peer state
 //
@@ -40,12 +41,6 @@ impl<P: Protocol + Send> Russula<P> {
     pub async fn run_till_ready(&mut self) {
         for peer in self.peer_list.iter_mut() {
             peer.protocol.run_till_ready(&peer.stream).await.unwrap();
-        }
-    }
-
-    pub async fn run_till_done(&mut self) {
-        for peer in self.peer_list.iter_mut() {
-            peer.protocol.run_till_done(&peer.stream).await.unwrap();
         }
     }
 
@@ -125,7 +120,7 @@ mod tests {
     #[tokio::test]
     async fn russula_netbench() {
         let w1_sock = SocketAddr::from_str("127.0.0.1:8991").unwrap();
-        let w2_sock = SocketAddr::from_str("127.0.0.1:8993").unwrap();
+        // let w2_sock = SocketAddr::from_str("127.0.0.1:8993").unwrap();
 
         let w1 = tokio::spawn(async move {
             let worker = RussulaBuilder::new(
@@ -136,43 +131,39 @@ mod tests {
             worker.run_till_ready().await;
             worker
         });
-        let w2 = tokio::spawn(async move {
-            let worker = RussulaBuilder::new(
-                BTreeSet::from_iter([w2_sock]),
-                NetbenchWorkerServerProtocol::new(),
-            );
-            let mut worker = worker.build().await.unwrap();
-            worker.run_till_ready().await;
-            worker
-        });
+        // let w2 = tokio::spawn(async move {
+        //     let worker = RussulaBuilder::new(
+        //         BTreeSet::from_iter([w2_sock]),
+        //         NetbenchWorkerServerProtocol::new(),
+        //     );
+        //     let mut worker = worker.build().await.unwrap();
+        //     worker.run_till_ready().await;
+        //     worker
+        // });
 
         let c1 = tokio::spawn(async move {
-            let addr = BTreeSet::from_iter([w1_sock, w2_sock]);
+            let addr = BTreeSet::from_iter([w1_sock]);
             let coord = RussulaBuilder::new(addr, NetbenchCoordServerProtocol::new());
             let mut coord = coord.build().await.unwrap();
             coord.run_till_ready().await;
             coord
         });
 
-        let join = tokio::join!(w1, w2, c1);
+        let join = tokio::join!(w1, c1);
 
         let mut worker1 = join.0.unwrap();
         assert!(worker1
             .check_self_state(WorkerNetbenchServerState::Ready)
             .await
             .unwrap());
-        let mut worker2 = join.1.unwrap();
-        assert!(worker2
-            .check_self_state(WorkerNetbenchServerState::Ready)
-            .await
-            .unwrap());
 
-        let mut coord = join.2.unwrap();
+        let mut coord = join.1.unwrap();
         assert!(coord
             .check_self_state(CoordNetbenchServerState::Ready)
             .await
             .unwrap());
 
+        println!("\nSTEP 1 --------------- : confirm current ready state");
         // we are already in the Ready state
         {
             assert!(matches!(
@@ -185,6 +176,7 @@ mod tests {
             ));
         }
 
+        println!("\nSTEP 2 --------------- : check next transition step");
         // we are pendng next state on UserDriven action on the coord
         {
             let _s = CoordNetbenchServerState::RunPeer.as_bytes();
@@ -192,10 +184,10 @@ mod tests {
                 worker1.transition_step()[0],
                 TransitionStep::AwaitPeerState(_s)
             ));
-            assert!(matches!(
-                worker1.poll_state(WorkerNetbenchServerState::Run).await,
-                Poll::Pending
-            ));
+            assert!(worker1
+                .poll_state(WorkerNetbenchServerState::Run)
+                .await
+                .is_pending(),);
 
             assert!(matches!(
                 coord.transition_step()[0],
@@ -203,22 +195,22 @@ mod tests {
             ));
         }
 
+        println!("\nSTEP 3 --------------- : poll next coord step");
         // move coord forward
         {
-            println!("coord sending msg --------------------- RunPeer");
-            assert!(matches!(
-                coord.poll_state(CoordNetbenchServerState::RunPeer).await,
-                Poll::Ready(())
-            ));
+            assert!(coord
+                .poll_state(CoordNetbenchServerState::RunPeer)
+                .await
+                .is_ready());
             assert!(coord
                 .check_self_state(CoordNetbenchServerState::RunPeer)
                 .await
                 .unwrap());
 
-            assert!(matches!(
-                worker1.poll_state(WorkerNetbenchServerState::Run).await,
-                Poll::Ready(())
-            ));
+            assert!(worker1
+                .poll_state(WorkerNetbenchServerState::Run)
+                .await
+                .is_ready());
         }
 
         // FIXME need to return Poll and run in loop
@@ -231,6 +223,6 @@ mod tests {
         //     .await
         //     .unwrap());
 
-        assert!(211111 == 200000);
+        assert!(22 == 20, "\nSUCCESS ---------------- INTENTIONAL FAIL");
     }
 }

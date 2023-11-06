@@ -24,7 +24,6 @@ pub trait Protocol: Clone {
 
     async fn connect(&self, addr: &SocketAddr) -> RussulaResult<TcpStream>;
     async fn run_till_ready(&mut self, stream: &TcpStream) -> RussulaResult<()>;
-    async fn run_till_done(&mut self, stream: &TcpStream) -> RussulaResult<()>;
     async fn run_till_state(&mut self, stream: &TcpStream, state: Self::State)
         -> RussulaResult<()>;
     async fn poll_state(
@@ -52,20 +51,6 @@ pub trait StateApi: Sized + Send + Sync + Debug {
     fn transition_step(&self) -> TransitionStep;
     fn next(&mut self);
 
-    fn process_msg(&mut self, recv_msg: Bytes) {
-        if let TransitionStep::AwaitPeerState(transition_msg) = self.transition_step() {
-            if transition_msg == recv_msg {
-                self.next();
-            }
-            println!(
-                "========transition_msg: {:?} recv_msg{:?} state:{:?}",
-                std::str::from_utf8(transition_msg),
-                std::str::from_utf8(&recv_msg),
-                self
-            );
-        }
-    }
-
     fn as_bytes(&self) -> &'static [u8];
     fn from_bytes(bytes: &[u8]) -> RussulaResult<Self>;
     async fn notify_peer(&self, stream: &TcpStream) -> RussulaResult<()> {
@@ -74,7 +59,22 @@ pub trait StateApi: Sized + Send + Sync + Debug {
 
     async fn await_peer_msg(&mut self, stream: &TcpStream) -> RussulaResult<()> {
         let msg = network_utils::recv_msg(stream).await?;
-        self.process_msg(msg);
+        self.process_msg(stream, msg).await
+    }
+    async fn process_msg(&mut self, stream: &TcpStream, recv_msg: Bytes) -> RussulaResult<()> {
+        if let TransitionStep::AwaitPeerState(transition_msg) = self.transition_step() {
+            if transition_msg == recv_msg {
+                self.next();
+            }
+            println!(
+                "========transition_msg: {:?} recv_msg: {:?} state: {:?}",
+                std::str::from_utf8(transition_msg),
+                std::str::from_utf8(&recv_msg),
+                self
+            );
+            self.notify_peer(stream).await?
+        }
+
         Ok(())
     }
 }

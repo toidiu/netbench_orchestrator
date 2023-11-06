@@ -58,11 +58,6 @@ impl Protocol for NetbenchWorkerServerProtocol {
             .await
     }
 
-    async fn run_till_done(&mut self, stream: &TcpStream) -> RussulaResult<()> {
-        self.run_till_state(stream, WorkerNetbenchServerState::Done)
-            .await
-    }
-
     async fn run_till_state(
         &mut self,
         stream: &TcpStream,
@@ -106,17 +101,15 @@ impl StateApi for WorkerNetbenchServerState {
         match self {
             WorkerNetbenchServerState::WaitPeerInit => {
                 self.await_peer_msg(stream).await?;
-                self.notify_peer(stream).await?;
             }
-            WorkerNetbenchServerState::Ready => match self.await_peer_msg(stream).await {
-                Ok(_) => {
-                    println!("worker--- successfully got msg")
+            WorkerNetbenchServerState::Ready => {
+                let res = self.await_peer_msg(stream).await;
+                if let Err(RussulaError::NetworkBlocked { dbg: _ }) = res {
+                    println!("worker--- no message received.. buffer empty");
+                } else {
+                    res?
                 }
-                Err(RussulaError::NetworkBlocked { dbg: _ }) => {
-                    println!("worker--- no message received.. buffer empty")
-                }
-                Err(_) => {}
-            },
+            }
             WorkerNetbenchServerState::Run => self.next(),
             WorkerNetbenchServerState::Done => self.next(),
         }
