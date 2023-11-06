@@ -8,7 +8,7 @@ use crate::russula::{
     StateApi, TransitionStep,
 };
 use async_trait::async_trait;
-use core::{fmt::Debug, task::Poll};
+use core::fmt::Debug;
 use std::net::SocketAddr;
 use tokio::net::{TcpListener, TcpStream};
 
@@ -58,40 +58,12 @@ impl Protocol for NetbenchWorkerServerProtocol {
             .await
     }
 
-    async fn run_till_state(
-        &mut self,
-        stream: &TcpStream,
-        state: Self::State,
-    ) -> RussulaResult<()> {
-        while !self.state.eq(&state) {
-            let prev = self.state;
-            self.state.run(stream).await?;
-            println!("worker state--------{:?} -> {:?}", prev, self.state);
-        }
-
-        Ok(())
-    }
-
-    async fn poll_state(
-        &mut self,
-        stream: &TcpStream,
-        state: Self::State,
-    ) -> RussulaResult<Poll<()>> {
-        if !self.state.eq(&state) {
-            let prev = self.state;
-            self.state.run(stream).await?;
-            println!("worker state--------{:?} -> {:?}", prev, self.state);
-        }
-        let poll = if self.state.eq(&state) {
-            Poll::Ready(())
-        } else {
-            Poll::Pending
-        };
-        Ok(poll)
-    }
-
     fn state(&self) -> &Self::State {
         &self.state
+    }
+
+    fn state_mut(&mut self) -> &mut Self::State {
+        &mut self.state
     }
 }
 

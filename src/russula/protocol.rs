@@ -24,13 +24,36 @@ pub trait Protocol: Clone {
 
     async fn connect(&self, addr: &SocketAddr) -> RussulaResult<TcpStream>;
     async fn run_till_ready(&mut self, stream: &TcpStream) -> RussulaResult<()>;
-    async fn run_till_state(&mut self, stream: &TcpStream, state: Self::State)
-        -> RussulaResult<()>;
+    async fn run_till_state(
+        &mut self,
+        stream: &TcpStream,
+        state: Self::State,
+    ) -> RussulaResult<()> {
+        while !self.state().eq(&state) {
+            let prev = *self.state();
+            self.state_mut().run(stream).await?;
+            println!("coord state--------{:?} -> {:?}", prev, self.state());
+        }
+        Ok(())
+    }
+
     async fn poll_state(
         &mut self,
         stream: &TcpStream,
         state: Self::State,
-    ) -> RussulaResult<Poll<()>>;
+    ) -> RussulaResult<Poll<()>> {
+        if !self.state().eq(&state) {
+            let prev = *self.state();
+            self.state_mut().run(stream).await?;
+            println!("worker state--------{:?} -> {:?}", prev, self.state());
+        }
+        let poll = if self.state().eq(&state) {
+            Poll::Ready(())
+        } else {
+            Poll::Pending
+        };
+        Ok(poll)
+    }
 
     async fn poll_current(&mut self, stream: &TcpStream) -> RussulaResult<Poll<()>> {
         let state = *self.state();
@@ -43,6 +66,7 @@ pub trait Protocol: Clone {
     }
 
     fn state(&self) -> &Self::State;
+    fn state_mut(&mut self) -> &mut Self::State;
 }
 
 pub type SockProtocol<P> = (SocketAddr, P);
