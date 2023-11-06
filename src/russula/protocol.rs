@@ -1,9 +1,9 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+use super::network_utils::Msg;
 use crate::russula::{network_utils, RussulaResult};
 use async_trait::async_trait;
-use bytes::Bytes;
 use core::{fmt::Debug, task::Poll};
 use std::net::SocketAddr;
 use tokio::net::TcpStream;
@@ -18,6 +18,7 @@ pub(crate) struct RussulaPeer<P: Protocol> {
 pub trait Protocol: Clone {
     type State: StateApi + Debug + Copy;
 
+    fn name(&self) -> String;
     // TODO use version and app to negotiate version
     // fn version(&self) {1, 2}
     // fn app_name(&self) { "netbench" }
@@ -32,7 +33,12 @@ pub trait Protocol: Clone {
         while !self.state().eq(&state) {
             let prev = *self.state();
             self.state_mut().run(stream).await?;
-            println!("coord state--------{:?} -> {:?}", prev, self.state());
+            println!(
+                "{} state--------{:?} -> {:?}",
+                self.name(),
+                prev,
+                self.state()
+            );
         }
         Ok(())
     }
@@ -45,7 +51,12 @@ pub trait Protocol: Clone {
         if !self.state().eq(&state) {
             let prev = *self.state();
             self.state_mut().run(stream).await?;
-            println!("worker state--------{:?} -> {:?}", prev, self.state());
+            println!(
+                "{} state--------{:?} -> {:?}",
+                self.name(),
+                prev,
+                self.state()
+            );
         }
         let poll = if self.state().eq(&state) {
             Poll::Ready(())
@@ -97,15 +108,15 @@ pub trait StateApi: Sized + Send + Sync + Debug {
         let msg = network_utils::recv_msg(stream).await?;
         self.process_msg(stream, msg).await
     }
-    async fn process_msg(&mut self, stream: &TcpStream, recv_msg: Bytes) -> RussulaResult<()> {
+    async fn process_msg(&mut self, stream: &TcpStream, recv_msg: Msg) -> RussulaResult<()> {
         if let TransitionStep::AwaitPeerState(transition_msg) = self.transition_step() {
-            if transition_msg == recv_msg {
+            if transition_msg == recv_msg.as_bytes() {
                 self.transition_next();
             }
             println!(
                 "========transition_msg: {:?} recv_msg: {:?} state: {:?}",
                 std::str::from_utf8(transition_msg),
-                std::str::from_utf8(&recv_msg),
+                recv_msg,
                 self
             );
             self.notify_peer(stream).await?

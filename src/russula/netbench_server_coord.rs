@@ -37,9 +37,12 @@ impl NetbenchCoordServerProtocol {
 #[async_trait]
 impl Protocol for NetbenchCoordServerProtocol {
     type State = CoordNetbenchServerState;
+    fn name(&self) -> String {
+        "coord".to_string()
+    }
 
     async fn connect(&self, addr: &SocketAddr) -> RussulaResult<TcpStream> {
-        println!("--- Coordinator: attempt to connect to worker on: {}", addr);
+        println!("--- Coordinator: attempt to connect on: {}", addr);
 
         let connect = TcpStream::connect(addr)
             .await

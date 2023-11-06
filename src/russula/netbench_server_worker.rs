@@ -37,6 +37,10 @@ impl NetbenchWorkerServerProtocol {
 impl Protocol for NetbenchWorkerServerProtocol {
     type State = WorkerNetbenchServerState;
 
+    fn name(&self) -> String {
+        "worker".to_string()
+    }
+
     async fn connect(&self, addr: &SocketAddr) -> RussulaResult<TcpStream> {
         let listener = TcpListener::bind(addr).await.unwrap();
         println!("--- Worker listening on: {}", addr);
@@ -76,7 +80,7 @@ impl StateApi for WorkerNetbenchServerState {
 
                 // post action
                 {
-                    // self.notify_peer(stream).await?;
+                    self.notify_peer(stream).await?;
                 }
             }
             WorkerNetbenchServerState::Ready => {
@@ -142,7 +146,7 @@ impl StateApi for WorkerNetbenchServerState {
 
     fn as_bytes(&self) -> &'static [u8] {
         match self {
-            WorkerNetbenchServerState::WaitPeerInit => b"server_wait_coord_init",
+            WorkerNetbenchServerState::WaitPeerInit => b"server_wait_peer_init",
             WorkerNetbenchServerState::Ready => b"server_ready",
             WorkerNetbenchServerState::Run => b"server_wait_peer_done",
             WorkerNetbenchServerState::Done => b"server_done",
@@ -151,7 +155,7 @@ impl StateApi for WorkerNetbenchServerState {
 
     fn from_bytes(bytes: &[u8]) -> RussulaResult<Self> {
         let state = match bytes {
-            b"server_wait_coord_init" => WorkerNetbenchServerState::WaitPeerInit,
+            b"server_wait_peer_init" => WorkerNetbenchServerState::WaitPeerInit,
             b"server_ready" => WorkerNetbenchServerState::Ready,
             b"server_wait_peer_done" => WorkerNetbenchServerState::Run,
             b"server_done" => WorkerNetbenchServerState::Done,

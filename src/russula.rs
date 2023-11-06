@@ -224,24 +224,14 @@ mod tests {
                 .is_ready());
         }
 
-        println!("\nSTEP 4 --------------- : poll coord curr step and recv worker msg");
-        {
-            assert!(coord
-                .poll_next(CoordNetbenchServerState::RunPeer)
-                .await
-                .is_ready());
-        }
+        // println!("\nSTEP 4 --------------- : poll coord curr step and recv worker msg");
+        // {
+        //     assert!(coord
+        //         .poll_next(CoordNetbenchServerState::RunPeer)
+        //         .await
+        //         .is_ready());
+        // }
 
-        // FIXME need to return Poll and run in loop
-        // coord.run_till_done().await;
-        // worker1.run_till_done().await;
-        // worker2.run_till_done().await;
-
-        // assert!(coord
-        //     .check_self_state(CoordNetbenchServerState::Done)
-        //     .await
-        //     .unwrap());
-
-        assert!(22 == 20, "\nSUCCESS ---------------- INTENTIONAL FAIL");
+        assert!(22 == 20, "\n\n\nSUCCESS ---------------- INTENTIONAL FAIL");
     }
 }
