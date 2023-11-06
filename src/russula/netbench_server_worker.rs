@@ -5,10 +5,10 @@ use crate::russula::{
     error::{RussulaError, RussulaResult},
     netbench_server_coord::CoordNetbenchServerState,
     protocol::Protocol,
-    RussulaPoll, StateApi, TransitionStep,
+    StateApi, TransitionStep,
 };
 use async_trait::async_trait;
-use core::time::Duration;
+use core::{fmt::Debug, task::Poll};
 use std::net::SocketAddr;
 use tokio::net::{TcpListener, TcpStream};
 
@@ -81,16 +81,16 @@ impl Protocol for NetbenchWorkerServerProtocol {
         &mut self,
         stream: &TcpStream,
         state: Self::State,
-    ) -> RussulaResult<RussulaPoll> {
+    ) -> RussulaResult<Poll<()>> {
         if !self.state.eq(&state) {
             let prev = self.state;
             self.state.run(stream).await?;
-            println!("coord state--------{:?} -> {:?}", prev, self.state);
+            println!("worker state--------{:?} -> {:?}", prev, self.state);
         }
         let poll = if self.state.eq(&state) {
-            RussulaPoll::Ready
+            Poll::Ready(())
         } else {
-            RussulaPoll::Pending(self.state.transition_step())
+            Poll::Pending
         };
         Ok(poll)
     }
@@ -108,14 +108,15 @@ impl StateApi for WorkerNetbenchServerState {
                 self.await_peer_msg(stream).await?;
                 self.notify_peer(stream).await?;
             }
-            WorkerNetbenchServerState::Ready => {
-                if let Err(RussulaError::NetworkBlocked { dbg: _ }) =
-                    self.await_peer_msg(stream).await
-                {
-                    tokio::time::sleep(Duration::from_secs(1)).await
-                    // panic!(dbg);
+            WorkerNetbenchServerState::Ready => match self.await_peer_msg(stream).await {
+                Ok(_) => {
+                    println!("worker--- successfully got msg")
                 }
-            }
+                Err(RussulaError::NetworkBlocked { dbg: _ }) => {
+                    println!("worker--- no message received.. buffer empty")
+                }
+                Err(_) => {}
+            },
             WorkerNetbenchServerState::Run => self.next(),
             WorkerNetbenchServerState::Done => self.next(),
         }
@@ -156,6 +157,7 @@ impl StateApi for WorkerNetbenchServerState {
     }
 
     fn next(&mut self) {
+        println!("worker------------- moving to next state {:?}", self);
         *self = match self {
             WorkerNetbenchServerState::WaitPeerInit => WorkerNetbenchServerState::Ready,
             WorkerNetbenchServerState::Ready => WorkerNetbenchServerState::Run,

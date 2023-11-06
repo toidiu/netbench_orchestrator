@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::russula::protocol::{RussulaPeer, SockProtocol};
+use core::task::Poll;
 use std::{collections::BTreeSet, net::SocketAddr};
 
 mod error;
@@ -15,10 +16,15 @@ mod wip_netbench_server;
 use error::{RussulaError, RussulaResult};
 use protocol::Protocol;
 
-use self::protocol::{RussulaPoll, StateApi, TransitionStep};
+use self::protocol::{StateApi, TransitionStep};
 
 // TODO
 // - make state transitions nicer..
+//
+// - r.transition_step // what is the next step one should take
+// - r.poll_state // take steps to go to next step if possible
+// - should poll current step until all peers are on next step
+//   - need api to ask peer state and track peer state
 //
 // - look at NTP for synchronization: start_at(time)
 // - handle coord retry on connect
@@ -43,18 +49,17 @@ impl<P: Protocol + Send> Russula<P> {
         }
     }
 
-    pub async fn poll_state(&mut self, state: P::State) -> RussulaPoll {
+    pub async fn poll_state(&mut self, state: P::State) -> Poll<()> {
         for peer in self.peer_list.iter_mut() {
             // poll till state and break if Pending
             while !peer.protocol.state().eq(&state) {
                 let poll = peer.protocol.poll_state(&peer.stream, state).await.unwrap();
-                if let RussulaPoll::Pending(p) = poll {
-                    println!("in a pending state {:?}", p);
-                    return RussulaPoll::Pending(p);
+                if poll.is_pending() {
+                    return Poll::Pending;
                 }
             }
         }
-        RussulaPoll::Ready
+        Poll::Ready(())
     }
 
     pub async fn check_self_state(&self, state: P::State) -> RussulaResult<bool> {
@@ -65,6 +70,15 @@ impl<P: Protocol + Send> Russula<P> {
             // println!("{:?} {:?} {}", protocol_state, state, matches);
         }
         Ok(matches)
+    }
+
+    pub fn transition_step(&mut self) -> Vec<TransitionStep> {
+        let mut steps = Vec::new();
+        for peer in self.peer_list.iter() {
+            let step = peer.protocol.state().transition_step();
+            steps.push(step);
+        }
+        steps
     }
 }
 
@@ -159,24 +173,53 @@ mod tests {
             .await
             .unwrap());
 
-        assert!(matches!(
-            coord.poll_state(CoordNetbenchServerState::Ready).await,
-            RussulaPoll::Ready
-        ));
-        assert!(matches!(
-            worker1.poll_state(WorkerNetbenchServerState::Ready).await,
-            RussulaPoll::Ready
-        ));
+        // we are already in the Ready state
+        {
+            assert!(matches!(
+                coord.poll_state(CoordNetbenchServerState::Ready).await,
+                Poll::Ready(())
+            ));
+            assert!(matches!(
+                worker1.poll_state(WorkerNetbenchServerState::Ready).await,
+                Poll::Ready(())
+            ));
+        }
 
-        let _s = CoordNetbenchServerState::RunPeer.as_bytes();
-        assert!(matches!(
-            worker1.poll_state(WorkerNetbenchServerState::Run).await,
-            RussulaPoll::Pending(TransitionStep::AwaitPeerState(_s))
-        ));
-        // assert!(matches!(
-        //     coord.poll_state(CoordNetbenchServerState::RunPeer).await,
-        //     RussulaPoll::Ready
-        // ));
+        // we are pendng next state on UserDriven action on the coord
+        {
+            let _s = CoordNetbenchServerState::RunPeer.as_bytes();
+            assert!(matches!(
+                worker1.transition_step()[0],
+                TransitionStep::AwaitPeerState(_s)
+            ));
+            assert!(matches!(
+                worker1.poll_state(WorkerNetbenchServerState::Run).await,
+                Poll::Pending
+            ));
+
+            assert!(matches!(
+                coord.transition_step()[0],
+                TransitionStep::UserDriven
+            ));
+        }
+
+        // move coord forward
+        {
+            println!("coord sending msg --------------------- RunPeer");
+            assert!(matches!(
+                coord.poll_state(CoordNetbenchServerState::RunPeer).await,
+                Poll::Ready(())
+            ));
+            assert!(coord
+                .check_self_state(CoordNetbenchServerState::RunPeer)
+                .await
+                .unwrap());
+
+            assert!(matches!(
+                worker1.poll_state(WorkerNetbenchServerState::Run).await,
+                Poll::Ready(())
+            ));
+        }
 
         // FIXME need to return Poll and run in loop
         // coord.run_till_done().await;
@@ -188,6 +231,6 @@ mod tests {
         //     .await
         //     .unwrap());
 
-        assert!(21 == 22);
+        assert!(211111 == 200000);
     }
 }

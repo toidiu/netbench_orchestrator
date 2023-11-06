@@ -31,16 +31,11 @@ pub trait Protocol: Clone {
         &mut self,
         stream: &TcpStream,
         state: Self::State,
-    ) -> RussulaResult<RussulaPoll>;
+    ) -> RussulaResult<Poll<()>>;
     fn state(&self) -> &Self::State;
 }
 
 pub type SockProtocol<P> = (SocketAddr, P);
-
-pub enum RussulaPoll {
-    Ready,
-    Pending(TransitionStep),
-}
 
 #[derive(Debug)]
 pub enum TransitionStep {
@@ -57,15 +52,15 @@ pub trait StateApi: Sized + Send + Sync + Debug {
     fn transition_step(&self) -> TransitionStep;
     fn next(&mut self);
 
-    fn process_msg(&mut self, msg: Bytes) {
-        if let TransitionStep::AwaitPeerState(peer_msg) = self.transition_step() {
-            if peer_msg == msg {
+    fn process_msg(&mut self, recv_msg: Bytes) {
+        if let TransitionStep::AwaitPeerState(transition_msg) = self.transition_step() {
+            if transition_msg == recv_msg {
                 self.next();
             }
             println!(
-                "{:?} {:?} {:?}",
-                std::str::from_utf8(peer_msg),
-                std::str::from_utf8(&msg),
+                "========transition_msg: {:?} recv_msg{:?} state:{:?}",
+                std::str::from_utf8(transition_msg),
+                std::str::from_utf8(&recv_msg),
                 self
             );
         }

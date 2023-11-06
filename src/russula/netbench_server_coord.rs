@@ -1,7 +1,6 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-use super::protocol::RussulaPoll;
 use crate::russula::{
     error::{RussulaError, RussulaResult},
     netbench_server_worker::WorkerNetbenchServerState,
@@ -9,7 +8,7 @@ use crate::russula::{
     StateApi, TransitionStep,
 };
 use async_trait::async_trait;
-use core::fmt::Debug;
+use core::{fmt::Debug, task::Poll};
 use std::net::SocketAddr;
 use tokio::net::TcpStream;
 
@@ -78,16 +77,16 @@ impl Protocol for NetbenchCoordServerProtocol {
         &mut self,
         stream: &TcpStream,
         state: Self::State,
-    ) -> RussulaResult<RussulaPoll> {
+    ) -> RussulaResult<Poll<()>> {
         if !self.state.eq(&state) {
             let prev = self.state;
             self.state.run(stream).await?;
             println!("coord state--------{:?} -> {:?}", prev, self.state);
         }
         let poll = if self.state.eq(&state) {
-            RussulaPoll::Ready
+            Poll::Ready(())
         } else {
-            RussulaPoll::Pending(self.state.transition_step())
+            Poll::Pending
         };
         Ok(poll)
     }
@@ -106,12 +105,10 @@ impl StateApi for CoordNetbenchServerState {
                 self.await_peer_msg(stream).await?;
             }
             CoordNetbenchServerState::Ready => {
-                // tokio::time::sleep(Duration::from_secs(5)).await;
-                // self.notify_peer(stream).await?;
-                // self.next()
+                self.next();
+                self.notify_peer(stream).await?;
             }
             CoordNetbenchServerState::RunPeer => {
-                // tokio::time::sleep(Duration::from_secs(5)).await;
                 self.notify_peer(stream).await?;
                 self.next()
             }
