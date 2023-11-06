@@ -44,7 +44,7 @@ impl<P: Protocol + Send> Russula<P> {
         }
     }
 
-    pub async fn poll_state(&mut self, state: P::State) -> Poll<()> {
+    pub async fn poll_next(&mut self, state: P::State) -> Poll<()> {
         for peer in self.peer_list.iter_mut() {
             // poll till state and break if Pending
             while !peer.protocol.state().eq(&state) {
@@ -167,11 +167,11 @@ mod tests {
         // we are already in the Ready state
         {
             assert!(matches!(
-                coord.poll_state(CoordNetbenchServerState::Ready).await,
+                coord.poll_next(CoordNetbenchServerState::Ready).await,
                 Poll::Ready(())
             ));
             assert!(matches!(
-                worker1.poll_state(WorkerNetbenchServerState::Ready).await,
+                worker1.poll_next(WorkerNetbenchServerState::Ready).await,
                 Poll::Ready(())
             ));
         }
@@ -185,7 +185,7 @@ mod tests {
                 TransitionStep::AwaitPeerState(_s)
             ));
             assert!(worker1
-                .poll_state(WorkerNetbenchServerState::Run)
+                .poll_next(WorkerNetbenchServerState::Run)
                 .await
                 .is_pending(),);
 
@@ -199,7 +199,7 @@ mod tests {
         // move coord forward
         {
             assert!(coord
-                .poll_state(CoordNetbenchServerState::RunPeer)
+                .poll_next(CoordNetbenchServerState::RunPeer)
                 .await
                 .is_ready());
             assert!(coord
@@ -208,7 +208,15 @@ mod tests {
                 .unwrap());
 
             assert!(worker1
-                .poll_state(WorkerNetbenchServerState::Run)
+                .poll_next(WorkerNetbenchServerState::Run)
+                .await
+                .is_ready());
+        }
+
+        println!("\nSTEP 4 --------------- : poll coord curr step and recv worker msg");
+        {
+            assert!(coord
+                .poll_next(CoordNetbenchServerState::RunPeer)
                 .await
                 .is_ready());
         }

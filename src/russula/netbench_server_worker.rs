@@ -110,8 +110,8 @@ impl StateApi for WorkerNetbenchServerState {
                     res?
                 }
             }
-            WorkerNetbenchServerState::Run => self.next(),
-            WorkerNetbenchServerState::Done => self.next(),
+            WorkerNetbenchServerState::Run => self.transition_next(),
+            WorkerNetbenchServerState::Done => self.transition_next(),
         }
 
         Ok(())
@@ -149,14 +149,18 @@ impl StateApi for WorkerNetbenchServerState {
         }
     }
 
-    fn next(&mut self) {
+    fn transition_next(&mut self) {
         println!("worker------------- moving to next state {:?}", self);
-        *self = match self {
+        *self = self.next_state();
+    }
+
+    fn next_state(&self) -> Self {
+        match self {
             WorkerNetbenchServerState::WaitPeerInit => WorkerNetbenchServerState::Ready,
             WorkerNetbenchServerState::Ready => WorkerNetbenchServerState::Run,
             WorkerNetbenchServerState::Run => WorkerNetbenchServerState::Done,
             WorkerNetbenchServerState::Done => WorkerNetbenchServerState::Done,
-        };
+        }
     }
 
     fn as_bytes(&self) -> &'static [u8] {

@@ -100,15 +100,16 @@ impl StateApi for CoordNetbenchServerState {
                 self.await_peer_msg(stream).await?;
             }
             CoordNetbenchServerState::Ready => {
-                self.next();
+                self.transition_next();
                 self.notify_peer(stream).await?;
+                self.await_peer_msg(stream).await?;
             }
             CoordNetbenchServerState::RunPeer => {
                 self.notify_peer(stream).await?;
-                self.next()
+                self.transition_next()
             }
-            CoordNetbenchServerState::KillPeer => self.next(),
-            CoordNetbenchServerState::Done => self.next(),
+            CoordNetbenchServerState::KillPeer => self.transition_next(),
+            CoordNetbenchServerState::Done => self.transition_next(),
         }
         Ok(())
     }
@@ -147,14 +148,18 @@ impl StateApi for CoordNetbenchServerState {
         }
     }
 
-    fn next(&mut self) {
-        *self = match self {
+    fn transition_next(&mut self) {
+        *self = self.next_state();
+    }
+
+    fn next_state(&self) -> Self {
+        match self {
             CoordNetbenchServerState::CheckPeer => CoordNetbenchServerState::Ready,
             CoordNetbenchServerState::Ready => CoordNetbenchServerState::RunPeer,
             CoordNetbenchServerState::RunPeer => CoordNetbenchServerState::KillPeer,
             CoordNetbenchServerState::KillPeer => CoordNetbenchServerState::Done,
             CoordNetbenchServerState::Done => CoordNetbenchServerState::Done,
-        };
+        }
     }
 
     fn as_bytes(&self) -> &'static [u8] {

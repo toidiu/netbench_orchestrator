@@ -31,6 +31,18 @@ pub trait Protocol: Clone {
         stream: &TcpStream,
         state: Self::State,
     ) -> RussulaResult<Poll<()>>;
+
+    async fn poll_current(&mut self, stream: &TcpStream) -> RussulaResult<Poll<()>> {
+        let state = *self.state();
+        self.poll_state(stream, state).await
+    }
+
+    async fn poll_next(&mut self, stream: &TcpStream) -> RussulaResult<Poll<()>> {
+        let state = self.state().next_state();
+
+        self.poll_state(stream, state).await
+    }
+
     fn state(&self) -> &Self::State;
 }
 
@@ -49,7 +61,8 @@ pub trait StateApi: Sized + Send + Sync + Debug {
     async fn run(&mut self, stream: &TcpStream) -> RussulaResult<()>;
     fn eq(&self, other: &Self) -> bool;
     fn transition_step(&self) -> TransitionStep;
-    fn next(&mut self);
+    fn transition_next(&mut self);
+    fn next_state(&self) -> Self;
 
     fn as_bytes(&self) -> &'static [u8];
     fn from_bytes(bytes: &[u8]) -> RussulaResult<Self>;
@@ -64,7 +77,7 @@ pub trait StateApi: Sized + Send + Sync + Debug {
     async fn process_msg(&mut self, stream: &TcpStream, recv_msg: Bytes) -> RussulaResult<()> {
         if let TransitionStep::AwaitPeerState(transition_msg) = self.transition_step() {
             if transition_msg == recv_msg {
-                self.next();
+                self.transition_next();
             }
             println!(
                 "========transition_msg: {:?} recv_msg: {:?} state: {:?}",
