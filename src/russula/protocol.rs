@@ -4,7 +4,7 @@
 use crate::russula::{network_utils, RussulaResult};
 use async_trait::async_trait;
 use bytes::Bytes;
-use core::fmt::Debug;
+use core::{fmt::Debug, task::Poll};
 use std::net::SocketAddr;
 use tokio::net::TcpStream;
 
@@ -16,7 +16,7 @@ pub(crate) struct RussulaPeer<P: Protocol> {
 
 #[async_trait]
 pub trait Protocol: Clone {
-    type State: StateApi + Debug;
+    type State: StateApi + Debug + Copy;
 
     // TODO use version and app to negotiate version
     // fn version(&self) {1, 2}
@@ -27,6 +27,13 @@ pub trait Protocol: Clone {
     async fn run_till_done(&mut self, stream: &TcpStream) -> RussulaResult<()>;
     async fn run_till_state(&mut self, stream: &TcpStream, state: Self::State)
         -> RussulaResult<()>;
+    async fn poll_state(
+        &mut self,
+        stream: &TcpStream,
+        state: Self::State,
+    ) -> RussulaResult<Poll<TransitionStep>> {
+        Ok(Poll::Ready(TransitionStep::Finished))
+    }
     fn state(&self) -> &Self::State;
 }
 

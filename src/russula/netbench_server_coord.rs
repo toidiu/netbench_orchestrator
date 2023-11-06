@@ -8,7 +8,7 @@ use crate::russula::{
     StateApi, TransitionStep,
 };
 use async_trait::async_trait;
-use core::time::Duration;
+use core::{fmt::Debug, task::Poll};
 use std::net::SocketAddr;
 use tokio::net::TcpStream;
 
@@ -71,6 +71,23 @@ impl Protocol for NetbenchCoordServerProtocol {
             println!("coord state--------{:?} -> {:?}", prev, self.state);
         }
         Ok(())
+    }
+
+    async fn poll_state(
+        &mut self,
+        stream: &TcpStream,
+        state: Self::State,
+    ) -> RussulaResult<Poll<TransitionStep>> {
+        if !self.state.eq(&state) {
+            let prev = self.state;
+            self.state.run(stream).await?;
+            println!("coord state--------{:?} -> {:?}", prev, self.state);
+        }
+        if self.state.eq(&state) {
+            Ok(Poll::Ready(self.state.transition_step()))
+        } else {
+            Ok(Poll::Pending)
+        }
     }
 
     fn state(&self) -> &Self::State {

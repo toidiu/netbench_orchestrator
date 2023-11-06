@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::russula::protocol::{RussulaPeer, SockProtocol};
+use core::task::Poll;
 use std::{collections::BTreeSet, net::SocketAddr};
 
 mod error;
@@ -41,6 +42,13 @@ impl<P: Protocol> Russula<P> {
         for peer in self.peer_list.iter_mut() {
             peer.protocol.run_till_done(&peer.stream).await.unwrap();
         }
+    }
+
+    pub async fn poll_state(&mut self, state: P::State) -> Poll<()> {
+        for peer in self.peer_list.iter_mut() {
+            peer.protocol.poll_state(&peer.stream, state).await.unwrap();
+        }
+        Poll::Ready(())
     }
 
     pub async fn check_self_state(&self, state: P::State) -> RussulaResult<bool> {
