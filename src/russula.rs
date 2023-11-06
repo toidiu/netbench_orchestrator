@@ -31,7 +31,7 @@ pub struct Russula<P: Protocol> {
 }
 
 impl<P: Protocol> Russula<P> {
-    pub async fn start(&mut self) {
+    pub async fn run_till_ready(&mut self) {
         for peer in self.peer_list.iter_mut() {
             peer.protocol.run_till_ready(&peer.stream).await.unwrap();
         }
@@ -105,7 +105,7 @@ mod tests {
                 NetbenchWorkerServerProtocol::new(),
             );
             let mut worker = worker.build().await.unwrap();
-            worker.start().await;
+            worker.run_till_ready().await;
             worker
         });
         let w2 = tokio::spawn(async move {
@@ -114,7 +114,7 @@ mod tests {
                 NetbenchWorkerServerProtocol::new(),
             );
             let mut worker = worker.build().await.unwrap();
-            worker.start().await;
+            worker.run_till_ready().await;
             worker
         });
 
@@ -122,7 +122,7 @@ mod tests {
             let addr = BTreeSet::from_iter([w1_sock, w2_sock]);
             let coord = RussulaBuilder::new(addr, NetbenchCoordServerProtocol::new());
             let mut coord = coord.build().await.unwrap();
-            coord.start().await;
+            coord.run_till_ready().await;
             coord
         });
 
@@ -145,7 +145,7 @@ mod tests {
             .await
             .unwrap());
 
-        FIXME need to return Poll and run in loop
+        // FIXME need to return Poll and run in loop
         coord.run_till_done().await;
         worker1.run_till_done().await;
         worker2.run_till_done().await;
