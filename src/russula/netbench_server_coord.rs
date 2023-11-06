@@ -1,6 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+use super::protocol::RussulaPoll;
 use crate::russula::{
     error::{RussulaError, RussulaResult},
     netbench_server_worker::WorkerNetbenchServerState,
@@ -77,17 +78,18 @@ impl Protocol for NetbenchCoordServerProtocol {
         &mut self,
         stream: &TcpStream,
         state: Self::State,
-    ) -> RussulaResult<Poll<TransitionStep>> {
+    ) -> RussulaResult<RussulaPoll> {
         if !self.state.eq(&state) {
             let prev = self.state;
             self.state.run(stream).await?;
             println!("coord state--------{:?} -> {:?}", prev, self.state);
         }
-        if self.state.eq(&state) {
-            Ok(Poll::Ready(self.state.transition_step()))
+        let poll = if self.state.eq(&state) {
+            RussulaPoll::Ready
         } else {
-            Ok(Poll::Pending)
-        }
+            RussulaPoll::Pending(self.state.transition_step())
+        };
+        Ok(poll)
     }
 
     fn state(&self) -> &Self::State {

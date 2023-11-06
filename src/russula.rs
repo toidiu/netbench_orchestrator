@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::russula::protocol::{RussulaPeer, SockProtocol};
-use core::task::Poll;
 use std::{collections::BTreeSet, net::SocketAddr};
 
 mod error;
@@ -16,7 +15,7 @@ mod wip_netbench_server;
 use error::{RussulaError, RussulaResult};
 use protocol::Protocol;
 
-use self::protocol::{StateApi, TransitionStep};
+use self::protocol::{RussulaPoll, StateApi, TransitionStep};
 
 // TODO
 // - make state transitions nicer..
@@ -31,7 +30,7 @@ pub struct Russula<P: Protocol> {
     peer_list: Vec<RussulaPeer<P>>,
 }
 
-impl<P: Protocol> Russula<P> {
+impl<P: Protocol + Send> Russula<P> {
     pub async fn run_till_ready(&mut self) {
         for peer in self.peer_list.iter_mut() {
             peer.protocol.run_till_ready(&peer.stream).await.unwrap();
@@ -44,11 +43,17 @@ impl<P: Protocol> Russula<P> {
         }
     }
 
-    pub async fn poll_state(&mut self, state: P::State) -> Poll<()> {
+    pub async fn poll_state(&mut self, state: P::State) -> RussulaPoll {
         for peer in self.peer_list.iter_mut() {
-            peer.protocol.poll_state(&peer.stream, state).await.unwrap();
+            // poll till state and break if Pending
+            while !peer.protocol.state().eq(&state) {
+                let poll = peer.protocol.poll_state(&peer.stream, state).await.unwrap();
+                if let RussulaPoll::Pending(p) = poll {
+                    return RussulaPoll::Pending(p);
+                }
+            }
         }
-        Poll::Ready(())
+        RussulaPoll::Ready
     }
 
     pub async fn check_self_state(&self, state: P::State) -> RussulaResult<bool> {
@@ -153,15 +158,25 @@ mod tests {
             .await
             .unwrap());
 
-        // FIXME need to return Poll and run in loop
-        coord.run_till_done().await;
-        worker1.run_till_done().await;
-        worker2.run_till_done().await;
+        assert!(matches!(
+            coord.poll_state(CoordNetbenchServerState::Ready).await,
+            RussulaPoll::Ready
+        ));
 
-        assert!(coord
-            .check_self_state(CoordNetbenchServerState::Done)
-            .await
-            .unwrap());
+        assert!(matches!(
+            coord.poll_state(CoordNetbenchServerState::RunPeer).await,
+            RussulaPoll::Ready
+        ));
+
+        // FIXME need to return Poll and run in loop
+        // coord.run_till_done().await;
+        // worker1.run_till_done().await;
+        // worker2.run_till_done().await;
+
+        // assert!(coord
+        //     .check_self_state(CoordNetbenchServerState::Done)
+        //     .await
+        //     .unwrap());
 
         assert!(21 == 22);
     }

@@ -31,16 +31,22 @@ pub trait Protocol: Clone {
         &mut self,
         stream: &TcpStream,
         state: Self::State,
-    ) -> RussulaResult<Poll<TransitionStep>> {
-        Ok(Poll::Ready(TransitionStep::Finished))
+    ) -> RussulaResult<RussulaPoll> {
+        Ok(RussulaPoll::Ready)
     }
     fn state(&self) -> &Self::State;
 }
 
 pub type SockProtocol<P> = (SocketAddr, P);
 
+pub enum RussulaPoll {
+    Ready,
+    Pending(TransitionStep),
+}
+
 #[derive(Debug)]
 pub enum TransitionStep {
+    Ready,
     UserDriven,
     AwaitPeerState(&'static [u8]),
     Finished,
