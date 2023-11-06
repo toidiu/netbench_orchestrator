@@ -74,17 +74,58 @@ impl StateApi for CoordNetbenchServerState {
             }
             CoordNetbenchServerState::Ready => {
                 self.transition_next();
+
+                // post action
+                {
+                    self.notify_peer(stream).await?;
+                }
+            }
+            CoordNetbenchServerState::RunPeer => {
+                self.transition_next();
+
+                // post action
+                {
+                    self.notify_peer(stream).await?;
+                }
+            }
+            CoordNetbenchServerState::KillPeer => {
                 self.notify_peer(stream).await?;
                 self.await_peer_msg(stream).await?;
             }
-            CoordNetbenchServerState::RunPeer => {
+            CoordNetbenchServerState::Done => {
                 self.notify_peer(stream).await?;
-                self.transition_next()
             }
-            CoordNetbenchServerState::KillPeer => self.transition_next(),
-            CoordNetbenchServerState::Done => self.transition_next(),
         }
         Ok(())
+    }
+
+    fn transition_step(&self) -> TransitionStep {
+        match self {
+            CoordNetbenchServerState::CheckPeer => {
+                TransitionStep::AwaitPeerState(WorkerNetbenchServerState::Ready.as_bytes())
+            }
+            CoordNetbenchServerState::Ready => TransitionStep::UserDriven,
+            CoordNetbenchServerState::RunPeer => TransitionStep::UserDriven,
+            CoordNetbenchServerState::KillPeer => {
+                TransitionStep::AwaitPeerState(WorkerNetbenchServerState::Done.as_bytes())
+            }
+            CoordNetbenchServerState::Done => TransitionStep::Finished,
+        }
+    }
+
+    fn transition_next(&mut self) {
+        println!("coord------------- moving to next state {:?}", self);
+        *self = self.next_state();
+    }
+
+    fn next_state(&self) -> Self {
+        match self {
+            CoordNetbenchServerState::CheckPeer => CoordNetbenchServerState::Ready,
+            CoordNetbenchServerState::Ready => CoordNetbenchServerState::RunPeer,
+            CoordNetbenchServerState::RunPeer => CoordNetbenchServerState::KillPeer,
+            CoordNetbenchServerState::KillPeer => CoordNetbenchServerState::Done,
+            CoordNetbenchServerState::Done => CoordNetbenchServerState::Done,
+        }
     }
 
     fn eq(&self, other: &Self) -> bool {
@@ -104,34 +145,6 @@ impl StateApi for CoordNetbenchServerState {
             CoordNetbenchServerState::Done => {
                 matches!(other, CoordNetbenchServerState::Done)
             }
-        }
-    }
-
-    fn transition_step(&self) -> TransitionStep {
-        match self {
-            CoordNetbenchServerState::CheckPeer => {
-                TransitionStep::AwaitPeerState(WorkerNetbenchServerState::Ready.as_bytes())
-            }
-            CoordNetbenchServerState::Ready => TransitionStep::UserDriven,
-            CoordNetbenchServerState::RunPeer => TransitionStep::UserDriven,
-            CoordNetbenchServerState::KillPeer => {
-                TransitionStep::AwaitPeerState(WorkerNetbenchServerState::Done.as_bytes())
-            }
-            CoordNetbenchServerState::Done => TransitionStep::Finished,
-        }
-    }
-
-    fn transition_next(&mut self) {
-        *self = self.next_state();
-    }
-
-    fn next_state(&self) -> Self {
-        match self {
-            CoordNetbenchServerState::CheckPeer => CoordNetbenchServerState::Ready,
-            CoordNetbenchServerState::Ready => CoordNetbenchServerState::RunPeer,
-            CoordNetbenchServerState::RunPeer => CoordNetbenchServerState::KillPeer,
-            CoordNetbenchServerState::KillPeer => CoordNetbenchServerState::Done,
-            CoordNetbenchServerState::Done => CoordNetbenchServerState::Done,
         }
     }
 

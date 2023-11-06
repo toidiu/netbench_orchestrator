@@ -73,6 +73,11 @@ impl StateApi for WorkerNetbenchServerState {
         match self {
             WorkerNetbenchServerState::WaitPeerInit => {
                 self.await_peer_msg(stream).await?;
+
+                // post action
+                {
+                    // self.notify_peer(stream).await?;
+                }
             }
             WorkerNetbenchServerState::Ready => {
                 let res = self.await_peer_msg(stream).await;
@@ -87,23 +92,6 @@ impl StateApi for WorkerNetbenchServerState {
         }
 
         Ok(())
-    }
-
-    fn eq(&self, other: &Self) -> bool {
-        match self {
-            WorkerNetbenchServerState::WaitPeerInit => {
-                matches!(other, WorkerNetbenchServerState::WaitPeerInit)
-            }
-            WorkerNetbenchServerState::Ready => {
-                matches!(other, WorkerNetbenchServerState::Ready)
-            }
-            WorkerNetbenchServerState::Run => {
-                matches!(other, WorkerNetbenchServerState::Run)
-            }
-            WorkerNetbenchServerState::Done => {
-                matches!(other, WorkerNetbenchServerState::Done)
-            }
-        }
     }
 
     fn transition_step(&self) -> TransitionStep {
@@ -132,6 +120,23 @@ impl StateApi for WorkerNetbenchServerState {
             WorkerNetbenchServerState::Ready => WorkerNetbenchServerState::Run,
             WorkerNetbenchServerState::Run => WorkerNetbenchServerState::Done,
             WorkerNetbenchServerState::Done => WorkerNetbenchServerState::Done,
+        }
+    }
+
+    fn eq(&self, other: &Self) -> bool {
+        match self {
+            WorkerNetbenchServerState::WaitPeerInit => {
+                matches!(other, WorkerNetbenchServerState::WaitPeerInit)
+            }
+            WorkerNetbenchServerState::Ready => {
+                matches!(other, WorkerNetbenchServerState::Ready)
+            }
+            WorkerNetbenchServerState::Run => {
+                matches!(other, WorkerNetbenchServerState::Run)
+            }
+            WorkerNetbenchServerState::Done => {
+                matches!(other, WorkerNetbenchServerState::Done)
+            }
         }
     }
 
