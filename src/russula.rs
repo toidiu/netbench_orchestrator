@@ -21,7 +21,7 @@ use self::protocol::{StateApi, TransitionStep};
 // TODO
 // - make state transitions nicer..
 //
-// - tag/len for msg
+// D- len for msg
 // D- r.transition_step // what is the next step one should take
 // D- r.poll_state // take steps to go to next step if possible
 // - should poll current step until all peers are on next step
@@ -210,14 +210,18 @@ mod tests {
 
         println!("\nSTEP 5 --------------- : poll worker next step");
         {
-            assert!(worker1.poll_next().await.is_ready());
             assert!(worker1
-                .check_self_state(WorkerNetbenchServerState::Run)
+                .check_self_state(WorkerNetbenchServerState::Ready)
                 .await
                 .unwrap());
+            assert!(worker1.poll_next().await.is_ready());
+            // assert!(worker1
+            //     .check_self_state(WorkerNetbenchServerState::Run)
+            //     .await
+            //     .unwrap());
         }
 
-        println!("\nSTEP 5 --------------- : poll coord curr step and recv worker msg");
+        println!("\nSTEP 6 --------------- : poll coord curr step and recv worker msg");
         {
             assert!(coord.poll_next().await.is_ready());
         }

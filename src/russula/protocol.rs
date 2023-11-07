@@ -85,6 +85,7 @@ pub type SockProtocol<P> = (SocketAddr, P);
 #[derive(Debug)]
 pub enum TransitionStep {
     Ready,
+    SelfDriven,
     UserDriven,
     AwaitPeerMsg(&'static [u8]),
     Finished,

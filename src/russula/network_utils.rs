@@ -1,24 +1,36 @@
 use crate::russula::{RussulaError, RussulaResult};
 use bytes::Bytes;
+use tokio::io::ErrorKind;
 use tokio::net::TcpStream;
 
 pub async fn recv_msg(stream: &TcpStream) -> RussulaResult<Msg> {
-    stream
-        .readable()
-        .await
-        .map_err(|err| RussulaError::NetworkFail {
-            dbg: err.to_string(),
-        })?;
+    stream.readable().await.map_err(|err| {
+        if err.kind() == ErrorKind::WouldBlock {
+            RussulaError::NetworkBlocked {
+                dbg: err.to_string(),
+            }
+        } else {
+            RussulaError::NetworkFail {
+                dbg: err.to_string(),
+            }
+        }
+    })?;
+
     read_msg(stream).await
 }
 
 pub async fn send_msg(stream: &TcpStream, msg: Msg) -> RussulaResult<()> {
-    stream
-        .writable()
-        .await
-        .map_err(|err| RussulaError::NetworkFail {
-            dbg: err.to_string(),
-        })?;
+    stream.writable().await.map_err(|err| {
+        if err.kind() == ErrorKind::WouldBlock {
+            RussulaError::NetworkBlocked {
+                dbg: err.to_string(),
+            }
+        } else {
+            RussulaError::NetworkFail {
+                dbg: err.to_string(),
+            }
+        }
+    })?;
 
     write_msg(stream, msg).await
 }
@@ -30,11 +42,17 @@ async fn write_msg(stream: &TcpStream, msg: Msg) -> RussulaResult<()> {
     data.push(msg.len);
     data.extend(msg.data);
 
-    stream
-        .try_write(&data)
-        .map_err(|err| RussulaError::NetworkFail {
-            dbg: err.to_string(),
-        })?;
+    stream.try_write(&data).map_err(|err| {
+        if err.kind() == ErrorKind::WouldBlock {
+            RussulaError::NetworkBlocked {
+                dbg: err.to_string(),
+            }
+        } else {
+            RussulaError::NetworkFail {
+                dbg: err.to_string(),
+            }
+        }
+    })?;
 
     Ok(())
 }
@@ -61,11 +79,9 @@ async fn read_msg(stream: &TcpStream) -> RussulaResult<Msg> {
                 })
             }
         }
-        Err(ref err) if err.kind() == tokio::io::ErrorKind::WouldBlock => {
-            Err(RussulaError::NetworkBlocked {
-                dbg: err.to_string(),
-            })
-        }
+        Err(ref err) if err.kind() == ErrorKind::WouldBlock => Err(RussulaError::NetworkBlocked {
+            dbg: err.to_string(),
+        }),
         Err(err) => Err(RussulaError::NetworkFail {
             dbg: err.to_string(),
         }),
