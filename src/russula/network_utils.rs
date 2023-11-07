@@ -27,15 +27,8 @@ async fn write_msg(stream: &TcpStream, msg: Msg) -> RussulaResult<()> {
     println!("-------------------------send_len {}", msg.len);
 
     let mut data: Vec<u8> = Vec::with_capacity((msg.len + 1).into());
-    // Vec::from_iter(msg.data.into());
     data.push(msg.len);
     data.extend(msg.data);
-
-    // stream
-    //     .try_write(&len)
-    //     .map_err(|err| RussulaError::NetworkFail {
-    //         dbg: err.to_string(),
-    //     })?;
 
     stream
         .try_write(&data)

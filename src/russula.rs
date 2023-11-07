@@ -44,25 +44,23 @@ impl<P: Protocol + Send> Russula<P> {
         }
     }
 
-    // pub async fn poll_current(&mut self) -> Poll<()> {
-    //     for peer in self.peer_list.iter_mut() {
-    //         // poll till state and break if Pending
-    //         let poll = peer.protocol.poll_current(&peer.stream).await.unwrap();
-    //         if poll.is_pending() {
-    //             return Poll::Pending;
-    //         }
-    //     }
-    //     Poll::Ready(())
-    // }
+    pub async fn poll_current(&mut self) -> Poll<()> {
+        for peer in self.peer_list.iter_mut() {
+            // poll till state and break if Pending
+            let poll = peer.protocol.poll_current(&peer.stream).await.unwrap();
+            if poll.is_pending() {
+                return Poll::Pending;
+            }
+        }
+        Poll::Ready(())
+    }
 
     pub async fn poll_next(&mut self, state: P::State) -> Poll<()> {
         for peer in self.peer_list.iter_mut() {
             // poll till state and break if Pending
-            while !peer.protocol.state().eq(&state) {
-                let poll = peer.protocol.poll_next(&peer.stream).await.unwrap();
-                if poll.is_pending() {
-                    return Poll::Pending;
-                }
+            let poll = peer.protocol.poll_next(&peer.stream).await.unwrap();
+            if poll.is_pending() {
+                return Poll::Pending;
             }
         }
         Poll::Ready(())
@@ -161,30 +159,21 @@ mod tests {
         });
 
         let join = tokio::join!(w1, c1);
-
         let mut worker1 = join.0.unwrap();
-        assert!(worker1
-            .check_self_state(WorkerNetbenchServerState::Ready)
-            .await
-            .unwrap());
-
         let mut coord = join.1.unwrap();
-        assert!(coord
-            .check_self_state(CoordNetbenchServerState::Ready)
-            .await
-            .unwrap());
 
         println!("\nSTEP 1 --------------- : confirm current ready state");
         // we are already in the Ready state
         {
-            assert!(matches!(
-                coord.poll_next(CoordNetbenchServerState::Ready).await,
-                Poll::Ready(())
-            ));
-            assert!(matches!(
-                worker1.poll_next(WorkerNetbenchServerState::Ready).await,
-                Poll::Ready(())
-            ));
+            assert!(worker1
+                .check_self_state(WorkerNetbenchServerState::Ready)
+                .await
+                .unwrap());
+
+            assert!(coord
+                .check_self_state(CoordNetbenchServerState::Ready)
+                .await
+                .unwrap());
         }
 
         println!("\nSTEP 2 --------------- : check next transition step");
@@ -218,19 +207,19 @@ mod tests {
                 .await
                 .unwrap());
 
-            // assert!(worker1
-            //     .poll_next(WorkerNetbenchServerState::Run)
-            //     .await
-            //     .is_ready());
+            assert!(worker1
+                .poll_next(WorkerNetbenchServerState::Run)
+                .await
+                .is_ready());
         }
 
-        // println!("\nSTEP 4 --------------- : poll coord curr step and recv worker msg");
-        // {
-        //     assert!(coord
-        //         .poll_next(CoordNetbenchServerState::RunPeer)
-        //         .await
-        //         .is_ready());
-        // }
+        println!("\nSTEP 4 --------------- : poll coord curr step and recv worker msg");
+        {
+            assert!(coord
+                .poll_next(CoordNetbenchServerState::RunPeer)
+                .await
+                .is_ready());
+        }
 
         assert!(22 == 20, "\n\n\nSUCCESS ---------------- INTENTIONAL FAIL");
     }
