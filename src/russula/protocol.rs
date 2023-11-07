@@ -112,7 +112,8 @@ pub trait StateApi: Sized + Send + Sync + Debug {
     async fn transition_next(&mut self, stream: &TcpStream) {
         println!(
             "{}------------- moving to next state {:?}",
-            "name todo", self
+            self.name(),
+            self
         );
 
         *self = self.next_state();
@@ -120,7 +121,7 @@ pub trait StateApi: Sized + Send + Sync + Debug {
     }
     async fn await_peer_msg(&mut self, stream: &TcpStream) -> RussulaResult<()> {
         let msg = network_utils::recv_msg(stream).await?;
-        println!("<----recv msg {}", msg);
+        println!("{} <----recv msg {}", self.name(), msg);
         self.process_msg(stream, msg).await
     }
     async fn process_msg(&mut self, stream: &TcpStream, recv_msg: Msg) -> RussulaResult<()> {
@@ -129,7 +130,8 @@ pub trait StateApi: Sized + Send + Sync + Debug {
                 self.transition_next(stream).await;
             }
             println!(
-                "========transition_msg: {:?} recv_msg: {:?} state: {:?}",
+                "{} ========transition_msg: {:?} recv_msg: {:?} state: {:?}",
+                self.name(),
                 std::str::from_utf8(transition_msg),
                 recv_msg,
                 self
