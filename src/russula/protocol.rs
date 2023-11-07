@@ -138,8 +138,6 @@ pub trait StateApi: Sized + Send + Sync + Debug {
                 std::str::from_utf8(expected_msg),
                 recv_msg,
             );
-            // todo remove
-            self.notify_peer(stream).await?
         }
 
         Ok(())
