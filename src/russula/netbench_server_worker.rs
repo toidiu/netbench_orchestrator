@@ -85,8 +85,8 @@ impl StateApi for WorkerNetbenchServerState {
             }
             WorkerNetbenchServerState::Ready => {
                 let res = self.await_peer_msg(stream).await;
-                if let Err(RussulaError::NetworkBlocked { dbg: _ }) = res {
-                    println!("worker--- no message received.. buffer empty");
+                if let Err(RussulaError::NetworkBlocked { dbg }) = res {
+                    println!("worker--- Blocked: {}", dbg);
                 } else {
                     res?
                 }

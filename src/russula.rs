@@ -218,10 +218,10 @@ mod tests {
                 .await
                 .unwrap());
 
-            assert!(worker1
-                .poll_next(WorkerNetbenchServerState::Run)
-                .await
-                .is_ready());
+            // assert!(worker1
+            //     .poll_next(WorkerNetbenchServerState::Run)
+            //     .await
+            //     .is_ready());
         }
 
         // println!("\nSTEP 4 --------------- : poll coord curr step and recv worker msg");

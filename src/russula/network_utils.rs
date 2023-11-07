@@ -24,15 +24,21 @@ pub async fn send_msg(stream: &TcpStream, msg: Msg) -> RussulaResult<()> {
 }
 
 async fn write_msg(stream: &TcpStream, msg: Msg) -> RussulaResult<()> {
-    let len: [u8; 1] = msg.len.to_be_bytes();
-    stream
-        .try_write(&len)
-        .map_err(|err| RussulaError::NetworkFail {
-            dbg: err.to_string(),
-        })?;
+    println!("-------------------------send_len {}", msg.len);
+
+    let mut data: Vec<u8> = Vec::with_capacity((msg.len + 1).into());
+    // Vec::from_iter(msg.data.into());
+    data.push(msg.len);
+    data.extend(msg.data);
+
+    // stream
+    //     .try_write(&len)
+    //     .map_err(|err| RussulaError::NetworkFail {
+    //         dbg: err.to_string(),
+    //     })?;
 
     stream
-        .try_write(&msg.data)
+        .try_write(&data)
         .map_err(|err| RussulaError::NetworkFail {
             dbg: err.to_string(),
         })?;
@@ -48,6 +54,7 @@ async fn read_msg(stream: &TcpStream) -> RussulaResult<Msg> {
             dbg: err.to_string(),
         })?;
     let len = u8::from_be_bytes(len_buf);
+    println!("-------------------------recv_len {}", len);
 
     let mut data = Vec::with_capacity(len.into());
     match stream.try_read_buf(&mut data) {
