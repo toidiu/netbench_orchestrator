@@ -181,7 +181,7 @@ mod tests {
             let _s = CoordNetbenchServerState::RunPeer.as_bytes();
             assert!(matches!(
                 worker1.transition_step()[0],
-                TransitionStep::AwaitPeerMsg(_s)
+                TransitionStep::AwaitPeer(_s)
             ));
             assert!(matches!(
                 coord.transition_step()[0],
@@ -215,10 +215,10 @@ mod tests {
                 .await
                 .unwrap());
             assert!(worker1.poll_next().await.is_ready());
-            // assert!(worker1
-            //     .check_self_state(WorkerNetbenchServerState::Run)
-            //     .await
-            //     .unwrap());
+            assert!(worker1
+                .check_self_state(WorkerNetbenchServerState::Run)
+                .await
+                .unwrap());
         }
 
         println!("\nSTEP 6 --------------- : poll coord curr step and recv worker msg");

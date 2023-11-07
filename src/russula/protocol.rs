@@ -87,7 +87,7 @@ pub enum TransitionStep {
     Ready,
     SelfDriven,
     UserDriven,
-    AwaitPeerMsg(&'static [u8]),
+    AwaitPeer(&'static [u8]),
     Finished,
 }
 
@@ -113,7 +113,7 @@ pub trait StateApi: Sized + Send + Sync + Debug {
         self.process_msg(stream, msg).await
     }
     async fn process_msg(&mut self, stream: &TcpStream, recv_msg: Msg) -> RussulaResult<()> {
-        if let TransitionStep::AwaitPeerMsg(transition_msg) = self.transition_step() {
+        if let TransitionStep::AwaitPeer(transition_msg) = self.transition_step() {
             if transition_msg == recv_msg.as_bytes() {
                 self.transition_next();
             }

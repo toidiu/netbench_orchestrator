@@ -107,12 +107,12 @@ impl StateApi for CoordNetbenchServerState {
     fn transition_step(&self) -> TransitionStep {
         match self {
             CoordNetbenchServerState::CheckPeer => {
-                TransitionStep::AwaitPeerMsg(WorkerNetbenchServerState::Ready.as_bytes())
+                TransitionStep::AwaitPeer(WorkerNetbenchServerState::Ready.as_bytes())
             }
             CoordNetbenchServerState::Ready => TransitionStep::UserDriven,
             CoordNetbenchServerState::RunPeer => TransitionStep::UserDriven,
             CoordNetbenchServerState::KillPeer => {
-                TransitionStep::AwaitPeerMsg(WorkerNetbenchServerState::Done.as_bytes())
+                TransitionStep::AwaitPeer(WorkerNetbenchServerState::Done.as_bytes())
             }
             CoordNetbenchServerState::Done => TransitionStep::Finished,
         }
