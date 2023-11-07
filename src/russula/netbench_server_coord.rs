@@ -69,7 +69,7 @@ impl Protocol for NetbenchCoordServerProtocol {
 
 #[async_trait]
 impl StateApi for CoordNetbenchServerState {
-    async fn run(&mut self, stream: &TcpStream) -> RussulaResult<()> {
+    async fn run(&mut self, name: String, stream: &TcpStream) -> RussulaResult<()> {
         match self {
             CoordNetbenchServerState::CheckPeer => {
                 self.notify_peer(stream).await?;

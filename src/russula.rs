@@ -119,8 +119,8 @@ mod tests {
     #[tokio::test]
     async fn russula_netbench() {
         let w1_sock = SocketAddr::from_str("127.0.0.1:8991").unwrap();
-        let w2_sock = SocketAddr::from_str("127.0.0.1:8993").unwrap();
-        let worker_list = [w2_sock];
+        let w2_sock = SocketAddr::from_str("127.0.0.1:8992").unwrap();
+        let worker_list = [w1_sock, w2_sock];
 
         let w1 = tokio::spawn(async move {
             let worker = RussulaBuilder::new(
@@ -128,7 +128,15 @@ mod tests {
                 NetbenchWorkerServerProtocol::new(w1_sock.port()),
             );
             let mut worker = worker.build().await.unwrap();
-            worker.run_till_ready().await;
+            while !worker
+                .check_self_state(WorkerNetbenchServerState::Run)
+                .await
+                .unwrap()
+            {
+                println!("[worker-1] run--o--o-o-o-oo-----ooooooooo---------o");
+                let _ = worker.poll_next().await;
+                tokio::time::sleep(Duration::from_secs(1)).await;
+            }
             worker
         });
         let w2 = tokio::spawn(async move {
@@ -137,15 +145,12 @@ mod tests {
                 NetbenchWorkerServerProtocol::new(w2_sock.port()),
             );
             let mut worker = worker.build().await.unwrap();
-
-            // worker.run_till_ready().await;
-
             while !worker
                 .check_self_state(WorkerNetbenchServerState::Run)
                 .await
                 .unwrap()
             {
-                println!("run--o--o-o-o-oo-----ooooooooo---------o");
+                println!("[worker-2] run--o--o-o-o-oo-----ooooooooo---------o");
                 let _ = worker.poll_next().await;
                 tokio::time::sleep(Duration::from_secs(1)).await;
             }
@@ -162,15 +167,10 @@ mod tests {
 
         let join = tokio::join!(c1);
         let mut coord = join.0.unwrap();
-        // let mut worker1 = join.1.unwrap();
 
         println!("\nSTEP 1 --------------- : confirm current ready state");
         // we are already in the Ready state
         {
-            // assert!(worker1
-            //     .check_self_state(WorkerNetbenchServerState::Ready)
-            //     .await
-            //     .unwrap());
             assert!(coord
                 .check_self_state(CoordNetbenchServerState::Ready)
                 .await
@@ -181,10 +181,6 @@ mod tests {
         // we are pendng next state on UserDriven action on the coord
         {
             let _s = CoordNetbenchServerState::RunPeer.as_bytes();
-            // assert!(matches!(
-            //     worker1.transition_step()[0],
-            //     TransitionStep::AwaitPeer(_s)
-            // ));
             assert!(matches!(
                 coord.transition_step()[0],
                 TransitionStep::UserDriven
@@ -192,13 +188,7 @@ mod tests {
         }
 
         println!("\nSTEP 3 --------------- : confirm AwaitPeerMsg cant self transition");
-        {
-            // assert!(worker1.poll_next().await.is_pending(),);
-            // assert!(worker1
-            //     .check_self_state(WorkerNetbenchServerState::Ready)
-            //     .await
-            //     .unwrap());
-        }
+        {}
 
         println!("\nSTEP 4 --------------- : poll next coord step");
         // move coord forward
@@ -211,26 +201,7 @@ mod tests {
         }
 
         println!("\nSTEP 5 --------------- : poll worker next step");
-        {
-            // assert!(worker1
-            //     .check_self_state(WorkerNetbenchServerState::Ready)
-            //     .await
-            //     .unwrap());
-            // assert!(worker1.poll_next().await.is_pending());
-            // while !worker1
-            //     .check_self_state(WorkerNetbenchServerState::Run)
-            //     .await
-            //     .unwrap()
-            // {
-            //     println!("run--o--o-o-o-oo-----ooooooooo---------o");
-            //     let _ = worker1.poll_next().await;
-            //     tokio::time::sleep(Duration::from_secs(1)).await;
-            // }
-            // assert!(worker1
-            //     .check_self_state(WorkerNetbenchServerState::Run)
-            //     .await
-            //     .unwrap());
-        }
+        {}
 
         println!("\nSTEP 6 --------------- : poll coord and kill peer");
         {
@@ -241,10 +212,10 @@ mod tests {
             //     .unwrap());
         }
 
-        let join = tokio::join!(w2);
+        let (worker1, _worker2) = tokio::join!(w1, w2);
         // let mut coord = join.0.unwrap();
-        let mut worker2 = join.0.unwrap();
-        assert!(worker2
+        let worker1 = worker1.unwrap();
+        assert!(worker1
             .check_self_state(WorkerNetbenchServerState::Run)
             .await
             .unwrap());

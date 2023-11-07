@@ -45,7 +45,7 @@ impl Protocol for NetbenchWorkerServerProtocol {
 
     async fn connect(&self, addr: &SocketAddr) -> RussulaResult<TcpStream> {
         let listener = TcpListener::bind(addr).await.unwrap();
-        println!("--- Worker listening on: {}", addr);
+        println!("{} listening on: {}", self.name(), addr);
 
         let (stream, _local_addr) =
             listener
@@ -54,7 +54,7 @@ impl Protocol for NetbenchWorkerServerProtocol {
                 .map_err(|err| RussulaError::NetworkFail {
                     dbg: err.to_string(),
                 })?;
-        println!("Worker success connection: {addr}");
+        println!("{} success connection: {addr}", self.name());
 
         Ok(stream)
     }
@@ -75,7 +75,7 @@ impl Protocol for NetbenchWorkerServerProtocol {
 
 #[async_trait]
 impl StateApi for WorkerNetbenchServerState {
-    async fn run(&mut self, stream: &TcpStream) -> RussulaResult<()> {
+    async fn run(&mut self, name: String, stream: &TcpStream) -> RussulaResult<()> {
         match self {
             WorkerNetbenchServerState::WaitPeerInit => {
                 self.await_peer_msg(stream).await?;
@@ -83,7 +83,7 @@ impl StateApi for WorkerNetbenchServerState {
             WorkerNetbenchServerState::Ready => {
                 let res = self.await_peer_msg(stream).await;
                 if let Err(RussulaError::NetworkBlocked { dbg }) = res {
-                    println!("worker--- Blocked: {}", dbg);
+                    println!("{} Blocked: {}", name, dbg);
                 } else {
                     res?
                 }
