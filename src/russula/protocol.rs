@@ -94,9 +94,9 @@ pub enum TransitionStep {
 #[async_trait]
 pub trait StateApi: Sized + Send + Sync + Debug {
     async fn run(&mut self, stream: &TcpStream) -> RussulaResult<()>;
+
     fn eq(&self, other: &Self) -> bool;
     fn transition_step(&self) -> TransitionStep;
-    fn transition_next(&mut self);
     fn next_state(&self) -> Self;
 
     fn as_bytes(&self) -> &'static [u8];
@@ -107,6 +107,15 @@ pub trait StateApi: Sized + Send + Sync + Debug {
         network_utils::send_msg(stream, msg).await
     }
 
+    async fn transition_next(&mut self, stream: &TcpStream) {
+        println!(
+            "{}------------- moving to next state {:?}",
+            "name todo", self
+        );
+
+        *self = self.next_state();
+        self.notify_peer(stream).await.unwrap();
+    }
     async fn await_peer_msg(&mut self, stream: &TcpStream) -> RussulaResult<()> {
         let msg = network_utils::recv_msg(stream).await?;
         println!("<----recv msg {}", msg);
@@ -115,7 +124,7 @@ pub trait StateApi: Sized + Send + Sync + Debug {
     async fn process_msg(&mut self, stream: &TcpStream, recv_msg: Msg) -> RussulaResult<()> {
         if let TransitionStep::AwaitPeer(transition_msg) = self.transition_step() {
             if transition_msg == recv_msg.as_bytes() {
-                self.transition_next();
+                self.transition_next(stream).await;
             }
             println!(
                 "========transition_msg: {:?} recv_msg: {:?} state: {:?}",

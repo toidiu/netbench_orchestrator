@@ -77,11 +77,6 @@ impl StateApi for WorkerNetbenchServerState {
         match self {
             WorkerNetbenchServerState::WaitPeerInit => {
                 self.await_peer_msg(stream).await?;
-
-                // post action
-                {
-                    self.notify_peer(stream).await?;
-                }
             }
             WorkerNetbenchServerState::Ready => {
                 let res = self.await_peer_msg(stream).await;
@@ -91,8 +86,8 @@ impl StateApi for WorkerNetbenchServerState {
                     res?
                 }
             }
-            WorkerNetbenchServerState::Run => self.transition_next(),
-            WorkerNetbenchServerState::Done => self.transition_next(),
+            WorkerNetbenchServerState::Run => self.transition_next(stream).await,
+            WorkerNetbenchServerState::Done => self.transition_next(stream).await,
         }
 
         Ok(())
@@ -111,11 +106,6 @@ impl StateApi for WorkerNetbenchServerState {
             }
             WorkerNetbenchServerState::Done => TransitionStep::Finished,
         }
-    }
-
-    fn transition_next(&mut self) {
-        println!("worker------------- moving to next state {:?}", self);
-        *self = self.next_state();
     }
 
     fn next_state(&self) -> Self {

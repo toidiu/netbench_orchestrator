@@ -77,21 +77,11 @@ impl StateApi for CoordNetbenchServerState {
             }
             CoordNetbenchServerState::Ready => {
                 self.await_peer_msg(stream).await?;
-                self.transition_next();
-
-                // post action
-                {
-                    self.notify_peer(stream).await?;
-                }
+                self.transition_next(stream).await;
             }
             CoordNetbenchServerState::RunPeer => {
                 self.await_peer_msg(stream).await?;
-                self.transition_next();
-
-                // post action
-                {
-                    self.notify_peer(stream).await?;
-                }
+                self.transition_next(stream).await;
             }
             CoordNetbenchServerState::KillPeer => {
                 self.notify_peer(stream).await?;
@@ -116,11 +106,6 @@ impl StateApi for CoordNetbenchServerState {
             }
             CoordNetbenchServerState::Done => TransitionStep::Finished,
         }
-    }
-
-    fn transition_next(&mut self) {
-        println!("coord------------- moving to next state {:?}", self);
-        *self = self.next_state();
     }
 
     fn next_state(&self) -> Self {

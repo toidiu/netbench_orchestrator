@@ -1,7 +1,6 @@
 use crate::russula::{RussulaError, RussulaResult};
 use bytes::Bytes;
-use tokio::io::ErrorKind;
-use tokio::net::TcpStream;
+use tokio::{io::ErrorKind, net::TcpStream};
 
 pub async fn recv_msg(stream: &TcpStream) -> RussulaResult<Msg> {
     stream.readable().await.map_err(|err| {
@@ -36,7 +35,7 @@ pub async fn send_msg(stream: &TcpStream, msg: Msg) -> RussulaResult<()> {
 }
 
 async fn write_msg(stream: &TcpStream, msg: Msg) -> RussulaResult<()> {
-    println!("-------------------------send_len {}", msg.len);
+    // println!("-------------------------send_len {}", msg.len);
 
     let mut data: Vec<u8> = Vec::with_capacity((msg.len + 1).into());
     data.push(msg.len);
@@ -65,7 +64,7 @@ async fn read_msg(stream: &TcpStream) -> RussulaResult<Msg> {
             dbg: err.to_string(),
         })?;
     let len = u8::from_be_bytes(len_buf);
-    println!("-------------------------recv_len {}", len);
+    // println!("-------------------------recv_len {}", len);
 
     let mut data = Vec::with_capacity(len.into());
     match stream.try_read_buf(&mut data) {

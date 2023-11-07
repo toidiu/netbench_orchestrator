@@ -44,17 +44,6 @@ impl<P: Protocol + Send> Russula<P> {
         }
     }
 
-    pub async fn poll_current(&mut self) -> Poll<()> {
-        for peer in self.peer_list.iter_mut() {
-            // poll till state and break if Pending
-            let poll = peer.protocol.poll_current(&peer.stream).await.unwrap();
-            if poll.is_pending() {
-                return Poll::Pending;
-            }
-        }
-        Poll::Ready(())
-    }
-
     pub async fn poll_next(&mut self) -> Poll<()> {
         for peer in self.peer_list.iter_mut() {
             // poll till state and break if Pending
@@ -124,6 +113,7 @@ mod tests {
         netbench_server_coord::{CoordNetbenchServerState, NetbenchCoordServerProtocol},
         netbench_server_worker::{NetbenchWorkerServerProtocol, WorkerNetbenchServerState},
     };
+    use core::time::Duration;
     use std::str::FromStr;
 
     #[tokio::test]
@@ -214,16 +204,29 @@ mod tests {
                 .check_self_state(WorkerNetbenchServerState::Ready)
                 .await
                 .unwrap());
-            assert!(worker1.poll_next().await.is_ready());
+            assert!(worker1.poll_next().await.is_pending());
+            while !worker1
+                .check_self_state(WorkerNetbenchServerState::Run)
+                .await
+                .unwrap()
+            {
+                println!("run--o--o-o-o-oo-----ooooooooo---------o");
+                let _ = worker1.poll_next().await;
+                tokio::time::sleep(Duration::from_secs(1)).await;
+            }
             assert!(worker1
                 .check_self_state(WorkerNetbenchServerState::Run)
                 .await
                 .unwrap());
         }
 
-        println!("\nSTEP 6 --------------- : poll coord curr step and recv worker msg");
+        println!("\nSTEP 6 --------------- : poll coord and kill peer");
         {
             assert!(coord.poll_next().await.is_ready());
+            assert!(coord
+                .check_self_state(CoordNetbenchServerState::KillPeer)
+                .await
+                .unwrap());
         }
 
         assert!(22 == 20, "\n\n\nSUCCESS ---------------- INTENTIONAL FAIL");
