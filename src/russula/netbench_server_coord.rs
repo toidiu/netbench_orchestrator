@@ -38,7 +38,7 @@ impl NetbenchCoordServerProtocol {
 impl Protocol for NetbenchCoordServerProtocol {
     type State = CoordNetbenchServerState;
     fn name(&self) -> String {
-        "coord".to_string()
+        format!("[coord-{}]", 0)
     }
 
     async fn connect(&self, addr: &SocketAddr) -> RussulaResult<TcpStream> {

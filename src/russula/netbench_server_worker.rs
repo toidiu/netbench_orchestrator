@@ -22,12 +22,14 @@ pub enum WorkerNetbenchServerState {
 
 #[derive(Clone, Copy)]
 pub struct NetbenchWorkerServerProtocol {
+    id: u16,
     state: WorkerNetbenchServerState,
 }
 
 impl NetbenchWorkerServerProtocol {
-    pub fn new() -> Self {
+    pub fn new(id: u16) -> Self {
         NetbenchWorkerServerProtocol {
+            id,
             state: WorkerNetbenchServerState::WaitPeerInit,
         }
     }
@@ -38,7 +40,7 @@ impl Protocol for NetbenchWorkerServerProtocol {
     type State = WorkerNetbenchServerState;
 
     fn name(&self) -> String {
-        "worker".to_string()
+        format!("[worker-{}]", self.id)
     }
 
     async fn connect(&self, addr: &SocketAddr) -> RussulaResult<TcpStream> {
