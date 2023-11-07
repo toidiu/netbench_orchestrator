@@ -76,6 +76,7 @@ impl StateApi for CoordNetbenchServerState {
                 self.await_peer_msg(stream).await?;
             }
             CoordNetbenchServerState::Ready => {
+                self.await_peer_msg(stream).await?;
                 self.transition_next();
 
                 // post action
@@ -84,6 +85,7 @@ impl StateApi for CoordNetbenchServerState {
                 }
             }
             CoordNetbenchServerState::RunPeer => {
+                self.await_peer_msg(stream).await?;
                 self.transition_next();
 
                 // post action
@@ -105,12 +107,12 @@ impl StateApi for CoordNetbenchServerState {
     fn transition_step(&self) -> TransitionStep {
         match self {
             CoordNetbenchServerState::CheckPeer => {
-                TransitionStep::AwaitPeerState(WorkerNetbenchServerState::Ready.as_bytes())
+                TransitionStep::AwaitPeerMsg(WorkerNetbenchServerState::Ready.as_bytes())
             }
             CoordNetbenchServerState::Ready => TransitionStep::UserDriven,
             CoordNetbenchServerState::RunPeer => TransitionStep::UserDriven,
             CoordNetbenchServerState::KillPeer => {
-                TransitionStep::AwaitPeerState(WorkerNetbenchServerState::Done.as_bytes())
+                TransitionStep::AwaitPeerMsg(WorkerNetbenchServerState::Done.as_bytes())
             }
             CoordNetbenchServerState::Done => TransitionStep::Finished,
         }

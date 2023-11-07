@@ -55,7 +55,7 @@ impl<P: Protocol + Send> Russula<P> {
         Poll::Ready(())
     }
 
-    pub async fn poll_next(&mut self, state: P::State) -> Poll<()> {
+    pub async fn poll_next(&mut self) -> Poll<()> {
         for peer in self.peer_list.iter_mut() {
             // poll till state and break if Pending
             let poll = peer.protocol.poll_next(&peer.stream).await.unwrap();
@@ -169,7 +169,6 @@ mod tests {
                 .check_self_state(WorkerNetbenchServerState::Ready)
                 .await
                 .unwrap());
-
             assert!(coord
                 .check_self_state(CoordNetbenchServerState::Ready)
                 .await
@@ -182,43 +181,45 @@ mod tests {
             let _s = CoordNetbenchServerState::RunPeer.as_bytes();
             assert!(matches!(
                 worker1.transition_step()[0],
-                TransitionStep::AwaitPeerState(_s)
+                TransitionStep::AwaitPeerMsg(_s)
             ));
-            assert!(worker1
-                .poll_next(WorkerNetbenchServerState::Run)
-                .await
-                .is_pending(),);
-
             assert!(matches!(
                 coord.transition_step()[0],
                 TransitionStep::UserDriven
             ));
         }
 
-        println!("\nSTEP 3 --------------- : poll next coord step");
+        println!("\nSTEP 3 --------------- : confirm AwaitPeerMsg cant self transition");
+        {
+            assert!(worker1.poll_next().await.is_pending(),);
+            assert!(worker1
+                .check_self_state(WorkerNetbenchServerState::Ready)
+                .await
+                .unwrap());
+        }
+
+        println!("\nSTEP 4 --------------- : poll next coord step");
         // move coord forward
         {
-            assert!(coord
-                .poll_next(CoordNetbenchServerState::RunPeer)
-                .await
-                .is_ready());
+            assert!(coord.poll_next().await.is_ready());
             assert!(coord
                 .check_self_state(CoordNetbenchServerState::RunPeer)
                 .await
                 .unwrap());
-
-            assert!(worker1
-                .poll_next(WorkerNetbenchServerState::Run)
-                .await
-                .is_ready());
         }
 
-        println!("\nSTEP 4 --------------- : poll coord curr step and recv worker msg");
+        println!("\nSTEP 5 --------------- : poll worker next step");
         {
-            assert!(coord
-                .poll_next(CoordNetbenchServerState::RunPeer)
+            assert!(worker1.poll_next().await.is_ready());
+            assert!(worker1
+                .check_self_state(WorkerNetbenchServerState::Run)
                 .await
-                .is_ready());
+                .unwrap());
+        }
+
+        println!("\nSTEP 5 --------------- : poll coord curr step and recv worker msg");
+        {
+            assert!(coord.poll_next().await.is_ready());
         }
 
         assert!(22 == 20, "\n\n\nSUCCESS ---------------- INTENTIONAL FAIL");
