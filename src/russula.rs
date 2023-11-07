@@ -130,7 +130,7 @@ mod tests {
             );
             let mut worker = worker.build().await.unwrap();
             while !worker
-                .check_self_state(WorkerNetbenchServerState::Run)
+                .check_self_state(WorkerNetbenchServerState::Done)
                 .await
                 .unwrap()
             {
@@ -147,7 +147,7 @@ mod tests {
             );
             let mut worker = worker.build().await.unwrap();
             while !worker
-                .check_self_state(WorkerNetbenchServerState::Run)
+                .check_self_state(WorkerNetbenchServerState::Done)
                 .await
                 .unwrap()
             {
@@ -213,13 +213,20 @@ mod tests {
             //     .unwrap());
         }
 
-        let (worker1, _worker2) = tokio::join!(w1, w2);
-        // let mut coord = join.0.unwrap();
-        let worker1 = worker1.unwrap();
-        assert!(worker1
-            .check_self_state(WorkerNetbenchServerState::Run)
-            .await
-            .unwrap());
+        println!("\nSTEP 20 --------------- : confirm worker done");
+        {
+            let (worker1, worker2) = tokio::join!(w1, w2);
+            let worker1 = worker1.unwrap();
+            let worker2 = worker2.unwrap();
+            assert!(worker1
+                .check_self_state(WorkerNetbenchServerState::Done)
+                .await
+                .unwrap());
+            assert!(worker2
+                .check_self_state(WorkerNetbenchServerState::Done)
+                .await
+                .unwrap());
+        }
 
         assert!(22 == 20, "\n\n\nSUCCESS ---------------- INTENTIONAL FAIL");
     }

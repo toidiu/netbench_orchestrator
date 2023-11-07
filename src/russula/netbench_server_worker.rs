@@ -89,6 +89,10 @@ impl StateApi for WorkerNetbenchServerState {
             }
             WorkerNetbenchServerState::Run => {
                 // some long task
+                println!(
+                    "{} some looooooooooooooooooooooooooooooooooooooooooooong task",
+                    self.name()
+                );
                 self.transition_next(stream).await
             }
             WorkerNetbenchServerState::Done => self.transition_next(stream).await,
