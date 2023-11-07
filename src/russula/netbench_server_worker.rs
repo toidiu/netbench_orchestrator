@@ -75,20 +75,22 @@ impl Protocol for NetbenchWorkerServerProtocol {
 
 #[async_trait]
 impl StateApi for WorkerNetbenchServerState {
-    async fn run(&mut self, name: String, stream: &TcpStream) -> RussulaResult<()> {
+    fn name(&self) -> String {
+        "[worker]".to_string()
+    }
+
+    async fn run(&mut self, stream: &TcpStream) -> RussulaResult<()> {
         match self {
             WorkerNetbenchServerState::WaitPeerInit => {
                 self.await_peer_msg(stream).await?;
             }
             WorkerNetbenchServerState::Ready => {
-                let res = self.await_peer_msg(stream).await;
-                if let Err(RussulaError::NetworkBlocked { dbg }) = res {
-                    println!("{} Blocked: {}", name, dbg);
-                } else {
-                    res?
-                }
+                self.await_peer_msg(stream).await?;
             }
-            WorkerNetbenchServerState::Run => self.transition_next(stream).await,
+            WorkerNetbenchServerState::Run => {
+                // some long task
+                self.transition_next(stream).await
+            }
             WorkerNetbenchServerState::Done => self.transition_next(stream).await,
         }
 

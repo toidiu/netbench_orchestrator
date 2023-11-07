@@ -117,6 +117,7 @@ mod tests {
     use std::str::FromStr;
 
     #[tokio::test]
+    #[allow(clippy::assertions_on_constants)] // for testing
     async fn russula_netbench() {
         let w1_sock = SocketAddr::from_str("127.0.0.1:8991").unwrap();
         let w2_sock = SocketAddr::from_str("127.0.0.1:8992").unwrap();
