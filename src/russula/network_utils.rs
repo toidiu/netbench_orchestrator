@@ -12,7 +12,7 @@ pub async fn recv_msg(stream: &TcpStream) -> RussulaResult<Msg> {
     read_msg(stream).await
 }
 
-pub async fn send_msg(stream: &TcpStream, msg: Bytes) -> RussulaResult<()> {
+pub async fn send_msg(stream: &TcpStream, msg: Msg) -> RussulaResult<()> {
     stream
         .writable()
         .await
@@ -20,12 +20,13 @@ pub async fn send_msg(stream: &TcpStream, msg: Bytes) -> RussulaResult<()> {
             dbg: err.to_string(),
         })?;
 
-    write_msg(stream, Msg::new(msg)).await
+    write_msg(stream, msg).await
 }
 
 async fn write_msg(stream: &TcpStream, msg: Msg) -> RussulaResult<()> {
+    let len: [u8; 1] = msg.len.to_be_bytes();
     stream
-        .try_write(&msg.len.to_be_bytes())
+        .try_write(&len)
         .map_err(|err| RussulaError::NetworkFail {
             dbg: err.to_string(),
         })?;
@@ -40,13 +41,13 @@ async fn write_msg(stream: &TcpStream, msg: Msg) -> RussulaResult<()> {
 }
 
 async fn read_msg(stream: &TcpStream) -> RussulaResult<Msg> {
-    let mut len_buf = [0; 2];
+    let mut len_buf = [0; 1];
     stream
         .try_read(&mut len_buf)
         .map_err(|err| RussulaError::NetworkFail {
             dbg: err.to_string(),
         })?;
-    let len = u16::from_be_bytes(len_buf);
+    let len = u8::from_be_bytes(len_buf);
 
     let mut data = Vec::with_capacity(len.into());
     match stream.try_read_buf(&mut data) {
@@ -54,6 +55,7 @@ async fn read_msg(stream: &TcpStream) -> RussulaResult<Msg> {
             if n == len.into() {
                 Ok(Msg::new(data.into()))
             } else {
+                let data = std::str::from_utf8(&data).unwrap();
                 Err(RussulaError::BadMsg {
                     dbg: format!("received a malformed msg. len: {} data: {:?}", len, data),
                 })
@@ -72,14 +74,14 @@ async fn read_msg(stream: &TcpStream) -> RussulaResult<Msg> {
 
 #[derive(Debug)]
 pub struct Msg {
-    len: u16,
+    len: u8,
     data: Bytes,
 }
 
 impl Msg {
-    fn new(data: Bytes) -> Msg {
+    pub fn new(data: Bytes) -> Msg {
         Msg {
-            len: data.len() as u16,
+            len: data.len() as u8,
             data,
         }
     }

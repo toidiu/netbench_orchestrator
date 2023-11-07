@@ -101,11 +101,14 @@ pub trait StateApi: Sized + Send + Sync + Debug {
     fn as_bytes(&self) -> &'static [u8];
     fn from_bytes(bytes: &[u8]) -> RussulaResult<Self>;
     async fn notify_peer(&self, stream: &TcpStream) -> RussulaResult<()> {
-        network_utils::send_msg(stream, self.as_bytes().into()).await
+        let msg = Msg::new(self.as_bytes().into());
+        println!("----> send msg {:?}", msg);
+        network_utils::send_msg(stream, msg).await
     }
 
     async fn await_peer_msg(&mut self, stream: &TcpStream) -> RussulaResult<()> {
         let msg = network_utils::recv_msg(stream).await?;
+        println!("<----recv msg {}", msg);
         self.process_msg(stream, msg).await
     }
     async fn process_msg(&mut self, stream: &TcpStream, recv_msg: Msg) -> RussulaResult<()> {
