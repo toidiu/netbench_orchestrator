@@ -81,24 +81,18 @@ impl StateApi for WorkerNetbenchServerState {
 
     async fn run(&mut self, stream: &TcpStream) -> RussulaResult<()> {
         match self {
-            WorkerNetbenchServerState::WaitPeerInit => {
-                self.await_peer_msg(stream).await?;
-            }
-            WorkerNetbenchServerState::Ready => {
-                self.await_peer_msg(stream).await?;
-            }
+            WorkerNetbenchServerState::WaitPeerInit => self.await_peer_msg(stream).await,
+            WorkerNetbenchServerState::Ready => self.await_peer_msg(stream).await,
             WorkerNetbenchServerState::Run => {
                 // some long task
                 println!(
                     "{} some looooooooooooooooooooooooooooooooooooooooooooong task",
                     self.name()
                 );
-                self.transition_next(stream).await
+                self.transition_next(stream).await.map(|_| ())
             }
-            WorkerNetbenchServerState::Done => self.transition_next(stream).await,
+            WorkerNetbenchServerState::Done => self.transition_next(stream).await.map(|_| ()),
         }
-
-        Ok(())
     }
 
     fn transition_step(&self) -> TransitionStep {

@@ -1,6 +1,8 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+use tokio::io::ErrorKind;
+
 pub type RussulaResult<T, E = RussulaError> = Result<T, E>;
 
 #[derive(Debug)]
@@ -27,6 +29,20 @@ impl RussulaError {
         match self {
             RussulaError::NetworkBlocked { dbg: _ } => false,
             RussulaError::NetworkFail { dbg: _ } | RussulaError::BadMsg { dbg: _ } => true,
+        }
+    }
+}
+
+impl From<tokio::io::Error> for RussulaError {
+    fn from(err: tokio::io::Error) -> Self {
+        if err.kind() == ErrorKind::WouldBlock {
+            RussulaError::NetworkBlocked {
+                dbg: err.to_string(),
+            }
+        } else {
+            RussulaError::NetworkFail {
+                dbg: err.to_string(),
+            }
         }
     }
 }

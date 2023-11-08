@@ -103,13 +103,13 @@ pub trait StateApi: Sized + Send + Sync + Debug {
 
     fn as_bytes(&self) -> &'static [u8];
     fn from_bytes(bytes: &[u8]) -> RussulaResult<Self>;
-    async fn notify_peer(&self, stream: &TcpStream) -> RussulaResult<()> {
+    async fn notify_peer(&self, stream: &TcpStream) -> RussulaResult<usize> {
         let msg = Msg::new(self.as_bytes().into());
         println!("{} ----> send msg {:?}", self.name(), msg);
         network_utils::send_msg(stream, msg).await
     }
 
-    async fn transition_next(&mut self, stream: &TcpStream) {
+    async fn transition_next(&mut self, stream: &TcpStream) -> RussulaResult<usize> {
         println!(
             "{}------------- moving to next state {:?}",
             self.name(),
@@ -117,11 +117,10 @@ pub trait StateApi: Sized + Send + Sync + Debug {
         );
 
         *self = self.next_state();
-        self.notify_peer(stream).await.unwrap();
+        self.notify_peer(stream).await
     }
     async fn await_peer_msg(&mut self, stream: &TcpStream) -> RussulaResult<()> {
         let msg = network_utils::recv_msg(stream).await?;
-        println!("{} <----recv msg {}", self.name(), msg);
         self.process_msg(stream, msg).await
     }
     async fn process_msg(&mut self, stream: &TcpStream, recv_msg: Msg) -> RussulaResult<()> {
@@ -129,7 +128,7 @@ pub trait StateApi: Sized + Send + Sync + Debug {
             if expected_msg == recv_msg.as_bytes() {
                 self.transition_next(stream).await;
             } else {
-                self.notify_peer(stream).await?
+                self.notify_peer(stream).await?;
             }
             println!(
                 "{} ========transition: {}, expect_msg: {:?} recv_msg: {:?}",
