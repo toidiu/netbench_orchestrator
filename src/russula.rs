@@ -44,15 +44,15 @@ impl<P: Protocol + Send> Russula<P> {
         }
     }
 
-    pub async fn poll_next(&mut self) -> Poll<()> {
+    pub async fn poll_next(&mut self) -> RussulaResult<Poll<()>> {
         for peer in self.peer_list.iter_mut() {
             // poll till state and break if Pending
-            let poll = peer.protocol.poll_next(&peer.stream).await.unwrap();
+            let poll = peer.protocol.poll_next(&peer.stream).await?;
             if poll.is_pending() {
-                return Poll::Pending;
+                return Ok(Poll::Pending);
             }
         }
-        Poll::Ready(())
+        Ok(Poll::Ready(()))
     }
 
     pub async fn check_self_state(&self, state: P::State) -> RussulaResult<bool> {
@@ -194,11 +194,17 @@ mod tests {
         println!("\nSTEP 4 --------------- : poll next coord step");
         // move coord forward
         {
-            assert!(coord.poll_next().await.is_ready());
-            assert!(coord
+            while !coord
                 .check_self_state(CoordNetbenchServerState::RunPeer)
                 .await
-                .unwrap());
+                .unwrap()
+            {
+                if let Err(err) = coord.poll_next().await {
+                    if err.is_fatal() {
+                        panic!("{}", err);
+                    }
+                }
+            }
         }
 
         println!("\nSTEP 5 --------------- : poll worker next step");

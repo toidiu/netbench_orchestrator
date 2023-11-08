@@ -13,11 +13,20 @@ pub enum RussulaError {
 impl std::fmt::Display for RussulaError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            RussulaError::NetworkFail { dbg } => write!(f, "{}", dbg),
-            RussulaError::NetworkBlocked { dbg } => write!(f, "{}", dbg),
-            RussulaError::BadMsg { dbg } => write!(f, "{}", dbg),
+            RussulaError::NetworkFail { dbg } => write!(f, "NetworkFail {}", dbg),
+            RussulaError::NetworkBlocked { dbg } => write!(f, "NetworkBlocked {}", dbg),
+            RussulaError::BadMsg { dbg } => write!(f, "BadMsg {}", dbg),
         }
     }
 }
 
 impl std::error::Error for RussulaError {}
+
+impl RussulaError {
+    pub fn is_fatal(&self) -> bool {
+        match self {
+            RussulaError::NetworkBlocked { dbg: _ } => false,
+            RussulaError::NetworkFail { dbg: _ } | RussulaError::BadMsg { dbg: _ } => true,
+        }
+    }
+}
