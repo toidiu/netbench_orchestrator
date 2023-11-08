@@ -29,23 +29,14 @@ async fn read_msg(stream: &TcpStream) -> RussulaResult<Msg> {
     let len = u8::from_be_bytes(len_buf);
 
     let mut data = Vec::with_capacity(len.into());
-    match stream.try_read_buf(&mut data) {
-        Ok(n) => {
-            if n == len as usize {
-                Ok(Msg::new(data.into()))
-            } else {
-                let data = std::str::from_utf8(&data).expect("expected str");
-                Err(RussulaError::BadMsg {
-                    dbg: format!("received a malformed msg. len: {} data: {:?}", len, data),
-                })
-            }
-        }
-        Err(ref err) if err.kind() == ErrorKind::WouldBlock => Err(RussulaError::NetworkBlocked {
-            dbg: err.to_string(),
-        }),
-        Err(err) => Err(RussulaError::NetworkFail {
-            dbg: err.to_string(),
-        }),
+    let read_bytes = stream.try_read_buf(&mut data).map_err(RussulaError::from)?;
+    if read_bytes == len as usize {
+        Ok(Msg::new(data.into()))
+    } else {
+        let data = std::str::from_utf8(&data).unwrap_or("Unable to parse bytes as str!!");
+        Err(RussulaError::BadMsg {
+            dbg: format!("received a malformed msg. len: {} data: {:?}", len, data),
+        })
     }
 }
 

@@ -12,7 +12,7 @@ use bytes::Bytes;
 use core::{fmt::Debug, task::Poll};
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
-use tokio::net::TcpStream;
+use tokio::{io::ErrorKind, net::TcpStream};
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 pub enum CoordNetbenchServerState {
@@ -46,12 +46,7 @@ impl Protocol for NetbenchCoordServerProtocol {
     async fn connect(&self, addr: &SocketAddr) -> RussulaResult<TcpStream> {
         println!("--- Coordinator: attempt to connect on: {}", addr);
 
-        let connect = TcpStream::connect(addr)
-            .await
-            .map_err(|err| RussulaError::NetworkFail {
-                dbg: err.to_string(),
-            })?;
-
+        let connect = TcpStream::connect(addr).await.map_err(RussulaError::from)?;
         Ok(connect)
     }
 

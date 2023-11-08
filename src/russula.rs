@@ -96,7 +96,20 @@ impl<P: Protocol> RussulaBuilder<P> {
     pub async fn build(self) -> RussulaResult<Russula<P>> {
         let mut stream_protocol_list = Vec::new();
         for (addr, protocol) in self.peer_list.into_iter() {
-            let stream = protocol.connect(&addr).await?;
+            let stream;
+            loop {
+                match protocol.connect(&addr).await {
+                    Ok(connect) => {
+                        stream = connect;
+                        break;
+                    }
+                    Err(RussulaError::NetworkConnectionRefused { dbg }) => {
+                        println!("Failed to connect.. retrying. addr: {} dbg: {}", addr, dbg);
+                        tokio::time::sleep(Duration::from_secs(2)).await;
+                    }
+                    Err(err) => return Err(err),
+                }
+            }
             println!("Coordinator: successfully connected to {}", addr);
             stream_protocol_list.push(RussulaPeer {
                 addr,
@@ -127,6 +140,15 @@ mod tests {
         let w1_sock = SocketAddr::from_str("127.0.0.1:8991").unwrap();
         let w2_sock = SocketAddr::from_str("127.0.0.1:8992").unwrap();
         let worker_list = [w1_sock, w2_sock];
+
+        // start the coordinator first to test initial connection retry
+        let c1 = tokio::spawn(async move {
+            let addr = BTreeSet::from_iter(worker_list);
+            let coord = RussulaBuilder::new(addr, NetbenchCoordServerProtocol::new());
+            let mut coord = coord.build().await.unwrap();
+            coord.run_till_ready().await;
+            coord
+        });
 
         let w1 = tokio::spawn(async move {
             let worker = RussulaBuilder::new(
@@ -161,14 +183,6 @@ mod tests {
                 tokio::time::sleep(Duration::from_secs(1)).await;
             }
             worker
-        });
-
-        let c1 = tokio::spawn(async move {
-            let addr = BTreeSet::from_iter(worker_list);
-            let coord = RussulaBuilder::new(addr, NetbenchCoordServerProtocol::new());
-            let mut coord = coord.build().await.unwrap();
-            coord.run_till_ready().await;
-            coord
         });
 
         let join = tokio::join!(c1);
@@ -210,7 +224,7 @@ mod tests {
         }
 
         let delay_kill = tokio::spawn(async move {
-            tokio::time::sleep(Duration::from_secs(10)).await;
+            tokio::time::sleep(Duration::from_secs(5)).await;
             println!("\nSTEP 4 --------------- : sleep and then kill worker");
             // move coord forward
             {

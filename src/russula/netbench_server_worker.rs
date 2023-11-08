@@ -51,13 +51,7 @@ impl Protocol for NetbenchWorkerServerProtocol {
         let listener = TcpListener::bind(addr).await.unwrap();
         println!("{} listening on: {}", self.name(), addr);
 
-        let (stream, _local_addr) =
-            listener
-                .accept()
-                .await
-                .map_err(|err| RussulaError::NetworkFail {
-                    dbg: err.to_string(),
-                })?;
+        let (stream, _local_addr) = listener.accept().await.map_err(RussulaError::from)?;
         println!("{} success connection: {addr}", self.name());
 
         Ok(stream)
