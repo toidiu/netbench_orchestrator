@@ -91,7 +91,7 @@ impl StateApi for WorkerNetbenchServerState {
                     self.name()
                 );
                 let child = Command::new("sh")
-                    .args(["testing_long_process.sh", &name])
+                    .args(["long_running_process.sh", &name])
                     .spawn()
                     .expect("Failed to start echo process");
 
