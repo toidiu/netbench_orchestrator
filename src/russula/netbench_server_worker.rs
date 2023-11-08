@@ -8,8 +8,8 @@ use crate::russula::{
     StateApi, TransitionStep,
 };
 use async_trait::async_trait;
-use core::fmt::Debug;
-use std::net::SocketAddr;
+use core::{fmt::Debug, time::Duration};
+use std::{net::SocketAddr, process::Command};
 use tokio::net::{TcpListener, TcpStream};
 
 #[derive(Copy, Clone, Debug)]
@@ -17,6 +17,7 @@ pub enum WorkerNetbenchServerState {
     WaitPeerInit,
     Ready,
     Run,
+    // RunningAwaitPeer(Child),
     Done,
 }
 
@@ -79,7 +80,7 @@ impl StateApi for WorkerNetbenchServerState {
         "[worker]".to_string()
     }
 
-    async fn run(&mut self, stream: &TcpStream) -> RussulaResult<()> {
+    async fn run(&mut self, stream: &TcpStream, name: String) -> RussulaResult<()> {
         match self {
             WorkerNetbenchServerState::WaitPeerInit => self.await_peer_msg(stream).await,
             WorkerNetbenchServerState::Ready => self.await_peer_msg(stream).await,
@@ -89,6 +90,14 @@ impl StateApi for WorkerNetbenchServerState {
                     "{} some looooooooooooooooooooooooooooooooooooooooooooong task",
                     self.name()
                 );
+                let mut child = Command::new("sh")
+                    .args(["testing_long_process.sh", &name])
+                    .spawn()
+                    .expect("Failed to start echo process");
+
+                tokio::time::sleep(Duration::from_secs(4)).await;
+                child.kill().unwrap();
+
                 self.transition_next(stream).await.map(|_| ())
             }
             WorkerNetbenchServerState::Done => self.transition_next(stream).await.map(|_| ()),

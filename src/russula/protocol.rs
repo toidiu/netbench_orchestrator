@@ -32,7 +32,8 @@ pub trait Protocol: Clone {
     ) -> RussulaResult<()> {
         while !self.state().eq(&state) {
             let prev = *self.state();
-            self.state_mut().run(stream).await?;
+            let name = self.name();
+            self.state_mut().run(stream, name).await?;
 
             println!(
                 "{} state--------{:?} -> {:?}",
@@ -51,7 +52,8 @@ pub trait Protocol: Clone {
     ) -> RussulaResult<Poll<()>> {
         if !self.state().eq(&state) {
             let prev = *self.state();
-            self.state_mut().run(stream).await?;
+            let name = self.name();
+            self.state_mut().run(stream, name).await?;
             println!(
                 "{} state--------{:?} -> {:?}",
                 self.name(),
@@ -95,7 +97,7 @@ pub enum TransitionStep {
 #[async_trait]
 pub trait StateApi: Sized + Send + Sync + Debug {
     fn name(&self) -> String;
-    async fn run(&mut self, stream: &TcpStream) -> RussulaResult<()>;
+    async fn run(&mut self, stream: &TcpStream, name: String) -> RussulaResult<()>;
 
     fn eq(&self, other: &Self) -> bool;
     fn transition_step(&self) -> TransitionStep;

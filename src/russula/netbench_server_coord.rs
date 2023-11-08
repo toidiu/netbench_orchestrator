@@ -73,7 +73,7 @@ impl StateApi for CoordNetbenchServerState {
         format!("[coord-{}]", 0)
     }
 
-    async fn run(&mut self, stream: &TcpStream) -> RussulaResult<()> {
+    async fn run(&mut self, stream: &TcpStream, _name: String) -> RussulaResult<()> {
         match self {
             CoordNetbenchServerState::CheckPeer => {
                 self.notify_peer(stream).await?;
