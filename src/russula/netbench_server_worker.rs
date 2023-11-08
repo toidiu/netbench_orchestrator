@@ -10,6 +10,7 @@ use crate::russula::{
 use async_trait::async_trait;
 use core::{fmt::Debug, time::Duration};
 use std::{net::SocketAddr, process::Command};
+use sysinfo::{Pid, PidExt, Process, ProcessExt, SystemExt};
 use tokio::net::{TcpListener, TcpStream};
 
 #[derive(Copy, Clone, Debug)]
@@ -95,7 +96,17 @@ impl StateApi for WorkerNetbenchServerState {
                     .spawn()
                     .expect("Failed to start echo process");
 
-                tokio::time::sleep(Duration::from_secs(4)).await;
+                tokio::time::sleep(Duration::from_secs(2)).await;
+                let id = child.id();
+                println!("{}----------------------------child id", id);
+
+                let pid = Pid::from_u32(id);
+                let mut system = sysinfo::System::new();
+                if system.refresh_process(pid) {
+                    let process = system.process(pid).unwrap();
+                    let kill = process.kill();
+                    println!("did KILL pid: {} {}----------------------------", pid, kill);
+                }
                 child.kill().unwrap();
 
                 self.transition_next(stream).await.map(|_| ())
