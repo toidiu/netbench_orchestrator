@@ -8,9 +8,8 @@ use crate::russula::{
     StateApi, TransitionStep,
 };
 use async_trait::async_trait;
-use core::{fmt::Debug, time::Duration};
 use std::{net::SocketAddr, process::Command};
-use sysinfo::{Pid, PidExt, Process, ProcessExt, SystemExt};
+use sysinfo::{Pid, PidExt, ProcessExt, SystemExt};
 use tokio::net::{TcpListener, TcpStream};
 
 #[derive(Copy, Clone, Debug)]
@@ -18,7 +17,7 @@ pub enum WorkerNetbenchServerState {
     WaitPeerInit,
     Ready,
     Run,
-    // RunningAwaitPeer(Child),
+    RunningAwaitPeer(u32),
     Done,
 }
 
@@ -91,23 +90,33 @@ impl StateApi for WorkerNetbenchServerState {
                     "{} some looooooooooooooooooooooooooooooooooooooooooooong task",
                     self.name()
                 );
-                let mut child = Command::new("sh")
+                let child = Command::new("sh")
                     .args(["testing_long_process.sh", &name])
                     .spawn()
                     .expect("Failed to start echo process");
 
-                tokio::time::sleep(Duration::from_secs(2)).await;
-                let id = child.id();
-                println!("{}----------------------------child id", id);
+                let pid = child.id();
+                println!(
+                    "{}----------------------------child id {}",
+                    self.name(),
+                    pid
+                );
 
-                let pid = Pid::from_u32(id);
+                // FIXME error prone.. see next_state()
+                *self = WorkerNetbenchServerState::RunningAwaitPeer(pid);
+                self.notify_peer(stream).await.map(|_| ())
+            }
+            WorkerNetbenchServerState::RunningAwaitPeer(pid) => {
+                let pid = *pid;
+                self.await_peer_msg(stream).await?;
+
+                let pid = Pid::from_u32(pid);
                 let mut system = sysinfo::System::new();
                 if system.refresh_process(pid) {
                     let process = system.process(pid).unwrap();
                     let kill = process.kill();
                     println!("did KILL pid: {} {}----------------------------", pid, kill);
                 }
-                child.kill().unwrap();
 
                 self.transition_next(stream).await.map(|_| ())
             }
@@ -123,7 +132,8 @@ impl StateApi for WorkerNetbenchServerState {
             WorkerNetbenchServerState::Ready => {
                 TransitionStep::AwaitPeer(CoordNetbenchServerState::RunPeer.as_bytes())
             }
-            WorkerNetbenchServerState::Run => {
+            WorkerNetbenchServerState::Run => TransitionStep::SelfDriven,
+            WorkerNetbenchServerState::RunningAwaitPeer(_) => {
                 TransitionStep::AwaitPeer(CoordNetbenchServerState::KillPeer.as_bytes())
             }
             WorkerNetbenchServerState::Done => TransitionStep::Finished,
@@ -134,7 +144,9 @@ impl StateApi for WorkerNetbenchServerState {
         match self {
             WorkerNetbenchServerState::WaitPeerInit => WorkerNetbenchServerState::Ready,
             WorkerNetbenchServerState::Ready => WorkerNetbenchServerState::Run,
-            WorkerNetbenchServerState::Run => WorkerNetbenchServerState::Done,
+            // FIXME error prone
+            WorkerNetbenchServerState::Run => WorkerNetbenchServerState::RunningAwaitPeer(0),
+            WorkerNetbenchServerState::RunningAwaitPeer(_) => WorkerNetbenchServerState::Done,
             WorkerNetbenchServerState::Done => WorkerNetbenchServerState::Done,
         }
     }
@@ -150,6 +162,9 @@ impl StateApi for WorkerNetbenchServerState {
             WorkerNetbenchServerState::Run => {
                 matches!(other, WorkerNetbenchServerState::Run)
             }
+            WorkerNetbenchServerState::RunningAwaitPeer(_pid) => {
+                matches!(other, WorkerNetbenchServerState::RunningAwaitPeer(_))
+            }
             WorkerNetbenchServerState::Done => {
                 matches!(other, WorkerNetbenchServerState::Done)
             }
@@ -161,6 +176,7 @@ impl StateApi for WorkerNetbenchServerState {
             WorkerNetbenchServerState::WaitPeerInit => b"server_wait_peer_init",
             WorkerNetbenchServerState::Ready => b"server_ready",
             WorkerNetbenchServerState::Run => b"server_wait_peer_done",
+            WorkerNetbenchServerState::RunningAwaitPeer(_) => b"server_running_await_peer",
             WorkerNetbenchServerState::Done => b"server_done",
         }
     }

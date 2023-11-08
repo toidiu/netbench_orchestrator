@@ -188,10 +188,7 @@ mod tests {
             ));
         }
 
-        println!("\nSTEP 3 --------------- : confirm AwaitPeerMsg cant self transition");
-        {}
-
-        println!("\nSTEP 4 --------------- : poll next coord step");
+        println!("\nSTEP 3 --------------- : poll next coord step");
         // move coord forward
         {
             while !coord
@@ -207,17 +204,27 @@ mod tests {
             }
         }
 
-        println!("\nSTEP 5 --------------- : poll worker next step");
-        {}
+        let delay_kill = tokio::spawn(async move {
+            tokio::time::sleep(Duration::from_secs(10)).await;
+            println!("\nSTEP 4 --------------- : sleep and then kill worker");
+            // move coord forward
+            {
+                while !coord
+                    .check_self_state(CoordNetbenchServerState::Done)
+                    .await
+                    .unwrap()
+                {
+                    if let Err(err) = coord.poll_next().await {
+                        if err.is_fatal() {
+                            panic!("{}", err);
+                        }
+                    }
+                }
+            }
+        });
 
-        println!("\nSTEP 6 --------------- : poll coord and kill peer");
-        {
-            // assert!(coord.poll_next().await.is_ready());
-            // assert!(coord
-            //     .check_self_state(CoordNetbenchServerState::KillPeer)
-            //     .await
-            //     .unwrap());
-        }
+        let join = tokio::join!(delay_kill);
+        join.0.unwrap();
 
         println!("\nSTEP 20 --------------- : confirm worker done");
         {

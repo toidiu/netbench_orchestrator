@@ -2,10 +2,11 @@
 
 id=$1
 
-mkdir -p test_output
 
 ctr=1
-pushd test_output
+cd target
+mkdir -p test_output
+cd test_output
 
     touch $id
     while :
@@ -14,6 +15,4 @@ pushd test_output
         sleep 1
         ctr=$((ctr+1))
     done
-
-popd test_output
 

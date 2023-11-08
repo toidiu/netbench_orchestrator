@@ -80,11 +80,11 @@ impl StateApi for CoordNetbenchServerState {
                 self.await_peer_msg(stream).await?;
             }
             CoordNetbenchServerState::Ready => {
-                self.await_peer_msg(stream).await?;
+                // self.await_peer_msg(stream).await?;
                 self.transition_next(stream).await?;
             }
             CoordNetbenchServerState::RunPeer => {
-                self.await_peer_msg(stream).await?;
+                // self.await_peer_msg(stream).await?;
                 self.transition_next(stream).await?;
             }
             CoordNetbenchServerState::KillPeer => {
@@ -106,7 +106,7 @@ impl StateApi for CoordNetbenchServerState {
             CoordNetbenchServerState::Ready => TransitionStep::UserDriven,
             CoordNetbenchServerState::RunPeer => TransitionStep::UserDriven,
             CoordNetbenchServerState::KillPeer => {
-                TransitionStep::AwaitPeer(WorkerNetbenchServerState::Done.as_bytes())
+                TransitionStep::AwaitPeer(WorkerNetbenchServerState::RunningAwaitPeer(0).as_bytes())
             }
             CoordNetbenchServerState::Done => TransitionStep::Finished,
         }
@@ -147,7 +147,7 @@ impl StateApi for CoordNetbenchServerState {
             CoordNetbenchServerState::CheckPeer => b"coord_check_peer",
             CoordNetbenchServerState::Ready => b"coord_ready",
             CoordNetbenchServerState::RunPeer => b"coord_run_peer",
-            CoordNetbenchServerState::KillPeer => b"coord_wait_peer_done",
+            CoordNetbenchServerState::KillPeer => b"coord_kill_peer",
             CoordNetbenchServerState::Done => b"coord_done",
         }
     }
@@ -156,7 +156,7 @@ impl StateApi for CoordNetbenchServerState {
         let state = match bytes {
             b"coord_ready" => CoordNetbenchServerState::Ready,
             b"coord_run_peer" => CoordNetbenchServerState::RunPeer,
-            b"coord_wait_peer_done" => CoordNetbenchServerState::KillPeer,
+            b"coord_kill_peer" => CoordNetbenchServerState::KillPeer,
             b"coord_done" => CoordNetbenchServerState::Done,
             bad_msg => {
                 return Err(RussulaError::BadMsg {

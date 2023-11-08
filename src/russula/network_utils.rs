@@ -7,13 +7,11 @@ use tokio::{io::ErrorKind, net::TcpStream};
 
 pub async fn recv_msg(stream: &TcpStream) -> RussulaResult<Msg> {
     stream.readable().await.map_err(RussulaError::from)?;
-
     read_msg(stream).await
 }
 
 pub async fn send_msg(stream: &TcpStream, msg: Msg) -> RussulaResult<usize> {
     stream.writable().await.map_err(RussulaError::from)?;
-
     write_msg(stream, msg).await
 }
 
