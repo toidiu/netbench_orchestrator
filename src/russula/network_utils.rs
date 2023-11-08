@@ -31,7 +31,7 @@ async fn read_msg(stream: &TcpStream) -> RussulaResult<Msg> {
     let mut data = Vec::with_capacity(len.into());
     match stream.try_read_buf(&mut data) {
         Ok(n) => {
-            if n == len.into() {
+            if n == len as usize {
                 Ok(Msg::new(data.into()))
             } else {
                 let data = std::str::from_utf8(&data).expect("expected str");

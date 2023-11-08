@@ -8,11 +8,13 @@ use crate::russula::{
     StateApi, TransitionStep,
 };
 use async_trait::async_trait;
+use bytes::Bytes;
 use core::fmt::Debug;
+use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 use tokio::net::TcpStream;
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 pub enum CoordNetbenchServerState {
     CheckPeer,
     Ready,
@@ -142,29 +144,12 @@ impl StateApi for CoordNetbenchServerState {
         }
     }
 
-    fn as_bytes(&self) -> &'static [u8] {
-        match self {
-            CoordNetbenchServerState::CheckPeer => b"coord_check_peer",
-            CoordNetbenchServerState::Ready => b"coord_ready",
-            CoordNetbenchServerState::RunPeer => b"coord_run_peer",
-            CoordNetbenchServerState::KillPeer => b"coord_kill_peer",
-            CoordNetbenchServerState::Done => b"coord_done",
-        }
+    fn as_bytes(&self) -> Bytes {
+        serde_json::to_string(self).unwrap().into()
     }
 
     fn from_bytes(bytes: &[u8]) -> RussulaResult<Self> {
-        let state = match bytes {
-            b"coord_ready" => CoordNetbenchServerState::Ready,
-            b"coord_run_peer" => CoordNetbenchServerState::RunPeer,
-            b"coord_kill_peer" => CoordNetbenchServerState::KillPeer,
-            b"coord_done" => CoordNetbenchServerState::Done,
-            bad_msg => {
-                return Err(RussulaError::BadMsg {
-                    dbg: format!("unrecognized msg {:?}", std::str::from_utf8(bad_msg)),
-                })
-            }
-        };
-
+        let state = serde_json::from_slice(bytes).unwrap();
         Ok(state)
     }
 }

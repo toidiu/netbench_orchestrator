@@ -4,6 +4,7 @@
 use super::network_utils::Msg;
 use crate::russula::{network_utils, RussulaResult};
 use async_trait::async_trait;
+use bytes::Bytes;
 use core::{fmt::Debug, task::Poll};
 use std::net::SocketAddr;
 use tokio::net::TcpStream;
@@ -90,7 +91,7 @@ pub enum TransitionStep {
     Ready,
     SelfDriven,
     UserDriven,
-    AwaitPeer(&'static [u8]),
+    AwaitPeer(Bytes),
     Finished,
 }
 
@@ -103,10 +104,10 @@ pub trait StateApi: Sized + Send + Sync + Debug {
     fn transition_step(&self) -> TransitionStep;
     fn next_state(&self) -> Self;
 
-    fn as_bytes(&self) -> &'static [u8];
+    fn as_bytes(&self) -> Bytes;
     fn from_bytes(bytes: &[u8]) -> RussulaResult<Self>;
     async fn notify_peer(&self, stream: &TcpStream) -> RussulaResult<usize> {
-        let msg = Msg::new(self.as_bytes().into());
+        let msg = Msg::new(self.as_bytes());
         println!("{} ----> send msg {:?}", self.name(), msg);
         network_utils::send_msg(stream, msg).await
     }
@@ -137,7 +138,7 @@ pub trait StateApi: Sized + Send + Sync + Debug {
                 "{} ========transition: {}, expect_msg: {:?} recv_msg: {:?}",
                 self.name(),
                 expected_msg == recv_msg.as_bytes(),
-                std::str::from_utf8(expected_msg),
+                std::str::from_utf8(&expected_msg),
                 recv_msg,
             );
         }

@@ -8,16 +8,18 @@ use crate::russula::{
     StateApi, TransitionStep,
 };
 use async_trait::async_trait;
+use bytes::Bytes;
+use serde::{Deserialize, Serialize};
 use std::{net::SocketAddr, process::Command};
 use sysinfo::{Pid, PidExt, ProcessExt, SystemExt};
 use tokio::net::{TcpListener, TcpStream};
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 pub enum WorkerNetbenchServerState {
     WaitPeerInit,
     Ready,
     Run,
-    RunningAwaitPeer(u32),
+    RunningAwaitPeer(#[serde(skip)] u32),
     Done,
 }
 
@@ -171,29 +173,12 @@ impl StateApi for WorkerNetbenchServerState {
         }
     }
 
-    fn as_bytes(&self) -> &'static [u8] {
-        match self {
-            WorkerNetbenchServerState::WaitPeerInit => b"server_wait_peer_init",
-            WorkerNetbenchServerState::Ready => b"server_ready",
-            WorkerNetbenchServerState::Run => b"server_wait_peer_done",
-            WorkerNetbenchServerState::RunningAwaitPeer(_) => b"server_running_await_peer",
-            WorkerNetbenchServerState::Done => b"server_done",
-        }
+    fn as_bytes(&self) -> Bytes {
+        serde_json::to_string(self).unwrap().into()
     }
 
     fn from_bytes(bytes: &[u8]) -> RussulaResult<Self> {
-        let state = match bytes {
-            b"server_wait_peer_init" => WorkerNetbenchServerState::WaitPeerInit,
-            b"server_ready" => WorkerNetbenchServerState::Ready,
-            b"server_wait_peer_done" => WorkerNetbenchServerState::Run,
-            b"server_done" => WorkerNetbenchServerState::Done,
-            bad_msg => {
-                return Err(RussulaError::BadMsg {
-                    dbg: format!("unrecognized msg {:?}", std::str::from_utf8(bad_msg)),
-                })
-            }
-        };
-
+        let state = serde_json::from_slice(bytes).unwrap();
         Ok(state)
     }
 }
