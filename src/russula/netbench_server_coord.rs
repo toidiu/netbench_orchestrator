@@ -81,11 +81,11 @@ impl StateApi for CoordNetbenchServerState {
             }
             CoordNetbenchServerState::Ready => {
                 self.await_peer_msg(stream).await?;
-                self.transition_next(stream).await;
+                self.transition_next(stream).await?;
             }
             CoordNetbenchServerState::RunPeer => {
                 self.await_peer_msg(stream).await?;
-                self.transition_next(stream).await;
+                self.transition_next(stream).await?;
             }
             CoordNetbenchServerState::KillPeer => {
                 self.notify_peer(stream).await?;

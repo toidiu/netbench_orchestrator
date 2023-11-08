@@ -126,7 +126,7 @@ pub trait StateApi: Sized + Send + Sync + Debug {
     async fn process_msg(&mut self, stream: &TcpStream, recv_msg: Msg) -> RussulaResult<()> {
         if let TransitionStep::AwaitPeer(expected_msg) = self.transition_step() {
             if expected_msg == recv_msg.as_bytes() {
-                self.transition_next(stream).await;
+                self.transition_next(stream).await?;
             } else {
                 self.notify_peer(stream).await?;
             }
