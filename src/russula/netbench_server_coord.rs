@@ -9,7 +9,7 @@ use crate::russula::{
 };
 use async_trait::async_trait;
 use bytes::Bytes;
-use core::fmt::Debug;
+use core::{fmt::Debug, task::Poll};
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 use tokio::net::TcpStream;
@@ -55,8 +55,8 @@ impl Protocol for NetbenchCoordServerProtocol {
         Ok(connect)
     }
 
-    async fn run_till_ready(&mut self, stream: &TcpStream) -> RussulaResult<()> {
-        self.run_till_state(stream, CoordNetbenchServerState::Ready)
+    async fn poll_ready(&mut self, stream: &TcpStream) -> RussulaResult<Poll<()>> {
+        self.poll_state(stream, CoordNetbenchServerState::Ready)
             .await
     }
 

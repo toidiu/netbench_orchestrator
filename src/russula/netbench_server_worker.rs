@@ -9,6 +9,7 @@ use crate::russula::{
 };
 use async_trait::async_trait;
 use bytes::Bytes;
+use core::{fmt::Debug, task::Poll};
 use serde::{Deserialize, Serialize};
 use std::{net::SocketAddr, process::Command};
 use sysinfo::{Pid, PidExt, ProcessExt, SystemExt};
@@ -62,8 +63,8 @@ impl Protocol for NetbenchWorkerServerProtocol {
         Ok(stream)
     }
 
-    async fn run_till_ready(&mut self, stream: &TcpStream) -> RussulaResult<()> {
-        self.run_till_state(stream, WorkerNetbenchServerState::Ready)
+    async fn poll_ready(&mut self, stream: &TcpStream) -> RussulaResult<Poll<()>> {
+        self.poll_state(stream, WorkerNetbenchServerState::Ready)
             .await
     }
 

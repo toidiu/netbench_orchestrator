@@ -25,26 +25,7 @@ pub trait Protocol: Clone {
     // fn app_name(&self) { "netbench" }
 
     async fn connect(&self, addr: &SocketAddr) -> RussulaResult<TcpStream>;
-    async fn run_till_ready(&mut self, stream: &TcpStream) -> RussulaResult<()>;
-    async fn run_till_state(
-        &mut self,
-        stream: &TcpStream,
-        state: Self::State,
-    ) -> RussulaResult<()> {
-        while !self.state().eq(&state) {
-            let prev = *self.state();
-            let name = self.name();
-            self.state_mut().run(stream, name).await?;
-
-            println!(
-                "{} state--------{:?} -> {:?}",
-                self.name(),
-                prev,
-                self.state()
-            );
-        }
-        Ok(())
-    }
+    async fn poll_ready(&mut self, stream: &TcpStream) -> RussulaResult<Poll<()>>;
 
     async fn poll_state(
         &mut self,
@@ -56,7 +37,7 @@ pub trait Protocol: Clone {
             let name = self.name();
             self.state_mut().run(stream, name).await?;
             println!(
-                "{} state--------{:?} -> {:?}",
+                "{} poll_state--------{:?} -> {:?}",
                 self.name(),
                 prev,
                 self.state()
@@ -114,26 +95,39 @@ pub trait StateApi: Sized + Send + Sync + Debug {
 
     async fn transition_next(&mut self, stream: &TcpStream) -> RussulaResult<usize> {
         println!(
-            "{}------------- moving to next state current: {:?}",
+            "{}------------- moving to next state current: {:?}, next: {:?}",
             self.name(),
-            self
+            self,
+            self.next_state()
         );
 
         *self = self.next_state();
         self.notify_peer(stream).await
     }
     async fn await_peer_msg(&mut self, stream: &TcpStream) -> RussulaResult<()> {
-        let msg = network_utils::recv_msg(stream).await?;
-        println!("{} <---- recv msg {:?}", self.name(), msg);
-        self.process_msg(stream, msg).await
+        let mut did_transition = false;
+        // drain all messages in the queue until we can transition to the next state
+        while !did_transition {
+            let mut msg = network_utils::recv_msg(stream).await?;
+            println!("{} <---- recv msg {:?}", self.name(), msg);
+            did_transition = self.process_msg_and_transition(stream, &mut msg).await?;
+        }
+
+        Ok(())
     }
-    async fn process_msg(&mut self, stream: &TcpStream, recv_msg: Msg) -> RussulaResult<()> {
+    async fn process_msg_and_transition(
+        &mut self,
+        stream: &TcpStream,
+        recv_msg: &mut Msg,
+    ) -> RussulaResult<bool> {
         if let TransitionStep::AwaitPeer(expected_msg) = self.transition_step() {
-            if expected_msg == recv_msg.as_bytes() {
+            let did_transition = if expected_msg == recv_msg.as_bytes() {
                 self.transition_next(stream).await?;
+                true
             } else {
                 self.notify_peer(stream).await?;
-            }
+                false
+            };
             println!(
                 "{} ========transition: {}, expect_msg: {:?} recv_msg: {:?}",
                 self.name(),
@@ -141,8 +135,9 @@ pub trait StateApi: Sized + Send + Sync + Debug {
                 std::str::from_utf8(&expected_msg),
                 recv_msg,
             );
+            Ok(did_transition)
+        } else {
+            Ok(false)
         }
-
-        Ok(())
     }
 }

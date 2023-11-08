@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::russula::protocol::{RussulaPeer, SockProtocol};
-use core::task::Poll;
+use core::{task::Poll, time::Duration};
 use std::{collections::BTreeSet, net::SocketAddr};
 
 mod error;
@@ -14,13 +14,12 @@ mod state_action;
 mod wip_netbench_server;
 
 use error::{RussulaError, RussulaResult};
-use protocol::Protocol;
-
-use self::protocol::{StateApi, TransitionStep};
+use protocol::{Protocol, StateApi, TransitionStep};
 
 // TODO
 // - make state transitions nicer..
 //
+// D- read all queued msg
 // D- len for msg
 // D- r.transition_step // what is the next step one should take
 // D- r.poll_state // take steps to go to next step if possible
@@ -40,7 +39,13 @@ pub struct Russula<P: Protocol> {
 impl<P: Protocol + Send> Russula<P> {
     pub async fn run_till_ready(&mut self) {
         for peer in self.peer_list.iter_mut() {
-            peer.protocol.run_till_ready(&peer.stream).await.unwrap();
+            loop {
+                match peer.protocol.poll_ready(&peer.stream).await.unwrap() {
+                    Poll::Ready(_) => break,
+                    Poll::Pending => println!("{} not yet ready", peer.protocol.name()),
+                }
+                tokio::time::sleep(Duration::from_secs(2)).await;
+            }
         }
     }
 
