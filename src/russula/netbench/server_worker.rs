@@ -3,7 +3,7 @@
 
 use crate::russula::{
     error::{RussulaError, RussulaResult},
-    netbench_server_coord::CoordNetbenchServerState,
+    netbench::server_coord::CoordState,
     protocol::Protocol,
     StateApi, TransitionStep,
 };
@@ -16,7 +16,7 @@ use sysinfo::{Pid, PidExt, ProcessExt, SystemExt};
 use tokio::net::{TcpListener, TcpStream};
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
-pub enum WorkerNetbenchServerState {
+pub enum WorkerState {
     WaitPeerInit,
     Ready,
     Run,
@@ -25,23 +25,23 @@ pub enum WorkerNetbenchServerState {
 }
 
 #[derive(Clone, Copy)]
-pub struct NetbenchWorkerServerProtocol {
+pub struct WorkerProtocol {
     id: u16,
-    state: WorkerNetbenchServerState,
+    state: WorkerState,
 }
 
-impl NetbenchWorkerServerProtocol {
+impl WorkerProtocol {
     pub fn new(id: u16) -> Self {
-        NetbenchWorkerServerProtocol {
+        WorkerProtocol {
             id,
-            state: WorkerNetbenchServerState::WaitPeerInit,
+            state: WorkerState::WaitPeerInit,
         }
     }
 }
 
 #[async_trait]
-impl Protocol for NetbenchWorkerServerProtocol {
-    type State = WorkerNetbenchServerState;
+impl Protocol for WorkerProtocol {
+    type State = WorkerState;
 
     fn name(&self) -> String {
         format!("[worker-{}]", self.id)
@@ -58,8 +58,7 @@ impl Protocol for NetbenchWorkerServerProtocol {
     }
 
     async fn poll_ready(&mut self, stream: &TcpStream) -> RussulaResult<Poll<()>> {
-        self.poll_state(stream, WorkerNetbenchServerState::Ready)
-            .await
+        self.poll_state(stream, WorkerState::Ready).await
     }
 
     fn state(&self) -> &Self::State {
@@ -72,16 +71,16 @@ impl Protocol for NetbenchWorkerServerProtocol {
 }
 
 #[async_trait]
-impl StateApi for WorkerNetbenchServerState {
+impl StateApi for WorkerState {
     fn name(&self) -> String {
         "[worker]".to_string()
     }
 
     async fn run(&mut self, stream: &TcpStream, name: String) -> RussulaResult<()> {
         match self {
-            WorkerNetbenchServerState::WaitPeerInit => self.await_peer_msg(stream).await,
-            WorkerNetbenchServerState::Ready => self.await_peer_msg(stream).await,
-            WorkerNetbenchServerState::Run => {
+            WorkerState::WaitPeerInit => self.await_peer_msg(stream).await,
+            WorkerState::Ready => self.await_peer_msg(stream).await,
+            WorkerState::Run => {
                 // some long task
                 println!(
                     "{} some looooooooooooooooooooooooooooooooooooooooooooong task",
@@ -100,10 +99,10 @@ impl StateApi for WorkerNetbenchServerState {
                 );
 
                 // FIXME error prone.. see next_state()
-                *self = WorkerNetbenchServerState::RunningAwaitPeer(pid);
+                *self = WorkerState::RunningAwaitPeer(pid);
                 self.notify_peer(stream).await.map(|_| ())
             }
-            WorkerNetbenchServerState::RunningAwaitPeer(pid) => {
+            WorkerState::RunningAwaitPeer(pid) => {
                 let pid = *pid;
                 self.await_peer_msg(stream).await?;
 
@@ -117,53 +116,51 @@ impl StateApi for WorkerNetbenchServerState {
 
                 self.transition_next(stream).await.map(|_| ())
             }
-            WorkerNetbenchServerState::Done => self.transition_next(stream).await.map(|_| ()),
+            WorkerState::Done => self.transition_next(stream).await.map(|_| ()),
         }
     }
 
     fn transition_step(&self) -> TransitionStep {
         match self {
-            WorkerNetbenchServerState::WaitPeerInit => {
-                TransitionStep::AwaitPeer(CoordNetbenchServerState::CheckPeer.as_bytes())
+            WorkerState::WaitPeerInit => {
+                TransitionStep::AwaitPeer(CoordState::CheckPeer.as_bytes())
             }
-            WorkerNetbenchServerState::Ready => {
-                TransitionStep::AwaitPeer(CoordNetbenchServerState::RunPeer.as_bytes())
+            WorkerState::Ready => TransitionStep::AwaitPeer(CoordState::RunPeer.as_bytes()),
+            WorkerState::Run => TransitionStep::SelfDriven,
+            WorkerState::RunningAwaitPeer(_) => {
+                TransitionStep::AwaitPeer(CoordState::KillPeer.as_bytes())
             }
-            WorkerNetbenchServerState::Run => TransitionStep::SelfDriven,
-            WorkerNetbenchServerState::RunningAwaitPeer(_) => {
-                TransitionStep::AwaitPeer(CoordNetbenchServerState::KillPeer.as_bytes())
-            }
-            WorkerNetbenchServerState::Done => TransitionStep::Finished,
+            WorkerState::Done => TransitionStep::Finished,
         }
     }
 
     fn next_state(&self) -> Self {
         match self {
-            WorkerNetbenchServerState::WaitPeerInit => WorkerNetbenchServerState::Ready,
-            WorkerNetbenchServerState::Ready => WorkerNetbenchServerState::Run,
+            WorkerState::WaitPeerInit => WorkerState::Ready,
+            WorkerState::Ready => WorkerState::Run,
             // FIXME error prone
-            WorkerNetbenchServerState::Run => WorkerNetbenchServerState::RunningAwaitPeer(0),
-            WorkerNetbenchServerState::RunningAwaitPeer(_) => WorkerNetbenchServerState::Done,
-            WorkerNetbenchServerState::Done => WorkerNetbenchServerState::Done,
+            WorkerState::Run => WorkerState::RunningAwaitPeer(0),
+            WorkerState::RunningAwaitPeer(_) => WorkerState::Done,
+            WorkerState::Done => WorkerState::Done,
         }
     }
 
     fn eq(&self, other: &Self) -> bool {
         match self {
-            WorkerNetbenchServerState::WaitPeerInit => {
-                matches!(other, WorkerNetbenchServerState::WaitPeerInit)
+            WorkerState::WaitPeerInit => {
+                matches!(other, WorkerState::WaitPeerInit)
             }
-            WorkerNetbenchServerState::Ready => {
-                matches!(other, WorkerNetbenchServerState::Ready)
+            WorkerState::Ready => {
+                matches!(other, WorkerState::Ready)
             }
-            WorkerNetbenchServerState::Run => {
-                matches!(other, WorkerNetbenchServerState::Run)
+            WorkerState::Run => {
+                matches!(other, WorkerState::Run)
             }
-            WorkerNetbenchServerState::RunningAwaitPeer(_pid) => {
-                matches!(other, WorkerNetbenchServerState::RunningAwaitPeer(_))
+            WorkerState::RunningAwaitPeer(_pid) => {
+                matches!(other, WorkerState::RunningAwaitPeer(_))
             }
-            WorkerNetbenchServerState::Done => {
-                matches!(other, WorkerNetbenchServerState::Done)
+            WorkerState::Done => {
+                matches!(other, WorkerState::Done)
             }
         }
     }

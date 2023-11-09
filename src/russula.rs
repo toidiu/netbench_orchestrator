@@ -6,29 +6,26 @@ use core::{task::Poll, time::Duration};
 use std::{collections::BTreeSet, net::SocketAddr};
 
 mod error;
-mod netbench_server_coord;
-mod netbench_server_worker;
+mod netbench;
 mod network_utils;
 mod protocol;
 mod state_action;
-mod wip_netbench_server;
 
 use error::{RussulaError, RussulaResult};
 use protocol::{Protocol, StateApi, TransitionStep};
 
 // TODO
-// - make state transitions nicer..
+// - make state transitions nicer.. match on TransitionStep?
 //
 // D- read all queued msg
 // D- len for msg
 // D- r.transition_step // what is the next step one should take
 // D- r.poll_state // take steps to go to next step if possible
+// D- handle coord retry on connect
 // - should poll current step until all peers are on next step
 //   - need api to ask peer state and track peer state
 //
 // - look at NTP for synchronization: start_at(time)
-// - handle coord retry on connect
-// D- move connect to protocol impl
 // https://statecharts.dev/
 // halting problem https://en.wikipedia.org/wiki/Halting_problem
 
@@ -127,16 +124,16 @@ impl<P: Protocol> RussulaBuilder<P> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::russula::{
-        netbench_server_coord::{CoordNetbenchServerState, NetbenchCoordServerProtocol},
-        netbench_server_worker::{NetbenchWorkerServerProtocol, WorkerNetbenchServerState},
+    use crate::russula::netbench::{
+        server_coord::{CoordProtocol, CoordState},
+        server_worker::{WorkerProtocol, WorkerState},
     };
     use core::time::Duration;
     use std::str::FromStr;
 
     #[tokio::test]
     #[allow(clippy::assertions_on_constants)] // for testing
-    async fn russula_netbench() {
+    async fn netbench_server_protocol() {
         let w1_sock = SocketAddr::from_str("127.0.0.1:8991").unwrap();
         let w2_sock = SocketAddr::from_str("127.0.0.1:8992").unwrap();
         let worker_list = [w1_sock, w2_sock];
@@ -144,7 +141,7 @@ mod tests {
         // start the coordinator first to test initial connection retry
         let c1 = tokio::spawn(async move {
             let addr = BTreeSet::from_iter(worker_list);
-            let coord = RussulaBuilder::new(addr, NetbenchCoordServerProtocol::new());
+            let coord = RussulaBuilder::new(addr, CoordProtocol::new());
             let mut coord = coord.build().await.unwrap();
             coord.run_till_ready().await;
             coord
@@ -153,14 +150,10 @@ mod tests {
         let w1 = tokio::spawn(async move {
             let worker = RussulaBuilder::new(
                 BTreeSet::from_iter([w1_sock]),
-                NetbenchWorkerServerProtocol::new(w1_sock.port()),
+                WorkerProtocol::new(w1_sock.port()),
             );
             let mut worker = worker.build().await.unwrap();
-            while !worker
-                .check_self_state(WorkerNetbenchServerState::Done)
-                .await
-                .unwrap()
-            {
+            while !worker.check_self_state(WorkerState::Done).await.unwrap() {
                 println!("[worker-1] run--o--o-o-o-oo-----ooooooooo---------o");
                 let _ = worker.poll_next().await;
                 tokio::time::sleep(Duration::from_secs(1)).await;
@@ -170,14 +163,10 @@ mod tests {
         let w2 = tokio::spawn(async move {
             let worker = RussulaBuilder::new(
                 BTreeSet::from_iter([w2_sock]),
-                NetbenchWorkerServerProtocol::new(w2_sock.port()),
+                WorkerProtocol::new(w2_sock.port()),
             );
             let mut worker = worker.build().await.unwrap();
-            while !worker
-                .check_self_state(WorkerNetbenchServerState::Done)
-                .await
-                .unwrap()
-            {
+            while !worker.check_self_state(WorkerState::Done).await.unwrap() {
                 println!("[worker-2] run--o--o-o-o-oo-----ooooooooo---------o");
                 let _ = worker.poll_next().await;
                 tokio::time::sleep(Duration::from_secs(1)).await;
@@ -191,16 +180,13 @@ mod tests {
         println!("\nSTEP 1 --------------- : confirm current ready state");
         // we are already in the Ready state
         {
-            assert!(coord
-                .check_self_state(CoordNetbenchServerState::Ready)
-                .await
-                .unwrap());
+            assert!(coord.check_self_state(CoordState::Ready).await.unwrap());
         }
 
         println!("\nSTEP 2 --------------- : check next transition step");
         // we are pendng next state on UserDriven action on the coord
         {
-            let _s = CoordNetbenchServerState::RunPeer.as_bytes();
+            let _s = CoordState::RunPeer.as_bytes();
             assert!(matches!(
                 coord.transition_step()[0],
                 TransitionStep::UserDriven
@@ -210,11 +196,7 @@ mod tests {
         println!("\nSTEP 3 --------------- : poll next coord step");
         // move coord forward
         {
-            while !coord
-                .check_self_state(CoordNetbenchServerState::RunPeer)
-                .await
-                .unwrap()
-            {
+            while !coord.check_self_state(CoordState::RunPeer).await.unwrap() {
                 if let Err(err) = coord.poll_next().await {
                     if err.is_fatal() {
                         panic!("{}", err);
@@ -228,11 +210,7 @@ mod tests {
             println!("\nSTEP 4 --------------- : sleep and then kill worker");
             // move coord forward
             {
-                while !coord
-                    .check_self_state(CoordNetbenchServerState::Done)
-                    .await
-                    .unwrap()
-                {
+                while !coord.check_self_state(CoordState::Done).await.unwrap() {
                     if let Err(err) = coord.poll_next().await {
                         if err.is_fatal() {
                             panic!("{}", err);
@@ -250,14 +228,8 @@ mod tests {
             let (worker1, worker2) = tokio::join!(w1, w2);
             let worker1 = worker1.unwrap();
             let worker2 = worker2.unwrap();
-            assert!(worker1
-                .check_self_state(WorkerNetbenchServerState::Done)
-                .await
-                .unwrap());
-            assert!(worker2
-                .check_self_state(WorkerNetbenchServerState::Done)
-                .await
-                .unwrap());
+            assert!(worker1.check_self_state(WorkerState::Done).await.unwrap());
+            assert!(worker2.check_self_state(WorkerState::Done).await.unwrap());
         }
 
         assert!(22 == 20, "\n\n\nSUCCESS ---------------- INTENTIONAL FAIL");

@@ -3,7 +3,7 @@
 
 use crate::russula::{RussulaError, RussulaResult};
 use bytes::Bytes;
-use tokio::{io::ErrorKind, net::TcpStream};
+use tokio::net::TcpStream;
 
 pub async fn recv_msg(stream: &TcpStream) -> RussulaResult<Msg> {
     stream.readable().await.map_err(RussulaError::from)?;

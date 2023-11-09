@@ -3,7 +3,7 @@
 
 use crate::russula::{
     error::{RussulaError, RussulaResult},
-    netbench_server_worker::WorkerNetbenchServerState,
+    netbench::server_worker::WorkerState,
     protocol::Protocol,
     StateApi, TransitionStep,
 };
@@ -12,10 +12,10 @@ use bytes::Bytes;
 use core::{fmt::Debug, task::Poll};
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
-use tokio::{io::ErrorKind, net::TcpStream};
+use tokio::net::TcpStream;
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
-pub enum CoordNetbenchServerState {
+pub enum CoordState {
     CheckPeer,
     Ready,
     RunPeer,
@@ -24,21 +24,21 @@ pub enum CoordNetbenchServerState {
 }
 
 #[derive(Clone, Copy)]
-pub struct NetbenchCoordServerProtocol {
-    state: CoordNetbenchServerState,
+pub struct CoordProtocol {
+    state: CoordState,
 }
 
-impl NetbenchCoordServerProtocol {
+impl CoordProtocol {
     pub fn new() -> Self {
-        NetbenchCoordServerProtocol {
-            state: CoordNetbenchServerState::CheckPeer,
+        CoordProtocol {
+            state: CoordState::CheckPeer,
         }
     }
 }
 
 #[async_trait]
-impl Protocol for NetbenchCoordServerProtocol {
-    type State = CoordNetbenchServerState;
+impl Protocol for CoordProtocol {
+    type State = CoordState;
     fn name(&self) -> String {
         format!("[coord-{}]", 0)
     }
@@ -51,8 +51,7 @@ impl Protocol for NetbenchCoordServerProtocol {
     }
 
     async fn poll_ready(&mut self, stream: &TcpStream) -> RussulaResult<Poll<()>> {
-        self.poll_state(stream, CoordNetbenchServerState::Ready)
-            .await
+        self.poll_state(stream, CoordState::Ready).await
     }
 
     fn state(&self) -> &Self::State {
@@ -65,30 +64,30 @@ impl Protocol for NetbenchCoordServerProtocol {
 }
 
 #[async_trait]
-impl StateApi for CoordNetbenchServerState {
+impl StateApi for CoordState {
     fn name(&self) -> String {
         format!("[coord-{}]", 0)
     }
 
     async fn run(&mut self, stream: &TcpStream, _name: String) -> RussulaResult<()> {
         match self {
-            CoordNetbenchServerState::CheckPeer => {
+            CoordState::CheckPeer => {
                 self.notify_peer(stream).await?;
                 self.await_peer_msg(stream).await?;
             }
-            CoordNetbenchServerState::Ready => {
+            CoordState::Ready => {
                 // self.await_peer_msg(stream).await?;
                 self.transition_next(stream).await?;
             }
-            CoordNetbenchServerState::RunPeer => {
+            CoordState::RunPeer => {
                 // self.await_peer_msg(stream).await?;
                 self.transition_next(stream).await?;
             }
-            CoordNetbenchServerState::KillPeer => {
+            CoordState::KillPeer => {
                 self.notify_peer(stream).await?;
                 self.await_peer_msg(stream).await?;
             }
-            CoordNetbenchServerState::Done => {
+            CoordState::Done => {
                 self.notify_peer(stream).await?;
             }
         }
@@ -97,44 +96,42 @@ impl StateApi for CoordNetbenchServerState {
 
     fn transition_step(&self) -> TransitionStep {
         match self {
-            CoordNetbenchServerState::CheckPeer => {
-                TransitionStep::AwaitPeer(WorkerNetbenchServerState::Ready.as_bytes())
+            CoordState::CheckPeer => TransitionStep::AwaitPeer(WorkerState::Ready.as_bytes()),
+            CoordState::Ready => TransitionStep::UserDriven,
+            CoordState::RunPeer => TransitionStep::UserDriven,
+            CoordState::KillPeer => {
+                TransitionStep::AwaitPeer(WorkerState::RunningAwaitPeer(0).as_bytes())
             }
-            CoordNetbenchServerState::Ready => TransitionStep::UserDriven,
-            CoordNetbenchServerState::RunPeer => TransitionStep::UserDriven,
-            CoordNetbenchServerState::KillPeer => {
-                TransitionStep::AwaitPeer(WorkerNetbenchServerState::RunningAwaitPeer(0).as_bytes())
-            }
-            CoordNetbenchServerState::Done => TransitionStep::Finished,
+            CoordState::Done => TransitionStep::Finished,
         }
     }
 
     fn next_state(&self) -> Self {
         match self {
-            CoordNetbenchServerState::CheckPeer => CoordNetbenchServerState::Ready,
-            CoordNetbenchServerState::Ready => CoordNetbenchServerState::RunPeer,
-            CoordNetbenchServerState::RunPeer => CoordNetbenchServerState::KillPeer,
-            CoordNetbenchServerState::KillPeer => CoordNetbenchServerState::Done,
-            CoordNetbenchServerState::Done => CoordNetbenchServerState::Done,
+            CoordState::CheckPeer => CoordState::Ready,
+            CoordState::Ready => CoordState::RunPeer,
+            CoordState::RunPeer => CoordState::KillPeer,
+            CoordState::KillPeer => CoordState::Done,
+            CoordState::Done => CoordState::Done,
         }
     }
 
     fn eq(&self, other: &Self) -> bool {
         match self {
-            CoordNetbenchServerState::CheckPeer => {
-                matches!(other, CoordNetbenchServerState::CheckPeer)
+            CoordState::CheckPeer => {
+                matches!(other, CoordState::CheckPeer)
             }
-            CoordNetbenchServerState::Ready => {
-                matches!(other, CoordNetbenchServerState::Ready)
+            CoordState::Ready => {
+                matches!(other, CoordState::Ready)
             }
-            CoordNetbenchServerState::RunPeer => {
-                matches!(other, CoordNetbenchServerState::RunPeer)
+            CoordState::RunPeer => {
+                matches!(other, CoordState::RunPeer)
             }
-            CoordNetbenchServerState::KillPeer => {
-                matches!(other, CoordNetbenchServerState::KillPeer)
+            CoordState::KillPeer => {
+                matches!(other, CoordState::KillPeer)
             }
-            CoordNetbenchServerState::Done => {
-                matches!(other, CoordNetbenchServerState::Done)
+            CoordState::Done => {
+                matches!(other, CoordState::Done)
             }
         }
     }
