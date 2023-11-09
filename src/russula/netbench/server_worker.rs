@@ -19,7 +19,7 @@ pub enum WorkerState {
     WaitPeerInit,
     Ready,
     Run,
-    RunningAwaitPeer(#[serde(skip)] u32),
+    RunningAwaitKill(#[serde(skip)] u32),
     Stopped,
     Done,
 }
@@ -101,10 +101,10 @@ impl StateApi for WorkerState {
                     pid
                 );
 
-                *self = WorkerState::RunningAwaitPeer(pid);
+                *self = WorkerState::RunningAwaitKill(pid);
                 Ok(())
             }
-            WorkerState::RunningAwaitPeer(pid) => {
+            WorkerState::RunningAwaitKill(pid) => {
                 let pid = *pid;
                 self.notify_peer(stream).await?;
                 self.await_action_msg(stream).await?;
@@ -135,7 +135,7 @@ impl StateApi for WorkerState {
             }
             WorkerState::Ready => TransitionStep::AwaitNext(CoordState::RunPeer.as_bytes()),
             WorkerState::Run => TransitionStep::SelfDriven,
-            WorkerState::RunningAwaitPeer(_) => {
+            WorkerState::RunningAwaitKill(_) => {
                 TransitionStep::AwaitAction(CoordState::KillPeer.as_bytes())
             }
             WorkerState::Stopped => TransitionStep::AwaitNext(CoordState::Done.as_bytes()),
@@ -148,8 +148,8 @@ impl StateApi for WorkerState {
             WorkerState::WaitPeerInit => WorkerState::Ready,
             WorkerState::Ready => WorkerState::Run,
             // FIXME error prone
-            WorkerState::Run => WorkerState::RunningAwaitPeer(0),
-            WorkerState::RunningAwaitPeer(_) => WorkerState::Stopped,
+            WorkerState::Run => WorkerState::RunningAwaitKill(0),
+            WorkerState::RunningAwaitKill(_) => WorkerState::Stopped,
             WorkerState::Stopped => WorkerState::Done,
             WorkerState::Done => WorkerState::Done,
         }

@@ -98,7 +98,7 @@ impl StateApi for CoordState {
             CoordState::CheckPeer => TransitionStep::AwaitNext(WorkerState::Ready.as_bytes()),
             CoordState::Ready => TransitionStep::UserDriven,
             CoordState::RunPeer => {
-                TransitionStep::AwaitNext(WorkerState::RunningAwaitPeer(0).as_bytes())
+                TransitionStep::AwaitNext(WorkerState::RunningAwaitKill(0).as_bytes())
             }
             CoordState::KillPeer => TransitionStep::AwaitNext(WorkerState::Stopped.as_bytes()),
             CoordState::Done => TransitionStep::Finished,

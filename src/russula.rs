@@ -42,7 +42,7 @@ impl<P: Protocol + Send> Russula<P> {
                     Poll::Ready(_) => break,
                     Poll::Pending => println!("{} not yet ready", peer.protocol.name()),
                 }
-                tokio::time::sleep(Duration::from_secs(2)).await;
+                tokio::time::sleep(Duration::from_secs(3)).await;
             }
         }
     }
@@ -56,6 +56,23 @@ impl<P: Protocol + Send> Russula<P> {
             }
         }
         Ok(Poll::Ready(()))
+    }
+
+    pub async fn notify_peer_done(&mut self) -> RussulaResult<()> {
+        for peer in self.peer_list.iter_mut() {
+            if !peer.protocol.is_done_state() {
+                return Err(RussulaError::Usage {
+                    dbg: format!(
+                        "{} not in done state. current_state: {:?}",
+                        peer.protocol.name(),
+                        peer.protocol.state()
+                    ),
+                });
+            }
+            peer.protocol.run_current(&peer.stream).await?;
+        }
+
+        Ok(())
     }
 
     pub async fn check_self_state(&self, state: P::State) -> RussulaResult<bool> {
@@ -156,7 +173,7 @@ mod tests {
                 .await
                 .unwrap()
             {
-                println!("[worker-1] run--o--o-o-o-oo-----ooooooooo---------o");
+                println!("[worker-1] run-------looooooooooop---------");
                 let _ = worker.poll_next().await;
                 tokio::time::sleep(Duration::from_secs(1)).await;
             }
@@ -173,7 +190,7 @@ mod tests {
                 .await
                 .unwrap()
             {
-                println!("[worker-2] run--o--o-o-o-oo-----ooooooooo---------o");
+                println!("[worker-2] run-------looooooooooop---------");
                 let _ = worker.poll_next().await;
                 tokio::time::sleep(Duration::from_secs(1)).await;
             }
@@ -191,16 +208,6 @@ mod tests {
                 .await
                 .unwrap());
         }
-
-        println!("\nSTEP 2 --------------- : check next transition step");
-        // we are pendng next state on UserDriven action on the coord
-        // {
-        //     let _s = server::CoordState::RunPeer.as_bytes();
-        //     assert!(matches!(
-        //         coord.transition_step()[0],
-        //         TransitionStep::UserDriven
-        //     ));
-        // }
 
         println!("\nSTEP 3 --------------- : poll next coord step");
         // move coord forward
@@ -236,6 +243,13 @@ mod tests {
                         }
                     }
                 }
+
+                // Notify peer that coordinator is done. This is best effort
+                for _i in 0..3 {
+                    tokio::time::sleep(Duration::from_secs(1)).await;
+                    let _ignore_error = coord.notify_peer_done().await;
+                }
+                // panic!("{}", "-----------------------------1-1-1-1--1-1-1b;a");
             }
         });
 

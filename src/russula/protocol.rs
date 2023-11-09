@@ -52,9 +52,9 @@ pub trait Protocol: Clone {
         Ok(poll)
     }
 
-    async fn poll_current(&mut self, stream: &TcpStream) -> RussulaResult<Poll<()>> {
-        let state = *self.state();
-        self.poll_state(stream, state).await
+    async fn run_current(&mut self, stream: &TcpStream) -> RussulaResult<()> {
+        let name = self.name();
+        self.state_mut().run(stream, name).await
     }
 
     async fn poll_next(&mut self, stream: &TcpStream) -> RussulaResult<Poll<()>> {
@@ -64,6 +64,9 @@ pub trait Protocol: Clone {
 
     fn state(&self) -> &Self::State;
     fn state_mut(&mut self) -> &mut Self::State;
+    fn is_done_state(&self) -> bool {
+        matches!(self.state().transition_step(), TransitionStep::Finished)
+    }
 }
 
 pub type SockProtocol<P> = (SocketAddr, P);
@@ -103,9 +106,6 @@ pub trait StateApi: Sized + Send + Sync + Debug + Serialize {
     }
 
     async fn transition_next(&mut self, stream: &TcpStream) -> RussulaResult<()> {
-        // if let TransitionStep::AwaitPeer(_expected_msg) = self.transition_step() {
-        //     panic!("should await peer msg");
-        // }
         println!(
             "{}------------- moving to next state current: {:?}, next: {:?}",
             self.name(),
@@ -118,7 +118,7 @@ pub trait StateApi: Sized + Send + Sync + Debug + Serialize {
     }
 
     async fn await_action_msg(&mut self, stream: &TcpStream) -> RussulaResult<bool> {
-        if matches!(self.transition_step(), TransitionStep::AwaitAction(_)) {
+        if !matches!(self.transition_step(), TransitionStep::AwaitAction(_)) {
             panic!(
                 "expected AwaitAction but found: {:?}",
                 self.transition_step()
@@ -127,13 +127,13 @@ pub trait StateApi: Sized + Send + Sync + Debug + Serialize {
 
         let mut matched = false;
         // loop until we receive a transition msg from peer or drain all msg from queue
-        loop {
+        while !matched {
+            // aborts if there are no messages in the queue
             let mut msg = network_utils::recv_msg(stream).await?;
             println!("{} <---- recv msg {:?}", self.name(), msg);
 
             if self.matches_transition_msg(&mut msg).await? {
                 matched = true;
-                break;
             }
         }
 
