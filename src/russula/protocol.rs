@@ -130,7 +130,8 @@ pub trait StateApi: Sized + Send + Sync + Debug + Serialize {
             );
             Ok(should_transition_to_next)
         } else {
-            Ok(false)
+            panic!("should not be calling await")
+            // Ok(false)
         }
     }
 
