@@ -20,6 +20,7 @@ pub enum WorkerState {
     Ready,
     Run,
     RunningAwaitPeer(#[serde(skip)] u32),
+    Stopped,
     Done,
 }
 
@@ -78,7 +79,10 @@ impl StateApi for WorkerState {
     async fn run(&mut self, stream: &TcpStream, name: String) -> RussulaResult<()> {
         match self {
             WorkerState::WaitPeerInit => self.await_peer_msg(stream).await,
-            WorkerState::Ready => self.await_peer_msg(stream).await,
+            WorkerState::Ready => {
+                self.notify_peer(stream).await?;
+                self.await_peer_msg(stream).await
+            }
             WorkerState::Run => {
                 // some long task
                 println!(
@@ -97,12 +101,12 @@ impl StateApi for WorkerState {
                     pid
                 );
 
-                // FIXME error prone.. see next_state()
                 *self = WorkerState::RunningAwaitPeer(pid);
-                self.notify_peer(stream).await.map(|_| ())
+                Ok(())
             }
             WorkerState::RunningAwaitPeer(pid) => {
                 let pid = *pid;
+                self.notify_peer(stream).await?;
                 self.await_peer_msg(stream).await?;
 
                 let pid = Pid::from_u32(pid);
@@ -113,9 +117,13 @@ impl StateApi for WorkerState {
                     println!("did KILL pid: {} {}----------------------------", pid, kill);
                 }
 
-                self.transition_next(stream).await.map(|_| ())
+                self.transition_next(stream).await
             }
-            WorkerState::Done => self.transition_next(stream).await.map(|_| ()),
+            WorkerState::Stopped => {
+                self.notify_peer(stream).await?;
+                self.await_peer_msg(stream).await
+            }
+            WorkerState::Done => Ok(()),
         }
     }
 
@@ -129,7 +137,8 @@ impl StateApi for WorkerState {
             WorkerState::RunningAwaitPeer(_) => {
                 TransitionStep::AwaitPeer(CoordState::KillPeer.as_bytes())
             }
-            WorkerState::Done => TransitionStep::Finished,
+            WorkerState::Stopped => TransitionStep::AwaitPeer(CoordState::Done.as_bytes()),
+            WorkerState::Done => TransitionStep::AwaitPeer(CoordState::Done.as_bytes()),
         }
     }
 
@@ -139,7 +148,8 @@ impl StateApi for WorkerState {
             WorkerState::Ready => WorkerState::Run,
             // FIXME error prone
             WorkerState::Run => WorkerState::RunningAwaitPeer(0),
-            WorkerState::RunningAwaitPeer(_) => WorkerState::Done,
+            WorkerState::RunningAwaitPeer(_) => WorkerState::Stopped,
+            WorkerState::Stopped => WorkerState::Done,
             WorkerState::Done => WorkerState::Done,
         }
     }

@@ -89,7 +89,10 @@ pub trait StateApi: Sized + Send + Sync + Debug + Serialize {
         network_utils::send_msg(stream, msg).await
     }
 
-    async fn transition_next(&mut self, stream: &TcpStream) -> RussulaResult<usize> {
+    async fn transition_next(&mut self, stream: &TcpStream) -> RussulaResult<()> {
+        // if let TransitionStep::AwaitPeer(_expected_msg) = self.transition_step() {
+        //     panic!("should await peer msg");
+        // }
         println!(
             "{}------------- moving to next state current: {:?}, next: {:?}",
             self.name(),
@@ -98,7 +101,7 @@ pub trait StateApi: Sized + Send + Sync + Debug + Serialize {
         );
 
         *self = self.next_state();
-        self.notify_peer(stream).await
+        self.notify_peer(stream).await.map(|_| ())
     }
 
     async fn await_peer_msg(&mut self, stream: &TcpStream) -> RussulaResult<()> {

@@ -75,12 +75,13 @@ impl StateApi for CoordState {
                 self.await_peer_msg(stream).await?;
             }
             CoordState::Ready => {
-                // self.await_peer_msg(stream).await?;
                 self.transition_next(stream).await?;
+                // self.await_peer_msg(stream).await?;
             }
             CoordState::RunPeer => {
-                // self.await_peer_msg(stream).await?;
-                self.transition_next(stream).await?;
+                self.notify_peer(stream).await?;
+                self.await_peer_msg(stream).await?;
+                // self.transition_next(stream).await?;
             }
             CoordState::KillPeer => {
                 self.notify_peer(stream).await?;
@@ -97,10 +98,10 @@ impl StateApi for CoordState {
         match self {
             CoordState::CheckPeer => TransitionStep::AwaitPeer(WorkerState::Ready.as_bytes()),
             CoordState::Ready => TransitionStep::UserDriven,
-            CoordState::RunPeer => TransitionStep::UserDriven,
-            CoordState::KillPeer => {
+            CoordState::RunPeer => {
                 TransitionStep::AwaitPeer(WorkerState::RunningAwaitPeer(0).as_bytes())
             }
+            CoordState::KillPeer => TransitionStep::AwaitPeer(WorkerState::Stopped.as_bytes()),
             CoordState::Done => TransitionStep::Finished,
         }
     }
