@@ -75,13 +75,12 @@ impl StateApi for CoordState {
                 self.await_peer_msg(stream).await?;
             }
             CoordState::Ready => {
-                self.transition_next(stream).await?;
+                self.transition_self_or_user_driven(stream).await?;
                 // self.await_peer_msg(stream).await?;
             }
             CoordState::RunPeer => {
                 self.notify_peer(stream).await?;
                 self.await_peer_msg(stream).await?;
-                // self.transition_next(stream).await?;
             }
             CoordState::KillPeer => {
                 self.notify_peer(stream).await?;

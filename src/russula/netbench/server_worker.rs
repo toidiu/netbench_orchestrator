@@ -117,7 +117,7 @@ impl StateApi for WorkerState {
                     println!("did KILL pid: {} {}----------------------------", pid, kill);
                 }
 
-                self.transition_next(stream).await
+                self.transition_self_or_user_driven(stream).await
             }
             WorkerState::Stopped => {
                 self.notify_peer(stream).await?;
