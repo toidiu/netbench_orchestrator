@@ -70,7 +70,6 @@ pub type SockProtocol<P> = (SocketAddr, P);
 
 #[derive(Debug)]
 pub enum TransitionStep {
-    Ready,
     SelfDriven,
     UserDriven,
     AwaitPeer(Bytes),
@@ -103,30 +102,25 @@ pub trait StateApi: Sized + Send + Sync + Debug + Serialize {
     }
 
     async fn await_peer_msg(&mut self, stream: &TcpStream) -> RussulaResult<()> {
-        let mut did_transition = false;
-        // drain all messages in the queue until we can transition to the next state
-        while !did_transition {
+        // loop until we receive a transition msg from peer or drain all msg from queue
+        loop {
             let mut msg = network_utils::recv_msg(stream).await?;
             println!("{} <---- recv msg {:?}", self.name(), msg);
-            did_transition = self.process_msg_and_transition(stream, &mut msg).await?;
+
+            if self.matches_transition_msg(&mut msg).await? {
+                self.transition_next(stream).await?;
+                break;
+            } else {
+                self.notify_peer(stream).await?;
+            }
         }
 
         Ok(())
     }
 
-    async fn process_msg_and_transition(
-        &mut self,
-        stream: &TcpStream,
-        recv_msg: &mut Msg,
-    ) -> RussulaResult<bool> {
+    async fn matches_transition_msg(&mut self, recv_msg: &mut Msg) -> RussulaResult<bool> {
         if let TransitionStep::AwaitPeer(expected_msg) = self.transition_step() {
-            let did_transition = if expected_msg == recv_msg.as_bytes() {
-                self.transition_next(stream).await?;
-                true
-            } else {
-                self.notify_peer(stream).await?;
-                false
-            };
+            let should_transition_to_next = expected_msg == recv_msg.as_bytes();
             println!(
                 "{} ========transition: {}, expect_msg: {:?} recv_msg: {:?}",
                 self.name(),
@@ -134,7 +128,7 @@ pub trait StateApi: Sized + Send + Sync + Debug + Serialize {
                 std::str::from_utf8(&expected_msg),
                 recv_msg,
             );
-            Ok(did_transition)
+            Ok(should_transition_to_next)
         } else {
             Ok(false)
         }
