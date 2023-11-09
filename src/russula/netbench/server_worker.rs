@@ -78,10 +78,10 @@ impl StateApi for WorkerState {
 
     async fn run(&mut self, stream: &TcpStream, name: String) -> RussulaResult<()> {
         match self {
-            WorkerState::WaitPeerInit => self.await_peer_msg(stream).await,
+            WorkerState::WaitPeerInit => self.await_next_msg(stream).await,
             WorkerState::Ready => {
                 self.notify_peer(stream).await?;
-                self.await_peer_msg(stream).await
+                self.await_next_msg(stream).await
             }
             WorkerState::Run => {
                 // some long task
@@ -107,7 +107,7 @@ impl StateApi for WorkerState {
             WorkerState::RunningAwaitPeer(pid) => {
                 let pid = *pid;
                 self.notify_peer(stream).await?;
-                self.await_peer_msg(stream).await?;
+                self.await_action_msg(stream).await?;
 
                 let pid = Pid::from_u32(pid);
                 let mut system = sysinfo::System::new();
@@ -117,11 +117,12 @@ impl StateApi for WorkerState {
                     println!("did KILL pid: {} {}----------------------------", pid, kill);
                 }
 
+                // FIXME fix this
                 self.transition_self_or_user_driven(stream).await
             }
             WorkerState::Stopped => {
                 self.notify_peer(stream).await?;
-                self.await_peer_msg(stream).await
+                self.await_next_msg(stream).await
             }
             WorkerState::Done => Ok(()),
         }
@@ -130,15 +131,15 @@ impl StateApi for WorkerState {
     fn transition_step(&self) -> TransitionStep {
         match self {
             WorkerState::WaitPeerInit => {
-                TransitionStep::AwaitPeer(CoordState::CheckPeer.as_bytes())
+                TransitionStep::AwaitNext(CoordState::CheckPeer.as_bytes())
             }
-            WorkerState::Ready => TransitionStep::AwaitPeer(CoordState::RunPeer.as_bytes()),
+            WorkerState::Ready => TransitionStep::AwaitNext(CoordState::RunPeer.as_bytes()),
             WorkerState::Run => TransitionStep::SelfDriven,
             WorkerState::RunningAwaitPeer(_) => {
-                TransitionStep::AwaitPeer(CoordState::KillPeer.as_bytes())
+                TransitionStep::AwaitAction(CoordState::KillPeer.as_bytes())
             }
-            WorkerState::Stopped => TransitionStep::AwaitPeer(CoordState::Done.as_bytes()),
-            WorkerState::Done => TransitionStep::AwaitPeer(CoordState::Done.as_bytes()),
+            WorkerState::Stopped => TransitionStep::AwaitNext(CoordState::Done.as_bytes()),
+            WorkerState::Done => TransitionStep::AwaitNext(CoordState::Done.as_bytes()),
         }
     }
 

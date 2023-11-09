@@ -72,7 +72,8 @@ pub type SockProtocol<P> = (SocketAddr, P);
 pub enum TransitionStep {
     SelfDriven,
     UserDriven,
-    AwaitPeer(Bytes),
+    AwaitAction(Bytes),
+    AwaitNext(Bytes),
     Finished,
 }
 
@@ -90,9 +91,6 @@ pub trait StateApi: Sized + Send + Sync + Debug + Serialize {
     }
 
     async fn transition_self_or_user_driven(&mut self, stream: &TcpStream) -> RussulaResult<()> {
-        if let TransitionStep::AwaitPeer(_expected_msg) = self.transition_step() {
-            panic!("should await peer msg");
-        }
         println!(
             "{}------------- moving to next state current: {:?}, next: {:?}",
             self.name(),
@@ -119,7 +117,33 @@ pub trait StateApi: Sized + Send + Sync + Debug + Serialize {
         self.notify_peer(stream).await.map(|_| ())
     }
 
-    async fn await_peer_msg(&mut self, stream: &TcpStream) -> RussulaResult<()> {
+    async fn await_action_msg(&mut self, stream: &TcpStream) -> RussulaResult<bool> {
+        if matches!(self.transition_step(), TransitionStep::AwaitAction(_)) {
+            panic!(
+                "expected AwaitAction but found: {:?}",
+                self.transition_step()
+            );
+        }
+
+        let mut matched = false;
+        // loop until we receive a transition msg from peer or drain all msg from queue
+        loop {
+            let mut msg = network_utils::recv_msg(stream).await?;
+            println!("{} <---- recv msg {:?}", self.name(), msg);
+
+            if self.matches_transition_msg(&mut msg).await? {
+                matched = true;
+                break;
+            }
+        }
+
+        Ok(matched)
+    }
+
+    async fn await_next_msg(&mut self, stream: &TcpStream) -> RussulaResult<()> {
+        if !matches!(self.transition_step(), TransitionStep::AwaitNext(_)) {
+            panic!("expected AwaitNext but found: {:?}", self.transition_step());
+        }
         // loop until we receive a transition msg from peer or drain all msg from queue
         loop {
             let mut msg = network_utils::recv_msg(stream).await?;
@@ -137,19 +161,30 @@ pub trait StateApi: Sized + Send + Sync + Debug + Serialize {
     }
 
     async fn matches_transition_msg(&mut self, recv_msg: &mut Msg) -> RussulaResult<bool> {
-        if let TransitionStep::AwaitPeer(expected_msg) = self.transition_step() {
-            let should_transition_to_next = expected_msg == recv_msg.as_bytes();
-            println!(
-                "{} ========transition: {}, expect_msg: {:?} recv_msg: {:?}",
-                self.name(),
-                expected_msg == recv_msg.as_bytes(),
-                std::str::from_utf8(&expected_msg),
-                recv_msg,
-            );
-            Ok(should_transition_to_next)
-        } else {
-            panic!("should not be calling await")
-            // Ok(false)
+        match self.transition_step() {
+            TransitionStep::AwaitNext(expected_msg) => {
+                let should_transition_to_next = expected_msg == recv_msg.as_bytes();
+                println!(
+                    "{} ========transition: {}, expect_msg: {:?} recv_msg: {:?}",
+                    self.name(),
+                    expected_msg == recv_msg.as_bytes(),
+                    std::str::from_utf8(&expected_msg),
+                    recv_msg,
+                );
+                Ok(should_transition_to_next)
+            }
+            TransitionStep::AwaitAction(expected_msg) => {
+                let should_transition_to_next = expected_msg == recv_msg.as_bytes();
+                println!(
+                    "{} ========transition: {}, expect_msg: {:?} recv_msg: {:?}",
+                    self.name(),
+                    expected_msg == recv_msg.as_bytes(),
+                    std::str::from_utf8(&expected_msg),
+                    recv_msg,
+                );
+                Ok(should_transition_to_next)
+            }
+            _ => Ok(false),
         }
     }
 

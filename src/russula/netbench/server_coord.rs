@@ -72,7 +72,7 @@ impl StateApi for CoordState {
         match self {
             CoordState::CheckPeer => {
                 self.notify_peer(stream).await?;
-                self.await_peer_msg(stream).await?;
+                self.await_next_msg(stream).await?;
             }
             CoordState::Ready => {
                 self.transition_self_or_user_driven(stream).await?;
@@ -80,11 +80,11 @@ impl StateApi for CoordState {
             }
             CoordState::RunPeer => {
                 self.notify_peer(stream).await?;
-                self.await_peer_msg(stream).await?;
+                self.await_next_msg(stream).await?;
             }
             CoordState::KillPeer => {
                 self.notify_peer(stream).await?;
-                self.await_peer_msg(stream).await?;
+                self.await_next_msg(stream).await?;
             }
             CoordState::Done => {
                 self.notify_peer(stream).await?;
@@ -95,12 +95,12 @@ impl StateApi for CoordState {
 
     fn transition_step(&self) -> TransitionStep {
         match self {
-            CoordState::CheckPeer => TransitionStep::AwaitPeer(WorkerState::Ready.as_bytes()),
+            CoordState::CheckPeer => TransitionStep::AwaitNext(WorkerState::Ready.as_bytes()),
             CoordState::Ready => TransitionStep::UserDriven,
             CoordState::RunPeer => {
-                TransitionStep::AwaitPeer(WorkerState::RunningAwaitPeer(0).as_bytes())
+                TransitionStep::AwaitNext(WorkerState::RunningAwaitPeer(0).as_bytes())
             }
-            CoordState::KillPeer => TransitionStep::AwaitPeer(WorkerState::Stopped.as_bytes()),
+            CoordState::KillPeer => TransitionStep::AwaitNext(WorkerState::Stopped.as_bytes()),
             CoordState::Done => TransitionStep::Finished,
         }
     }
