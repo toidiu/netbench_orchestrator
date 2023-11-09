@@ -47,7 +47,7 @@ impl<P: Protocol + Send> Russula<P> {
         }
     }
 
-    pub async fn poll_next(&mut self) -> RussulaResult<Poll<()>> {
+    async fn poll_next(&mut self) -> RussulaResult<Poll<()>> {
         for peer in self.peer_list.iter_mut() {
             // poll till state and break if Pending
             let poll = peer.protocol.poll_next(&peer.stream).await?;
@@ -56,6 +56,20 @@ impl<P: Protocol + Send> Russula<P> {
             }
         }
         Ok(Poll::Ready(()))
+    }
+
+    pub async fn run_till_state<F: Fn()>(&mut self, state: P::State, f: F) -> RussulaResult<()> {
+        while !self.check_self_state(state).await.unwrap() {
+            if let Err(err) = self.poll_next().await {
+                if err.is_fatal() {
+                    panic!("{}", err);
+                }
+            }
+            f();
+            tokio::time::sleep(Duration::from_secs(3)).await;
+        }
+
+        Ok(())
     }
 
     pub async fn notify_peer_done(&mut self) -> RussulaResult<()> {
@@ -168,15 +182,12 @@ mod tests {
                 server::WorkerProtocol::new(w1_sock.port()),
             );
             let mut worker = worker.build().await.unwrap();
-            while !worker
-                .check_self_state(server::WorkerState::Done)
+            worker
+                .run_till_state(server::WorkerState::Done, || {
+                    println!("[worker-1] run-------looooooooooop---------");
+                })
                 .await
-                .unwrap()
-            {
-                println!("[worker-1] run-------looooooooooop---------");
-                let _ = worker.poll_next().await;
-                tokio::time::sleep(Duration::from_secs(1)).await;
-            }
+                .unwrap();
             worker
         });
         let w2 = tokio::spawn(async move {
@@ -185,15 +196,12 @@ mod tests {
                 server::WorkerProtocol::new(w2_sock.port()),
             );
             let mut worker = worker.build().await.unwrap();
-            while !worker
-                .check_self_state(server::WorkerState::Done)
+            worker
+                .run_till_state(server::WorkerState::Done, || {
+                    println!("[worker-2] run-------looooooooooop---------");
+                })
                 .await
-                .unwrap()
-            {
-                println!("[worker-2] run-------looooooooooop---------");
-                let _ = worker.poll_next().await;
-                tokio::time::sleep(Duration::from_secs(1)).await;
-            }
+                .unwrap();
             worker
         });
 
@@ -210,46 +218,27 @@ mod tests {
         }
 
         println!("\nSTEP 3 --------------- : poll next coord step");
-        // move coord forward
         {
-            while !coord
-                .check_self_state(server::CoordState::RunPeer)
+            coord
+                .run_till_state(server::CoordState::RunPeer, || {})
                 .await
-                .unwrap()
-            {
-                if let Err(err) = coord.poll_next().await {
-                    tokio::time::sleep(Duration::from_secs(3)).await;
-                    if err.is_fatal() {
-                        panic!("{}", err);
-                    }
-                }
-            }
+                .unwrap();
         }
 
         let delay_kill = tokio::spawn(async move {
             tokio::time::sleep(Duration::from_secs(3)).await;
             println!("\nSTEP 4 --------------- : sleep and then kill worker");
-            // move coord forward
             {
-                while !coord
-                    .check_self_state(server::CoordState::Done)
+                coord
+                    .run_till_state(server::CoordState::Done, || {})
                     .await
-                    .unwrap()
-                {
-                    tokio::time::sleep(Duration::from_secs(3)).await;
-                    if let Err(err) = coord.poll_next().await {
-                        if err.is_fatal() {
-                            panic!("{}", err);
-                        }
-                    }
-                }
+                    .unwrap();
 
                 // Notify peer that coordinator is done. This is best effort
                 for _i in 0..3 {
                     tokio::time::sleep(Duration::from_secs(1)).await;
                     let _ignore_error = coord.notify_peer_done().await;
                 }
-                // panic!("{}", "-----------------------------1-1-1-1--1-1-1b;a");
             }
         });
 

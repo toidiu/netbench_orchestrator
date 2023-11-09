@@ -78,10 +78,13 @@ impl StateApi for WorkerState {
 
     async fn run(&mut self, stream: &TcpStream, name: String) -> RussulaResult<()> {
         match self {
-            WorkerState::WaitPeerInit => self.await_next_msg(stream).await,
+            WorkerState::WaitPeerInit => {
+                // self.notify_peer(stream).await?;
+                self.await_next_msg(stream).await?;
+            }
             WorkerState::Ready => {
                 self.notify_peer(stream).await?;
-                self.await_next_msg(stream).await
+                self.await_next_msg(stream).await?;
             }
             WorkerState::Run => {
                 // some long task
@@ -102,7 +105,6 @@ impl StateApi for WorkerState {
                 );
 
                 *self = WorkerState::RunningAwaitKill(pid);
-                Ok(())
             }
             WorkerState::RunningAwaitKill(pid) => {
                 let pid = *pid;
@@ -118,14 +120,17 @@ impl StateApi for WorkerState {
                 }
 
                 // FIXME fix this
-                self.transition_self_or_user_driven(stream).await
+                self.transition_self_or_user_driven(stream).await?;
             }
             WorkerState::Stopped => {
                 self.notify_peer(stream).await?;
-                self.await_next_msg(stream).await
+                self.await_next_msg(stream).await?;
             }
-            WorkerState::Done => Ok(()),
+            WorkerState::Done => {
+                self.notify_peer(stream).await?;
+            }
         }
+        Ok(())
     }
 
     fn transition_step(&self) -> TransitionStep {
@@ -139,7 +144,7 @@ impl StateApi for WorkerState {
                 TransitionStep::AwaitAction(CoordState::KillPeer.as_bytes())
             }
             WorkerState::Stopped => TransitionStep::AwaitNext(CoordState::Done.as_bytes()),
-            WorkerState::Done => TransitionStep::AwaitNext(CoordState::Done.as_bytes()),
+            WorkerState::Done => TransitionStep::Finished,
         }
     }
 
