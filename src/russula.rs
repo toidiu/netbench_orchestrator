@@ -124,10 +124,7 @@ impl<P: Protocol> RussulaBuilder<P> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::russula::netbench::{
-        server_coord::{CoordProtocol, CoordState},
-        server_worker::{WorkerProtocol, WorkerState},
-    };
+    use crate::russula::netbench::{client, server};
     use core::time::Duration;
     use std::str::FromStr;
 
@@ -141,7 +138,7 @@ mod tests {
         // start the coordinator first to test initial connection retry
         let c1 = tokio::spawn(async move {
             let addr = BTreeSet::from_iter(worker_list);
-            let coord = RussulaBuilder::new(addr, CoordProtocol::new());
+            let coord = RussulaBuilder::new(addr, server::CoordProtocol::new());
             let mut coord = coord.build().await.unwrap();
             coord.run_till_ready().await;
             coord
@@ -150,10 +147,14 @@ mod tests {
         let w1 = tokio::spawn(async move {
             let worker = RussulaBuilder::new(
                 BTreeSet::from_iter([w1_sock]),
-                WorkerProtocol::new(w1_sock.port()),
+                server::WorkerProtocol::new(w1_sock.port()),
             );
             let mut worker = worker.build().await.unwrap();
-            while !worker.check_self_state(WorkerState::Done).await.unwrap() {
+            while !worker
+                .check_self_state(server::WorkerState::Done)
+                .await
+                .unwrap()
+            {
                 println!("[worker-1] run--o--o-o-o-oo-----ooooooooo---------o");
                 let _ = worker.poll_next().await;
                 tokio::time::sleep(Duration::from_secs(1)).await;
@@ -163,10 +164,14 @@ mod tests {
         let w2 = tokio::spawn(async move {
             let worker = RussulaBuilder::new(
                 BTreeSet::from_iter([w2_sock]),
-                WorkerProtocol::new(w2_sock.port()),
+                server::WorkerProtocol::new(w2_sock.port()),
             );
             let mut worker = worker.build().await.unwrap();
-            while !worker.check_self_state(WorkerState::Done).await.unwrap() {
+            while !worker
+                .check_self_state(server::WorkerState::Done)
+                .await
+                .unwrap()
+            {
                 println!("[worker-2] run--o--o-o-o-oo-----ooooooooo---------o");
                 let _ = worker.poll_next().await;
                 tokio::time::sleep(Duration::from_secs(1)).await;
@@ -180,13 +185,16 @@ mod tests {
         println!("\nSTEP 1 --------------- : confirm current ready state");
         // we are already in the Ready state
         {
-            assert!(coord.check_self_state(CoordState::Ready).await.unwrap());
+            assert!(coord
+                .check_self_state(server::CoordState::Ready)
+                .await
+                .unwrap());
         }
 
         println!("\nSTEP 2 --------------- : check next transition step");
         // we are pendng next state on UserDriven action on the coord
         {
-            let _s = CoordState::RunPeer.as_bytes();
+            let _s = server::CoordState::RunPeer.as_bytes();
             assert!(matches!(
                 coord.transition_step()[0],
                 TransitionStep::UserDriven
@@ -196,7 +204,11 @@ mod tests {
         println!("\nSTEP 3 --------------- : poll next coord step");
         // move coord forward
         {
-            while !coord.check_self_state(CoordState::RunPeer).await.unwrap() {
+            while !coord
+                .check_self_state(server::CoordState::RunPeer)
+                .await
+                .unwrap()
+            {
                 if let Err(err) = coord.poll_next().await {
                     if err.is_fatal() {
                         panic!("{}", err);
@@ -210,7 +222,11 @@ mod tests {
             println!("\nSTEP 4 --------------- : sleep and then kill worker");
             // move coord forward
             {
-                while !coord.check_self_state(CoordState::Done).await.unwrap() {
+                while !coord
+                    .check_self_state(server::CoordState::Done)
+                    .await
+                    .unwrap()
+                {
                     if let Err(err) = coord.poll_next().await {
                         if err.is_fatal() {
                             panic!("{}", err);
@@ -228,10 +244,57 @@ mod tests {
             let (worker1, worker2) = tokio::join!(w1, w2);
             let worker1 = worker1.unwrap();
             let worker2 = worker2.unwrap();
-            assert!(worker1.check_self_state(WorkerState::Done).await.unwrap());
-            assert!(worker2.check_self_state(WorkerState::Done).await.unwrap());
+            assert!(worker1
+                .check_self_state(server::WorkerState::Done)
+                .await
+                .unwrap());
+            assert!(worker2
+                .check_self_state(server::WorkerState::Done)
+                .await
+                .unwrap());
         }
 
         assert!(22 == 20, "\n\n\nSUCCESS ---------------- INTENTIONAL FAIL");
+    }
+
+    #[tokio::test]
+    #[allow(clippy::assertions_on_constants)] // for testing
+    async fn netbench_client_protocol() {
+        let w1_sock = SocketAddr::from_str("127.0.0.1:7991").unwrap();
+        let worker_list = [w1_sock];
+
+        // start the coordinator first to test initial connection retry
+        let c1 = tokio::spawn(async move {
+            let addr = BTreeSet::from_iter(worker_list);
+            let coord = RussulaBuilder::new(addr, client::CoordProtocol::new());
+            let mut coord = coord.build().await.unwrap();
+            coord.run_till_ready().await;
+            coord
+        });
+
+        let w1 = tokio::spawn(async move {
+            let worker = RussulaBuilder::new(
+                BTreeSet::from_iter([w1_sock]),
+                client::WorkerProtocol::new(w1_sock.port()),
+            );
+            let mut worker = worker.build().await.unwrap();
+            while !worker
+                .check_self_state(client::WorkerState::Ready)
+                .await
+                .unwrap()
+            {
+                println!("[worker-1] run--o--o-o-o-oo-----ooooooooo---------o");
+                let _ = worker.poll_next().await;
+                tokio::time::sleep(Duration::from_secs(1)).await;
+            }
+            worker
+        });
+
+        let join = tokio::join!(c1);
+        let mut coord = join.0.unwrap();
+
+        let worker1 = tokio::join!(w1);
+
+        assert!(44 == 40, "\n\n\nSUCCESS ---------------- INTENTIONAL FAIL");
     }
 }
