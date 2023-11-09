@@ -6,6 +6,7 @@ use crate::russula::{network_utils, RussulaResult};
 use async_trait::async_trait;
 use bytes::Bytes;
 use core::{fmt::Debug, task::Poll};
+use serde::Serialize;
 use std::net::SocketAddr;
 use tokio::net::TcpStream;
 
@@ -77,16 +78,12 @@ pub enum TransitionStep {
 }
 
 #[async_trait]
-pub trait StateApi: Sized + Send + Sync + Debug {
+pub trait StateApi: Sized + Send + Sync + Debug + Serialize {
     fn name(&self) -> String;
     async fn run(&mut self, stream: &TcpStream, name: String) -> RussulaResult<()>;
-
-    fn eq(&self, other: &Self) -> bool;
     fn transition_step(&self) -> TransitionStep;
     fn next_state(&self) -> Self;
 
-    fn as_bytes(&self) -> Bytes;
-    fn from_bytes(bytes: &[u8]) -> RussulaResult<Self>;
     async fn notify_peer(&self, stream: &TcpStream) -> RussulaResult<usize> {
         let msg = Msg::new(self.as_bytes());
         println!("{} ----> send msg {:?}", self.name(), msg);
@@ -104,6 +101,7 @@ pub trait StateApi: Sized + Send + Sync + Debug {
         *self = self.next_state();
         self.notify_peer(stream).await
     }
+
     async fn await_peer_msg(&mut self, stream: &TcpStream) -> RussulaResult<()> {
         let mut did_transition = false;
         // drain all messages in the queue until we can transition to the next state
@@ -115,6 +113,7 @@ pub trait StateApi: Sized + Send + Sync + Debug {
 
         Ok(())
     }
+
     async fn process_msg_and_transition(
         &mut self,
         stream: &TcpStream,
@@ -139,5 +138,13 @@ pub trait StateApi: Sized + Send + Sync + Debug {
         } else {
             Ok(false)
         }
+    }
+
+    fn eq(&self, other: &Self) -> bool {
+        self.as_bytes() == other.as_bytes()
+    }
+
+    fn as_bytes(&self) -> Bytes {
+        serde_json::to_string(self).unwrap().into()
     }
 }

@@ -8,7 +8,6 @@ use crate::russula::{
     StateApi, TransitionStep,
 };
 use async_trait::async_trait;
-use bytes::Bytes;
 use core::{fmt::Debug, task::Poll};
 use serde::{Deserialize, Serialize};
 use std::{net::SocketAddr, process::Command};
@@ -143,35 +142,6 @@ impl StateApi for WorkerState {
             WorkerState::RunningAwaitPeer(_) => WorkerState::Done,
             WorkerState::Done => WorkerState::Done,
         }
-    }
-
-    fn eq(&self, other: &Self) -> bool {
-        match self {
-            WorkerState::WaitPeerInit => {
-                matches!(other, WorkerState::WaitPeerInit)
-            }
-            WorkerState::Ready => {
-                matches!(other, WorkerState::Ready)
-            }
-            WorkerState::Run => {
-                matches!(other, WorkerState::Run)
-            }
-            WorkerState::RunningAwaitPeer(_pid) => {
-                matches!(other, WorkerState::RunningAwaitPeer(_))
-            }
-            WorkerState::Done => {
-                matches!(other, WorkerState::Done)
-            }
-        }
-    }
-
-    fn as_bytes(&self) -> Bytes {
-        serde_json::to_string(self).unwrap().into()
-    }
-
-    fn from_bytes(bytes: &[u8]) -> RussulaResult<Self> {
-        let state = serde_json::from_slice(bytes).unwrap();
-        Ok(state)
     }
 }
 

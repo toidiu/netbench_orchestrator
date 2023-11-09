@@ -124,7 +124,7 @@ impl<P: Protocol> RussulaBuilder<P> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::russula::netbench::{client, server};
+    use crate::russula::netbench::server;
     use core::time::Duration;
     use std::str::FromStr;
 
@@ -255,46 +255,5 @@ mod tests {
         }
 
         assert!(22 == 20, "\n\n\nSUCCESS ---------------- INTENTIONAL FAIL");
-    }
-
-    #[tokio::test]
-    #[allow(clippy::assertions_on_constants)] // for testing
-    async fn netbench_client_protocol() {
-        let w1_sock = SocketAddr::from_str("127.0.0.1:7991").unwrap();
-        let worker_list = [w1_sock];
-
-        // start the coordinator first to test initial connection retry
-        let c1 = tokio::spawn(async move {
-            let addr = BTreeSet::from_iter(worker_list);
-            let coord = RussulaBuilder::new(addr, client::CoordProtocol::new());
-            let mut coord = coord.build().await.unwrap();
-            coord.run_till_ready().await;
-            coord
-        });
-
-        let w1 = tokio::spawn(async move {
-            let worker = RussulaBuilder::new(
-                BTreeSet::from_iter([w1_sock]),
-                client::WorkerProtocol::new(w1_sock.port()),
-            );
-            let mut worker = worker.build().await.unwrap();
-            while !worker
-                .check_self_state(client::WorkerState::Ready)
-                .await
-                .unwrap()
-            {
-                println!("[worker-1] run--o--o-o-o-oo-----ooooooooo---------o");
-                let _ = worker.poll_next().await;
-                tokio::time::sleep(Duration::from_secs(1)).await;
-            }
-            worker
-        });
-
-        let join = tokio::join!(c1);
-        let mut coord = join.0.unwrap();
-
-        let worker1 = tokio::join!(w1);
-
-        assert!(44 == 40, "\n\n\nSUCCESS ---------------- INTENTIONAL FAIL");
     }
 }

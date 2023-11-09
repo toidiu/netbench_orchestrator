@@ -8,7 +8,6 @@ use crate::russula::{
     StateApi, TransitionStep,
 };
 use async_trait::async_trait;
-use bytes::Bytes;
 use core::{fmt::Debug, task::Poll};
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
@@ -114,35 +113,6 @@ impl StateApi for CoordState {
             CoordState::KillPeer => CoordState::Done,
             CoordState::Done => CoordState::Done,
         }
-    }
-
-    fn eq(&self, other: &Self) -> bool {
-        match self {
-            CoordState::CheckPeer => {
-                matches!(other, CoordState::CheckPeer)
-            }
-            CoordState::Ready => {
-                matches!(other, CoordState::Ready)
-            }
-            CoordState::RunPeer => {
-                matches!(other, CoordState::RunPeer)
-            }
-            CoordState::KillPeer => {
-                matches!(other, CoordState::KillPeer)
-            }
-            CoordState::Done => {
-                matches!(other, CoordState::Done)
-            }
-        }
-    }
-
-    fn as_bytes(&self) -> Bytes {
-        serde_json::to_string(self).unwrap().into()
-    }
-
-    fn from_bytes(bytes: &[u8]) -> RussulaResult<Self> {
-        let state = serde_json::from_slice(bytes).unwrap();
-        Ok(state)
     }
 }
 
