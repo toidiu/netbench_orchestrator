@@ -26,14 +26,18 @@ pub trait Protocol: Clone {
     // fn app_name(&self) { "netbench" }
 
     async fn connect(&self, addr: &SocketAddr) -> RussulaResult<TcpStream>;
-    async fn poll_ready(&mut self, stream: &TcpStream) -> RussulaResult<Poll<()>>;
+
+    async fn poll_ready(&mut self, stream: &TcpStream) -> RussulaResult<Poll<()>> {
+        let ready_state = self.state_ready();
+        self.poll_state(stream, &ready_state).await
+    }
 
     async fn poll_state(
         &mut self,
         stream: &TcpStream,
-        state: Self::State,
+        state: &Self::State,
     ) -> RussulaResult<Poll<()>> {
-        if !self.state().eq(&state) {
+        if !self.state().eq(state) {
             let prev = *self.state();
             let name = self.name();
             self.state_mut().run(stream, name).await?;
@@ -44,7 +48,7 @@ pub trait Protocol: Clone {
                 self.state()
             );
         }
-        let poll = if self.state().eq(&state) {
+        let poll = if self.state().eq(state) {
             Poll::Ready(())
         } else {
             Poll::Pending
@@ -59,11 +63,12 @@ pub trait Protocol: Clone {
 
     async fn poll_next(&mut self, stream: &TcpStream) -> RussulaResult<Poll<()>> {
         let state = self.state().next_state();
-        self.poll_state(stream, state).await
+        self.poll_state(stream, &state).await
     }
 
     fn state(&self) -> &Self::State;
     fn state_mut(&mut self) -> &mut Self::State;
+    fn state_ready(&self) -> Self::State;
     fn is_done_state(&self) -> bool {
         matches!(self.state().transition_step(), TransitionStep::Finished)
     }

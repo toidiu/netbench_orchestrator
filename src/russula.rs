@@ -167,7 +167,8 @@ mod tests {
         let w2_sock = SocketAddr::from_str("127.0.0.1:8992").unwrap();
         let worker_list = [w1_sock, w2_sock];
 
-        // start the coordinator first to test initial connection retry
+        // start the coordinator first and test that the initial `protocol.connect`
+        // attempt is retried
         let c1 = tokio::spawn(async move {
             let addr = BTreeSet::from_iter(worker_list);
             let coord = RussulaBuilder::new(addr, server::CoordProtocol::new());

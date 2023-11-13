@@ -8,7 +8,7 @@ use crate::russula::{
     StateApi, TransitionStep,
 };
 use async_trait::async_trait;
-use core::{fmt::Debug, task::Poll};
+use core::fmt::Debug;
 use serde::{Deserialize, Serialize};
 use std::{net::SocketAddr, process::Command};
 use sysinfo::{Pid, PidExt, ProcessExt, SystemExt};
@@ -57,16 +57,16 @@ impl Protocol for WorkerProtocol {
         Ok(stream)
     }
 
-    async fn poll_ready(&mut self, stream: &TcpStream) -> RussulaResult<Poll<()>> {
-        self.poll_state(stream, WorkerState::Ready).await
-    }
-
     fn state(&self) -> &Self::State {
         &self.state
     }
 
     fn state_mut(&mut self) -> &mut Self::State {
         &mut self.state
+    }
+
+    fn state_ready(&self) -> Self::State {
+        WorkerState::Ready
     }
 }
 
