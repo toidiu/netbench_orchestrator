@@ -30,6 +30,9 @@ use protocol::{Protocol, StateApi, TransitionStep};
 // https://statecharts.dev/
 // halting problem https://en.wikipedia.org/wiki/Halting_problem
 
+const POLL_RETRY_DURATION: Duration = Duration::from_secs(3);
+const NOTIFY_RETRY_DURATION: Duration = Duration::from_secs(1);
+
 pub struct Russula<P: Protocol> {
     peer_list: Vec<RussulaPeer<P>>,
 }
@@ -42,7 +45,7 @@ impl<P: Protocol + Send> Russula<P> {
                     Poll::Ready(_) => break,
                     Poll::Pending => println!("{} not yet ready", peer.protocol.name()),
                 }
-                tokio::time::sleep(Duration::from_secs(3)).await;
+                tokio::time::sleep(POLL_RETRY_DURATION).await;
             }
         }
     }
@@ -66,12 +69,13 @@ impl<P: Protocol + Send> Russula<P> {
                 }
             }
             f();
-            tokio::time::sleep(Duration::from_secs(3)).await;
+            tokio::time::sleep(POLL_RETRY_DURATION).await;
         }
 
         Ok(())
     }
 
+    /// Notify peer that coordinator is done. This is best effort
     pub async fn notify_peer_done(&mut self) -> RussulaResult<()> {
         for peer in self.peer_list.iter_mut() {
             if !peer.protocol.is_done_state() {
@@ -83,7 +87,10 @@ impl<P: Protocol + Send> Russula<P> {
                     ),
                 });
             }
-            peer.protocol.run_current(&peer.stream).await?;
+            for _i in 0..3 {
+                peer.protocol.run_current(&peer.stream).await?;
+                tokio::time::sleep(NOTIFY_RETRY_DURATION).await;
+            }
         }
 
         Ok(())
@@ -134,7 +141,7 @@ impl<P: Protocol> RussulaBuilder<P> {
                     }
                     Err(RussulaError::NetworkConnectionRefused { dbg }) => {
                         println!("Failed to connect.. retrying. addr: {} dbg: {}", addr, dbg);
-                        tokio::time::sleep(Duration::from_secs(2)).await;
+                        tokio::time::sleep(POLL_RETRY_DURATION).await;
                     }
                     Err(err) => return Err(err),
                 }
@@ -227,7 +234,7 @@ mod tests {
         }
 
         let delay_kill = tokio::spawn(async move {
-            tokio::time::sleep(Duration::from_secs(3)).await;
+            tokio::time::sleep(POLL_RETRY_DURATION).await;
             println!("\nSTEP 4 --------------- : sleep and then kill worker");
             {
                 coord
@@ -235,11 +242,7 @@ mod tests {
                     .await
                     .unwrap();
 
-                // Notify peer that coordinator is done. This is best effort
-                for _i in 0..3 {
-                    tokio::time::sleep(Duration::from_secs(1)).await;
-                    let _ignore_error = coord.notify_peer_done().await;
-                }
+                let _ignore_error = coord.notify_peer_done().await;
             }
         });
 
@@ -331,7 +334,7 @@ mod tests {
         }
 
         let delay_kill = tokio::spawn(async move {
-            tokio::time::sleep(Duration::from_secs(3)).await;
+            tokio::time::sleep(POLL_RETRY_DURATION).await;
             println!("\nSTEP 4 --------------- : sleep and then kill worker");
             {
                 coord
@@ -339,11 +342,7 @@ mod tests {
                     .await
                     .unwrap();
 
-                // Notify peer that coordinator is done. This is best effort
-                for _i in 0..3 {
-                    tokio::time::sleep(Duration::from_secs(1)).await;
-                    let _ignore_error = coord.notify_peer_done().await;
-                }
+                let _ignore_error = coord.notify_peer_done().await;
             }
         });
 
