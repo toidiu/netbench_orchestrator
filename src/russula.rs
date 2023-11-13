@@ -76,6 +76,7 @@ impl<P: Protocol + Send> Russula<P> {
     }
 
     /// Notify peer that coordinator is done. This is best effort
+    // FIXME absorb this in to the Finished state to make all protocols impls more resilient
     pub async fn notify_peer_done(&mut self) -> RussulaResult<()> {
         for peer in self.peer_list.iter_mut() {
             if !peer.protocol.is_done_state() {
