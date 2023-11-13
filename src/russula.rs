@@ -164,7 +164,6 @@ impl<P: Protocol> RussulaBuilder<P> {
 mod tests {
     use super::*;
     use crate::russula::netbench::{client, server};
-    use core::time::Duration;
     use std::str::FromStr;
 
     #[tokio::test]
@@ -242,7 +241,9 @@ mod tests {
                     .await
                     .unwrap();
 
-                let _ignore_error = coord.notify_peer_done().await;
+                if let Err(RussulaError::Usage { dbg }) = coord.notify_peer_done().await {
+                    panic!("{}", dbg)
+                }
             }
         });
 
@@ -270,8 +271,8 @@ mod tests {
     #[tokio::test]
     #[allow(clippy::assertions_on_constants)] // for testing
     async fn netbench_client_protocol() {
-        let w1_sock = SocketAddr::from_str("127.0.0.1:8991").unwrap();
-        let w2_sock = SocketAddr::from_str("127.0.0.1:8992").unwrap();
+        let w1_sock = SocketAddr::from_str("127.0.0.1:9991").unwrap();
+        let w2_sock = SocketAddr::from_str("127.0.0.1:9992").unwrap();
         let worker_list = [w1_sock, w2_sock];
 
         // start the coordinator first and test that the initial `protocol.connect`
@@ -292,7 +293,7 @@ mod tests {
             let mut worker = worker.build().await.unwrap();
             worker
                 .run_till_state(client::WorkerState::Done, || {
-                    println!("[worker-1] run-------looooooooooop---------");
+                    println!("[client-worker-1] run-------looooooooooop---------");
                 })
                 .await
                 .unwrap();
@@ -306,7 +307,7 @@ mod tests {
             let mut worker = worker.build().await.unwrap();
             worker
                 .run_till_state(client::WorkerState::Done, || {
-                    println!("[worker-2] run-------looooooooooop---------");
+                    println!("[client-worker-2] run-------looooooooooop---------");
                 })
                 .await
                 .unwrap();
@@ -316,7 +317,7 @@ mod tests {
         let join = tokio::join!(c1);
         let mut coord = join.0.unwrap();
 
-        println!("\nSTEP 1 --------------- : confirm current ready state");
+        println!("\nclient-STEP 1 --------------- : confirm current ready state");
         // we are already in the Ready state
         {
             assert!(coord
@@ -325,7 +326,7 @@ mod tests {
                 .unwrap());
         }
 
-        println!("\nSTEP 3 --------------- : poll next coord step");
+        println!("\nclient-STEP 3 --------------- : poll next coord step");
         {
             coord
                 .run_till_state(client::CoordState::RunPeer, || {})
@@ -335,21 +336,23 @@ mod tests {
 
         let delay_kill = tokio::spawn(async move {
             tokio::time::sleep(POLL_RETRY_DURATION).await;
-            println!("\nSTEP 4 --------------- : sleep and then kill worker");
+            println!("\nclient-STEP 4 --------------- : sleep and then kill worker");
             {
                 coord
                     .run_till_state(client::CoordState::Done, || {})
                     .await
                     .unwrap();
 
-                let _ignore_error = coord.notify_peer_done().await;
+                if let Err(RussulaError::Usage { dbg }) = coord.notify_peer_done().await {
+                    panic!("{}", dbg)
+                }
             }
         });
 
         let join = tokio::join!(delay_kill);
         join.0.unwrap();
 
-        println!("\nSTEP 20 --------------- : confirm worker done");
+        println!("\nclient-STEP 20 --------------- : confirm worker done");
         {
             let (worker1, worker2) = tokio::join!(w1, w2);
             let worker1 = worker1.unwrap();
@@ -364,6 +367,9 @@ mod tests {
                 .unwrap());
         }
 
-        assert!(22 == 20, "\n\n\nSUCCESS ---------------- INTENTIONAL FAIL");
+        assert!(
+            22 == 20,
+            "\n\n\nclient-SUCCESS ---------------- INTENTIONAL FAIL"
+        );
     }
 }
