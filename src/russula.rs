@@ -233,17 +233,16 @@ mod tests {
         }
 
         let delay_kill = tokio::spawn(async move {
-            tokio::time::sleep(POLL_RETRY_DURATION).await;
+            // sleep to simulate a long running async task
+            tokio::time::sleep(Duration::from_secs(5)).await;
             println!("\nSTEP 4 --------------- : sleep and then kill worker");
-            {
-                coord
-                    .run_till_state(server::CoordState::Done, || {})
-                    .await
-                    .unwrap();
+            coord
+                .run_till_state(server::CoordState::Done, || {})
+                .await
+                .unwrap();
 
-                if let Err(RussulaError::Usage { dbg }) = coord.notify_peer_done().await {
-                    panic!("{}", dbg)
-                }
+            if let Err(RussulaError::Usage { dbg }) = coord.notify_peer_done().await {
+                panic!("{}", dbg)
             }
         });
 
@@ -335,17 +334,16 @@ mod tests {
         }
 
         let delay_kill = tokio::spawn(async move {
-            tokio::time::sleep(POLL_RETRY_DURATION).await;
+            // sleep to simulate a long running async task
+            tokio::time::sleep(Duration::from_secs(5)).await;
             println!("\nclient-STEP 4 --------------- : sleep and then kill worker");
-            {
-                coord
-                    .run_till_state(client::CoordState::Done, || {})
-                    .await
-                    .unwrap();
+            coord
+                .run_till_state(client::CoordState::Done, || {})
+                .await
+                .unwrap();
 
-                if let Err(RussulaError::Usage { dbg }) = coord.notify_peer_done().await {
-                    panic!("{}", dbg)
-                }
+            if let Err(RussulaError::Usage { dbg }) = coord.notify_peer_done().await {
+                panic!("{}", dbg)
             }
         });
 
