@@ -130,15 +130,15 @@ async fn main() -> OrchResult<()> {
     // let server = { [server_hosts] };
     // let client = { [client_hosts] };
     //
-    // server.run_till_ready()
-    // client.run_till_ready()
+    // server_russula.run_till_ready().await
+    // client_russula.run_till_ready().await
     //
-    // server.start()
+    // server_russula.start().await
     // sleep(10)
     //
-    // client.run_till_done()
+    // client_russula.run_till_done()
     //
-    // server.kill()
+    // server_russula.kill()
 
     // Copy results back
     orch_generate_report(&s3_client, &unique_id).await;
