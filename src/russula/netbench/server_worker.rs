@@ -16,7 +16,7 @@ use tokio::net::{TcpListener, TcpStream};
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 pub enum WorkerState {
-    WaitPeerInit,
+    WaitCoordInit,
     Ready,
     Run,
     RunningAwaitKill(#[serde(skip)] u32),
@@ -34,7 +34,7 @@ impl WorkerProtocol {
     pub fn new(id: u16) -> Self {
         WorkerProtocol {
             id,
-            state: WorkerState::WaitPeerInit,
+            state: WorkerState::WaitCoordInit,
         }
     }
 }
@@ -78,7 +78,7 @@ impl StateApi for WorkerState {
 
     async fn run(&mut self, stream: &TcpStream, name: String) -> RussulaResult<()> {
         match self {
-            WorkerState::WaitPeerInit => {
+            WorkerState::WaitCoordInit => {
                 // self.notify_peer(stream).await?;
                 self.await_next_msg(stream).await?;
             }
@@ -135,7 +135,7 @@ impl StateApi for WorkerState {
 
     fn transition_step(&self) -> TransitionStep {
         match self {
-            WorkerState::WaitPeerInit => {
+            WorkerState::WaitCoordInit => {
                 TransitionStep::AwaitNext(CoordState::CheckWorker.as_bytes())
             }
             WorkerState::Ready => TransitionStep::AwaitNext(CoordState::RunWorker.as_bytes()),
@@ -150,7 +150,7 @@ impl StateApi for WorkerState {
 
     fn next_state(&self) -> Self {
         match self {
-            WorkerState::WaitPeerInit => WorkerState::Ready,
+            WorkerState::WaitCoordInit => WorkerState::Ready,
             WorkerState::Ready => WorkerState::Run,
             // FIXME error prone
             WorkerState::Run => WorkerState::RunningAwaitKill(0),
