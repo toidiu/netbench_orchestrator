@@ -136,12 +136,12 @@ impl StateApi for WorkerState {
     fn transition_step(&self) -> TransitionStep {
         match self {
             WorkerState::WaitPeerInit => {
-                TransitionStep::AwaitNext(CoordState::CheckPeer.as_bytes())
+                TransitionStep::AwaitNext(CoordState::CheckWorker.as_bytes())
             }
-            WorkerState::Ready => TransitionStep::AwaitNext(CoordState::RunPeer.as_bytes()),
+            WorkerState::Ready => TransitionStep::AwaitNext(CoordState::RunWorker.as_bytes()),
             WorkerState::Run => TransitionStep::SelfDriven,
             WorkerState::RunningAwaitKill(_) => {
-                TransitionStep::AwaitAction(CoordState::KillPeer.as_bytes())
+                TransitionStep::AwaitAction(CoordState::KillWorker.as_bytes())
             }
             WorkerState::Stopped => TransitionStep::AwaitNext(CoordState::Done.as_bytes()),
             WorkerState::Done => TransitionStep::Finished,

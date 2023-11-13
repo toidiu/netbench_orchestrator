@@ -30,10 +30,11 @@ use protocol::{Protocol, StateApi, TransitionStep};
 // https://statecharts.dev/
 // halting problem https://en.wikipedia.org/wiki/Halting_problem
 
-const POLL_RETRY_DURATION: Duration = Duration::from_secs(3);
+const POLL_RETRY_DURATION: Duration = Duration::from_secs(1);
 const NOTIFY_RETRY_DURATION: Duration = Duration::from_secs(1);
 
 pub struct Russula<P: Protocol> {
+    // TODO rename from peer->worker/coord because 'peer' can be confusing
     peer_list: Vec<RussulaPeer<P>>,
 }
 
@@ -228,7 +229,7 @@ mod tests {
         println!("\nSTEP 3 --------------- : poll next coord step");
         {
             coord
-                .run_till_state(server::CoordState::RunPeer, || {})
+                .run_till_state(server::CoordState::WorkersRunning, || {})
                 .await
                 .unwrap();
         }
@@ -266,105 +267,105 @@ mod tests {
         assert!(22 == 20, "\n\n\nSUCCESS ---------------- INTENTIONAL FAIL");
     }
 
-    #[tokio::test]
-    #[allow(clippy::assertions_on_constants)] // for testing
-    async fn netbench_client_protocol() {
-        let w1_sock = SocketAddr::from_str("127.0.0.1:9991").unwrap();
-        let w2_sock = SocketAddr::from_str("127.0.0.1:9992").unwrap();
-        let worker_list = [w1_sock, w2_sock];
+    // #[tokio::test]
+    // #[allow(clippy::assertions_on_constants)] // for testing
+    // async fn netbench_client_protocol() {
+    //     let w1_sock = SocketAddr::from_str("127.0.0.1:9991").unwrap();
+    //     let w2_sock = SocketAddr::from_str("127.0.0.1:9992").unwrap();
+    //     let worker_list = [w1_sock, w2_sock];
 
-        // start the coordinator first and test that the initial `protocol.connect`
-        // attempt is retried
-        let c1 = tokio::spawn(async move {
-            let addr = BTreeSet::from_iter(worker_list);
-            let coord = RussulaBuilder::new(addr, client::CoordProtocol::new());
-            let mut coord = coord.build().await.unwrap();
-            coord.run_till_ready().await;
-            coord
-        });
+    //     // start the coordinator first and test that the initial `protocol.connect`
+    //     // attempt is retried
+    //     let c1 = tokio::spawn(async move {
+    //         let addr = BTreeSet::from_iter(worker_list);
+    //         let coord = RussulaBuilder::new(addr, client::CoordProtocol::new());
+    //         let mut coord = coord.build().await.unwrap();
+    //         coord.run_till_ready().await;
+    //         coord
+    //     });
 
-        let w1 = tokio::spawn(async move {
-            let worker = RussulaBuilder::new(
-                BTreeSet::from_iter([w1_sock]),
-                client::WorkerProtocol::new(w1_sock.port()),
-            );
-            let mut worker = worker.build().await.unwrap();
-            worker
-                .run_till_state(client::WorkerState::Done, || {
-                    println!("[client-worker-1] run-------looooooooooop---------");
-                })
-                .await
-                .unwrap();
-            worker
-        });
-        let w2 = tokio::spawn(async move {
-            let worker = RussulaBuilder::new(
-                BTreeSet::from_iter([w2_sock]),
-                client::WorkerProtocol::new(w2_sock.port()),
-            );
-            let mut worker = worker.build().await.unwrap();
-            worker
-                .run_till_state(client::WorkerState::Done, || {
-                    println!("[client-worker-2] run-------looooooooooop---------");
-                })
-                .await
-                .unwrap();
-            worker
-        });
+    //     let w1 = tokio::spawn(async move {
+    //         let worker = RussulaBuilder::new(
+    //             BTreeSet::from_iter([w1_sock]),
+    //             client::WorkerProtocol::new(w1_sock.port()),
+    //         );
+    //         let mut worker = worker.build().await.unwrap();
+    //         worker
+    //             .run_till_state(client::WorkerState::Done, || {
+    //                 println!("[client-worker-1] run-------looooooooooop---------");
+    //             })
+    //             .await
+    //             .unwrap();
+    //         worker
+    //     });
+    //     let w2 = tokio::spawn(async move {
+    //         let worker = RussulaBuilder::new(
+    //             BTreeSet::from_iter([w2_sock]),
+    //             client::WorkerProtocol::new(w2_sock.port()),
+    //         );
+    //         let mut worker = worker.build().await.unwrap();
+    //         worker
+    //             .run_till_state(client::WorkerState::Done, || {
+    //                 println!("[client-worker-2] run-------looooooooooop---------");
+    //             })
+    //             .await
+    //             .unwrap();
+    //         worker
+    //     });
 
-        let join = tokio::join!(c1);
-        let mut coord = join.0.unwrap();
+    //     let join = tokio::join!(c1);
+    //     let mut coord = join.0.unwrap();
 
-        println!("\nclient-STEP 1 --------------- : confirm current ready state");
-        // we are already in the Ready state
-        {
-            assert!(coord
-                .check_self_state(client::CoordState::Ready)
-                .await
-                .unwrap());
-        }
+    //     println!("\nclient-STEP 1 --------------- : confirm current ready state");
+    //     // we are already in the Ready state
+    //     {
+    //         assert!(coord
+    //             .check_self_state(client::CoordState::Ready)
+    //             .await
+    //             .unwrap());
+    //     }
 
-        println!("\nclient-STEP 3 --------------- : poll next coord step");
-        {
-            coord
-                .run_till_state(client::CoordState::RunPeer, || {})
-                .await
-                .unwrap();
-        }
+    //     println!("\nclient-STEP 3 --------------- : poll next coord step");
+    //     {
+    //         coord
+    //             .run_till_state(client::CoordState::RunPeer, || {})
+    //             .await
+    //             .unwrap();
+    //     }
 
-        let delay_kill = tokio::spawn(async move {
-            println!("\nclient-STEP 4 --------------- : sleep and then kill worker");
-            coord
-                .run_till_state(client::CoordState::Done, || {})
-                .await
-                .unwrap();
+    //     let delay_kill = tokio::spawn(async move {
+    //         println!("\nclient-STEP 4 --------------- : sleep and then kill worker");
+    //         coord
+    //             .run_till_state(client::CoordState::Done, || {})
+    //             .await
+    //             .unwrap();
 
-            if let Err(RussulaError::Usage { dbg }) = coord.notify_peer_done().await {
-                panic!("{}", dbg)
-            }
-        });
+    //         if let Err(RussulaError::Usage { dbg }) = coord.notify_peer_done().await {
+    //             panic!("{}", dbg)
+    //         }
+    //     });
 
-        let join = tokio::join!(delay_kill);
-        join.0.unwrap();
+    //     let join = tokio::join!(delay_kill);
+    //     join.0.unwrap();
 
-        println!("\nclient-STEP 20 --------------- : confirm worker done");
-        {
-            let (worker1, worker2) = tokio::join!(w1, w2);
-            let worker1 = worker1.unwrap();
-            let worker2 = worker2.unwrap();
-            assert!(worker1
-                .check_self_state(client::WorkerState::Done)
-                .await
-                .unwrap());
-            assert!(worker2
-                .check_self_state(client::WorkerState::Done)
-                .await
-                .unwrap());
-        }
+    //     println!("\nclient-STEP 20 --------------- : confirm worker done");
+    //     {
+    //         let (worker1, worker2) = tokio::join!(w1, w2);
+    //         let worker1 = worker1.unwrap();
+    //         let worker2 = worker2.unwrap();
+    //         assert!(worker1
+    //             .check_self_state(client::WorkerState::Done)
+    //             .await
+    //             .unwrap());
+    //         assert!(worker2
+    //             .check_self_state(client::WorkerState::Done)
+    //             .await
+    //             .unwrap());
+    //     }
 
-        assert!(
-            22 == 20,
-            "\n\n\nclient-SUCCESS ---------------- INTENTIONAL FAIL"
-        );
-    }
+    //     assert!(
+    //         22 == 20,
+    //         "\n\n\nclient-SUCCESS ---------------- INTENTIONAL FAIL"
+    //     );
+    // }
 }
