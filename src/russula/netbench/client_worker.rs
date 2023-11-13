@@ -3,7 +3,7 @@
 
 use crate::russula::{
     error::{RussulaError, RussulaResult},
-    netbench::server_coord::CoordState,
+    netbench::client::CoordState,
     protocol::Protocol,
     StateApi, TransitionStep,
 };
@@ -16,10 +16,11 @@ use tokio::net::{TcpListener, TcpStream};
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 pub enum WorkerState {
-    WaitPeerInit,
+    WaitCoordInit,
     Ready,
     Run,
-    RunningAwaitKill(#[serde(skip)] u32),
+    Running(#[serde(skip)] u32),
+    NEWRunningAwaitComplete(#[serde(skip)] u32),
     Stopped,
     Done,
 }
@@ -34,7 +35,7 @@ impl WorkerProtocol {
     pub fn new(id: u16) -> Self {
         WorkerProtocol {
             id,
-            state: WorkerState::WaitPeerInit,
+            state: WorkerState::WaitCoordInit,
         }
     }
 }
@@ -78,7 +79,7 @@ impl StateApi for WorkerState {
 
     async fn run(&mut self, stream: &TcpStream, name: String) -> RussulaResult<()> {
         match self {
-            WorkerState::WaitPeerInit => {
+            WorkerState::WaitCoordInit => {
                 // self.notify_peer(stream).await?;
                 self.await_next_msg(stream).await?;
             }
@@ -104,19 +105,32 @@ impl StateApi for WorkerState {
                     pid
                 );
 
-                *self = WorkerState::RunningAwaitKill(pid);
+                *self = WorkerState::Running(pid);
             }
-            WorkerState::RunningAwaitKill(pid) => {
+            WorkerState::Running(_pid) => {
+                self.notify_peer(stream).await?;
+                self.await_next_msg(stream).await?;
+            }
+            WorkerState::NEWRunningAwaitComplete(pid) => {
                 let pid = *pid;
                 self.notify_peer(stream).await?;
                 self.await_action_msg(stream).await?;
 
                 let pid = Pid::from_u32(pid);
                 let mut system = sysinfo::System::new();
-                if system.refresh_process(pid) {
-                    let process = system.process(pid).unwrap();
-                    let kill = process.kill();
-                    println!("did KILL pid: {} {}----------------------------", pid, kill);
+
+                let is_process_complete = !system.refresh_process(pid);
+
+                if is_process_complete {
+                    println!(
+                        "process COMPLETED! pid: {} ----------------------------",
+                        pid
+                    );
+                } else {
+                    println!(
+                        "process still RUNNING! pid: {} ----------------------------",
+                        pid
+                    );
                 }
 
                 // FIXME fix this
@@ -135,14 +149,15 @@ impl StateApi for WorkerState {
 
     fn transition_step(&self) -> TransitionStep {
         match self {
-            WorkerState::WaitPeerInit => {
+            WorkerState::WaitCoordInit => {
                 TransitionStep::AwaitNext(CoordState::CheckWorker.as_bytes())
             }
             WorkerState::Ready => TransitionStep::AwaitNext(CoordState::RunWorker.as_bytes()),
             WorkerState::Run => TransitionStep::SelfDriven,
-            WorkerState::RunningAwaitKill(_) => {
-                TransitionStep::AwaitAction(CoordState::KillWorker.as_bytes())
+            WorkerState::Running(_) => {
+                TransitionStep::AwaitAction(CoordState::NEWWorkerRunning.as_bytes())
             }
+            WorkerState::NEWRunningAwaitComplete(_) => TransitionStep::SelfDriven,
             WorkerState::Stopped => TransitionStep::AwaitNext(CoordState::Done.as_bytes()),
             WorkerState::Done => TransitionStep::Finished,
         }
@@ -150,11 +165,12 @@ impl StateApi for WorkerState {
 
     fn next_state(&self) -> Self {
         match self {
-            WorkerState::WaitPeerInit => WorkerState::Ready,
+            WorkerState::WaitCoordInit => WorkerState::Ready,
             WorkerState::Ready => WorkerState::Run,
             // FIXME error prone
-            WorkerState::Run => WorkerState::RunningAwaitKill(0),
-            WorkerState::RunningAwaitKill(_) => WorkerState::Stopped,
+            WorkerState::Run => WorkerState::Running(0),
+            WorkerState::Running(pid) => WorkerState::NEWRunningAwaitComplete(*pid),
+            WorkerState::NEWRunningAwaitComplete(_) => WorkerState::Stopped,
             WorkerState::Stopped => WorkerState::Done,
             WorkerState::Done => WorkerState::Done,
         }

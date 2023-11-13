@@ -20,6 +20,7 @@ pub enum CoordState {
     RunWorker,
     WorkersRunning,
     KillWorker,
+    WorkerKilled,
     Done,
 }
 
@@ -89,7 +90,11 @@ impl StateApi for CoordState {
                 self.notify_peer(stream).await?;
                 self.await_next_msg(stream).await?;
             }
+            CoordState::WorkerKilled => {
+                self.transition_self_or_user_driven(stream).await?;
+            }
             CoordState::Done => {
+                // panic!("stopped---------------------------------");
                 self.notify_peer(stream).await?;
             }
         }
@@ -105,6 +110,7 @@ impl StateApi for CoordState {
             }
             CoordState::WorkersRunning => TransitionStep::UserDriven,
             CoordState::KillWorker => TransitionStep::AwaitNext(WorkerState::Stopped.as_bytes()),
+            CoordState::WorkerKilled => TransitionStep::UserDriven,
             CoordState::Done => TransitionStep::Finished,
         }
     }
@@ -115,7 +121,8 @@ impl StateApi for CoordState {
             CoordState::Ready => CoordState::RunWorker,
             CoordState::RunWorker => CoordState::WorkersRunning,
             CoordState::WorkersRunning => CoordState::KillWorker,
-            CoordState::KillWorker => CoordState::Done,
+            CoordState::KillWorker => CoordState::WorkerKilled,
+            CoordState::WorkerKilled => CoordState::Done,
             CoordState::Done => CoordState::Done,
         }
     }

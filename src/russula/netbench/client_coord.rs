@@ -3,7 +3,7 @@
 
 use crate::russula::{
     error::{RussulaError, RussulaResult},
-    netbench::server_worker::WorkerState,
+    netbench::client::WorkerState,
     protocol::Protocol,
     StateApi, TransitionStep,
 };
@@ -15,10 +15,10 @@ use tokio::net::TcpStream;
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 pub enum CoordState {
-    CheckPeer,
+    CheckWorker,
     Ready,
-    RunPeer,
-    KillPeer,
+    RunWorker,
+    NEWWorkerRunning,
     Done,
 }
 
@@ -30,7 +30,7 @@ pub struct CoordProtocol {
 impl CoordProtocol {
     pub fn new() -> Self {
         CoordProtocol {
-            state: CoordState::CheckPeer,
+            state: CoordState::CheckWorker,
         }
     }
 }
@@ -70,7 +70,7 @@ impl StateApi for CoordState {
 
     async fn run(&mut self, stream: &TcpStream, _name: String) -> RussulaResult<()> {
         match self {
-            CoordState::CheckPeer => {
+            CoordState::CheckWorker => {
                 self.notify_peer(stream).await?;
                 self.await_next_msg(stream).await?;
             }
@@ -78,11 +78,11 @@ impl StateApi for CoordState {
                 self.transition_self_or_user_driven(stream).await?;
                 // self.await_peer_msg(stream).await?;
             }
-            CoordState::RunPeer => {
+            CoordState::RunWorker => {
                 self.notify_peer(stream).await?;
                 self.await_next_msg(stream).await?;
             }
-            CoordState::KillPeer => {
+            CoordState::NEWWorkerRunning => {
                 self.notify_peer(stream).await?;
                 self.await_next_msg(stream).await?;
             }
@@ -95,22 +95,22 @@ impl StateApi for CoordState {
 
     fn transition_step(&self) -> TransitionStep {
         match self {
-            CoordState::CheckPeer => TransitionStep::AwaitNext(WorkerState::Ready.as_bytes()),
+            CoordState::CheckWorker => TransitionStep::AwaitNext(WorkerState::Ready.as_bytes()),
             CoordState::Ready => TransitionStep::UserDriven,
-            CoordState::RunPeer => {
-                TransitionStep::AwaitNext(WorkerState::RunningAwaitKill(0).as_bytes())
+            CoordState::RunWorker => TransitionStep::AwaitNext(WorkerState::Running(0).as_bytes()),
+            CoordState::NEWWorkerRunning => {
+                TransitionStep::AwaitNext(WorkerState::Stopped.as_bytes())
             }
-            CoordState::KillPeer => TransitionStep::AwaitNext(WorkerState::Stopped.as_bytes()),
             CoordState::Done => TransitionStep::Finished,
         }
     }
 
     fn next_state(&self) -> Self {
         match self {
-            CoordState::CheckPeer => CoordState::Ready,
-            CoordState::Ready => CoordState::RunPeer,
-            CoordState::RunPeer => CoordState::KillPeer,
-            CoordState::KillPeer => CoordState::Done,
+            CoordState::CheckWorker => CoordState::Ready,
+            CoordState::Ready => CoordState::RunWorker,
+            CoordState::RunWorker => CoordState::NEWWorkerRunning,
+            CoordState::NEWWorkerRunning => CoordState::Done,
             CoordState::Done => CoordState::Done,
         }
     }

@@ -193,7 +193,7 @@ mod tests {
             let mut worker = worker.build().await.unwrap();
             worker
                 .run_till_state(server::WorkerState::Done, || {
-                    println!("[worker-1] run-------looooooooooop---------");
+                    println!("[worker-1] run-------looooooooooop till done---------");
                 })
                 .await
                 .unwrap();
@@ -207,7 +207,7 @@ mod tests {
             let mut worker = worker.build().await.unwrap();
             worker
                 .run_till_state(server::WorkerState::Done, || {
-                    println!("[worker-2] run-------looooooooooop---------");
+                    println!("[worker-2] run-------looooooooooop till done---------");
                 })
                 .await
                 .unwrap();
@@ -236,8 +236,20 @@ mod tests {
             // tokio::time::sleep(POLL_RETRY_DURATION).await;
         }
 
-        let delay_kill = tokio::spawn(async move {
+        let kill_workers = tokio::spawn(async move {
             println!("\nSTEP 4 --------------- : kill worker");
+            coord
+                .run_till_state(server::CoordState::WorkerKilled, || {})
+                .await
+                .unwrap();
+
+            coord
+        });
+        let join = tokio::join!(kill_workers);
+        let mut coord = join.0.unwrap();
+
+        let wait_done = tokio::spawn(async move {
+            println!("\nSTEP 5 --------------- : wait till done");
             coord
                 .run_till_state(server::CoordState::Done, || {})
                 .await
@@ -248,7 +260,7 @@ mod tests {
             }
         });
 
-        let join = tokio::join!(delay_kill);
+        let join = tokio::join!(wait_done);
         join.0.unwrap();
 
         println!("\nSTEP 20 --------------- : confirm worker done");
@@ -294,7 +306,7 @@ mod tests {
     //         let mut worker = worker.build().await.unwrap();
     //         worker
     //             .run_till_state(client::WorkerState::Done, || {
-    //                 println!("[client-worker-1] run-------looooooooooop---------");
+    //                 println!("[client-worker-1] run-------looooooooooop till done---------");
     //             })
     //             .await
     //             .unwrap();
@@ -308,7 +320,7 @@ mod tests {
     //         let mut worker = worker.build().await.unwrap();
     //         worker
     //             .run_till_state(client::WorkerState::Done, || {
-    //                 println!("[client-worker-2] run-------looooooooooop---------");
+    //                 println!("[client-worker-2] run-------looooooooooop till done---------");
     //             })
     //             .await
     //             .unwrap();
@@ -330,13 +342,13 @@ mod tests {
     //     println!("\nclient-STEP 3 --------------- : poll next coord step");
     //     {
     //         coord
-    //             .run_till_state(client::CoordState::RunPeer, || {})
+    //             .run_till_state(client::CoordState::NEWWorkerRunning, || {})
     //             .await
     //             .unwrap();
     //     }
 
-    //     let delay_kill = tokio::spawn(async move {
-    //         println!("\nclient-STEP 4 --------------- : sleep and then kill worker");
+    //     let kill_workers = tokio::spawn(async move {
+    //         println!("\nclient-STEP 4 --------------- : wait for workers to finish");
     //         coord
     //             .run_till_state(client::CoordState::Done, || {})
     //             .await
@@ -347,7 +359,7 @@ mod tests {
     //         }
     //     });
 
-    //     let join = tokio::join!(delay_kill);
+    //     let join = tokio::join!(kill_workers);
     //     join.0.unwrap();
 
     //     println!("\nclient-STEP 20 --------------- : confirm worker done");
