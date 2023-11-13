@@ -218,7 +218,6 @@ mod tests {
         let mut coord = join.0.unwrap();
 
         println!("\nSTEP 1 --------------- : confirm current ready state");
-        // we are already in the Ready state
         {
             assert!(coord
                 .check_self_state(server::CoordState::Ready)
@@ -226,7 +225,7 @@ mod tests {
                 .unwrap());
         }
 
-        println!("\nSTEP 3 --------------- : poll next coord step");
+        println!("\nSTEP 2 --------------- : poll next coord step");
         {
             coord
                 .run_till_state(server::CoordState::WorkersRunning, || {})
@@ -237,7 +236,7 @@ mod tests {
         }
 
         let kill_workers = tokio::spawn(async move {
-            println!("\nSTEP 4 --------------- : kill worker");
+            println!("\nSTEP 3 --------------- : kill worker");
             coord
                 .run_till_state(server::CoordState::WorkerKilled, || {})
                 .await
@@ -331,7 +330,6 @@ mod tests {
         let mut coord = join.0.unwrap();
 
         println!("\nclient-STEP 1 --------------- : confirm current ready state");
-        // we are already in the Ready state
         {
             assert!(coord
                 .check_self_state(client::CoordState::Ready)
@@ -339,7 +337,7 @@ mod tests {
                 .unwrap());
         }
 
-        println!("\nclient-STEP 3 --------------- : poll next coord step");
+        println!("\nclient-STEP 2 --------------- : poll next coord step");
         {
             coord
                 .run_till_state(client::CoordState::NEWWorkerRunning, || {})
@@ -348,7 +346,7 @@ mod tests {
         }
 
         let kill_workers = tokio::spawn(async move {
-            println!("\nclient-STEP 4 --------------- : wait for workers to finish");
+            println!("\nclient-STEP 3 --------------- : wait for workers to finish");
             coord
                 .run_till_state(client::CoordState::Done, || {})
                 .await
