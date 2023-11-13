@@ -8,7 +8,9 @@ cd target
 mkdir -p test_output
 cd test_output
 
-    touch $id
+touch $id
+echo "--------" >> $id
+
     while :
     do
         echo $ctr >> $id

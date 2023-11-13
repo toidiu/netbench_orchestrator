@@ -235,32 +235,22 @@ mod tests {
             // tokio::time::sleep(POLL_RETRY_DURATION).await;
         }
 
-        let kill_workers = tokio::spawn(async move {
-            println!("\nSTEP 3 --------------- : kill worker");
-            coord
-                .run_till_state(server::CoordState::WorkerKilled, || {})
-                .await
-                .unwrap();
+        println!("\nSTEP 3 --------------- : kill worker");
+        coord
+            .run_till_state(server::CoordState::WorkerKilled, || {})
+            .await
+            .unwrap();
 
-            coord
-        });
-        let join = tokio::join!(kill_workers);
-        let mut coord = join.0.unwrap();
+        println!("\nSTEP 4 --------------- : wait till done");
+        coord
+            .run_till_state(server::CoordState::Done, || {})
+            .await
+            .unwrap();
 
-        let wait_done = tokio::spawn(async move {
-            println!("\nSTEP 5 --------------- : wait till done");
-            coord
-                .run_till_state(server::CoordState::Done, || {})
-                .await
-                .unwrap();
-
-            if let Err(RussulaError::Usage { dbg }) = coord.notify_peer_done().await {
-                panic!("{}", dbg)
-            }
-        });
-
-        let join = tokio::join!(wait_done);
-        join.0.unwrap();
+        println!("\nSTEP 5 --------------- : notify peer done");
+        if let Err(RussulaError::Usage { dbg }) = coord.notify_peer_done().await {
+            panic!("{}", dbg)
+        }
 
         println!("\nSTEP 20 --------------- : confirm worker done");
         {
@@ -337,7 +327,7 @@ mod tests {
                 .unwrap());
         }
 
-        println!("\nclient-STEP 2 --------------- : poll next coord step");
+        println!("\nclient-STEP 2 --------------- : wait for workers to run");
         {
             coord
                 .run_till_state(client::CoordState::NEWWorkerRunning, || {})
