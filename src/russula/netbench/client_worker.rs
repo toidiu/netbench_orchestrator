@@ -11,7 +11,7 @@ use async_trait::async_trait;
 use core::fmt::Debug;
 use serde::{Deserialize, Serialize};
 use std::{net::SocketAddr, process::Command};
-use sysinfo::{Pid, PidExt, ProcessExt, SystemExt};
+use sysinfo::{Pid, PidExt, SystemExt};
 use tokio::net::{TcpListener, TcpStream};
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
@@ -20,7 +20,7 @@ pub enum WorkerState {
     Ready,
     Run,
     Running(#[serde(skip)] u32),
-    NEWRunningAwaitComplete(#[serde(skip)] u32),
+    RunningAwaitComplete(#[serde(skip)] u32),
     Stopped,
     Done,
 }
@@ -111,10 +111,9 @@ impl StateApi for WorkerState {
                 self.notify_peer(stream).await?;
                 self.await_next_msg(stream).await?;
             }
-            WorkerState::NEWRunningAwaitComplete(pid) => {
+            WorkerState::RunningAwaitComplete(pid) => {
                 let pid = *pid;
                 self.notify_peer(stream).await?;
-                self.await_action_msg(stream).await?;
 
                 let pid = Pid::from_u32(pid);
                 let mut system = sysinfo::System::new();
@@ -155,9 +154,9 @@ impl StateApi for WorkerState {
             WorkerState::Ready => TransitionStep::AwaitNext(CoordState::RunWorker.as_bytes()),
             WorkerState::Run => TransitionStep::SelfDriven,
             WorkerState::Running(_) => {
-                TransitionStep::AwaitAction(CoordState::NEWWorkerRunning.as_bytes())
+                TransitionStep::AwaitNext(CoordState::WorkerRunning.as_bytes())
             }
-            WorkerState::NEWRunningAwaitComplete(_) => TransitionStep::SelfDriven,
+            WorkerState::RunningAwaitComplete(_) => TransitionStep::SelfDriven,
             WorkerState::Stopped => TransitionStep::AwaitNext(CoordState::Done.as_bytes()),
             WorkerState::Done => TransitionStep::Finished,
         }
@@ -169,8 +168,8 @@ impl StateApi for WorkerState {
             WorkerState::Ready => WorkerState::Run,
             // FIXME error prone
             WorkerState::Run => WorkerState::Running(0),
-            WorkerState::Running(pid) => WorkerState::NEWRunningAwaitComplete(*pid),
-            WorkerState::NEWRunningAwaitComplete(_) => WorkerState::Stopped,
+            WorkerState::Running(pid) => WorkerState::RunningAwaitComplete(*pid),
+            WorkerState::RunningAwaitComplete(_) => WorkerState::Stopped,
             WorkerState::Stopped => WorkerState::Done,
             WorkerState::Done => WorkerState::Done,
         }

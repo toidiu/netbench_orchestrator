@@ -52,11 +52,16 @@ impl<P: Protocol + Send> Russula<P> {
     }
 
     async fn poll_next(&mut self) -> RussulaResult<Poll<()>> {
+        let mut tries = 10;
         for peer in self.peer_list.iter_mut() {
             // poll till state and break if Pending
             let poll = peer.protocol.poll_next(&peer.stream).await?;
             if poll.is_pending() {
                 return Ok(Poll::Pending);
+            }
+            tries -= 1;
+            if tries == 0 {
+                panic!("didnt complete")
             }
         }
         Ok(Poll::Ready(()))
@@ -330,25 +335,21 @@ mod tests {
         println!("\nclient-STEP 2 --------------- : wait for workers to run");
         {
             coord
-                .run_till_state(client::CoordState::NEWWorkerRunning, || {})
+                .run_till_state(client::CoordState::WorkerRunning, || {})
                 .await
                 .unwrap();
         }
 
-        let kill_workers = tokio::spawn(async move {
-            println!("\nclient-STEP 3 --------------- : wait for workers to finish");
-            coord
-                .run_till_state(client::CoordState::Done, || {})
-                .await
-                .unwrap();
+        println!("\nSTEP 3 --------------- : wait till done");
+        coord
+            .run_till_state(client::CoordState::Done, || {})
+            .await
+            .unwrap();
 
-            if let Err(RussulaError::Usage { dbg }) = coord.notify_peer_done().await {
-                panic!("{}", dbg)
-            }
-        });
-
-        let join = tokio::join!(kill_workers);
-        join.0.unwrap();
+        println!("\nSTEP 4 --------------- : notify peer done");
+        if let Err(RussulaError::Usage { dbg }) = coord.notify_peer_done().await {
+            panic!("{}", dbg)
+        }
 
         println!("\nclient-STEP 20 --------------- : confirm worker done");
         {
