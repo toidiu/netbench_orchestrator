@@ -232,10 +232,12 @@ mod tests {
                 .run_till_state(server::CoordState::WorkersRunning, || {})
                 .await
                 .unwrap();
+            // // sleep to simulate the server running for some time
+            // tokio::time::sleep(POLL_RETRY_DURATION).await;
         }
 
         let delay_kill = tokio::spawn(async move {
-            println!("\nSTEP 4 --------------- : sleep and then kill worker");
+            println!("\nSTEP 4 --------------- : kill worker");
             coord
                 .run_till_state(server::CoordState::Done, || {})
                 .await
