@@ -20,6 +20,7 @@ pub enum WorkerState {
     Ready,
     Run,
     RunningAwaitKill(#[serde(skip)] u32),
+    Killing(#[serde(skip)] u32),
     Stopped,
     Done,
 }
@@ -106,12 +107,12 @@ impl StateApi for WorkerState {
 
                 *self = WorkerState::RunningAwaitKill(pid);
             }
-            WorkerState::RunningAwaitKill(pid) => {
-                let pid = *pid;
+            WorkerState::RunningAwaitKill(_pid) => {
                 self.notify_peer(stream).await?;
-                self.await_action_msg(stream).await?;
-
-                let pid = Pid::from_u32(pid);
+                self.await_next_msg(stream).await?;
+            }
+            WorkerState::Killing(pid) => {
+                let pid = Pid::from_u32(*pid);
                 let mut system = sysinfo::System::new();
                 if system.refresh_process(pid) {
                     let process = system.process(pid).unwrap();
@@ -141,8 +142,9 @@ impl StateApi for WorkerState {
             WorkerState::Ready => TransitionStep::AwaitNext(CoordState::RunWorker.as_bytes()),
             WorkerState::Run => TransitionStep::SelfDriven,
             WorkerState::RunningAwaitKill(_) => {
-                TransitionStep::AwaitAction(CoordState::KillWorker.as_bytes())
+                TransitionStep::AwaitNext(CoordState::KillWorker.as_bytes())
             }
+            WorkerState::Killing(_) => TransitionStep::SelfDriven,
             WorkerState::Stopped => TransitionStep::AwaitNext(CoordState::Done.as_bytes()),
             WorkerState::Done => TransitionStep::Finished,
         }
@@ -154,7 +156,8 @@ impl StateApi for WorkerState {
             WorkerState::Ready => WorkerState::Run,
             // FIXME error prone
             WorkerState::Run => WorkerState::RunningAwaitKill(0),
-            WorkerState::RunningAwaitKill(_) => WorkerState::Stopped,
+            WorkerState::RunningAwaitKill(pid) => WorkerState::Killing(*pid),
+            WorkerState::Killing(_) => WorkerState::Stopped,
             WorkerState::Stopped => WorkerState::Done,
             WorkerState::Done => WorkerState::Done,
         }
