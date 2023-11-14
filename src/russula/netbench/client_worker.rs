@@ -73,8 +73,8 @@ impl Protocol for WorkerProtocol {
 
 #[async_trait]
 impl StateApi for WorkerState {
-    fn name(&self) -> String {
-        "[client-worker]".to_string()
+    fn name_prefix(&self) -> String {
+        "client-worker".to_string()
     }
 
     async fn run(&mut self, stream: &TcpStream, name: String) -> RussulaResult<()> {
@@ -91,7 +91,7 @@ impl StateApi for WorkerState {
                 // some long task
                 println!(
                     "{} some looooooooooooooooooooooooooooooooooooooooooooong task",
-                    self.name()
+                    self.name(stream)
                 );
                 let child = Command::new("sh")
                     .args(["sim_netbench_client.sh", &name])
@@ -101,7 +101,7 @@ impl StateApi for WorkerState {
                 let pid = child.id();
                 println!(
                     "{}----------------------------child id {}",
-                    self.name(),
+                    self.name(stream),
                     pid
                 );
 

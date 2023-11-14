@@ -87,21 +87,30 @@ pub enum TransitionStep {
 
 #[async_trait]
 pub trait StateApi: Sized + Send + Sync + Debug + Serialize {
-    fn name(&self) -> String;
+    fn name_prefix(&self) -> String;
+
+    fn name(&self, stream: &TcpStream) -> String {
+        format!(
+            "[{}-{}]",
+            self.name_prefix(),
+            stream.local_addr().unwrap().port()
+        )
+    }
+
     async fn run(&mut self, stream: &TcpStream, name: String) -> RussulaResult<()>;
     fn transition_step(&self) -> TransitionStep;
     fn next_state(&self) -> Self;
 
     async fn notify_peer(&self, stream: &TcpStream) -> RussulaResult<usize> {
         let msg = Msg::new(self.as_bytes());
-        println!("{} ----> send msg {:?}", self.name(), msg);
+        println!("{} ----> send msg {:?}", self.name(stream), msg);
         network_utils::send_msg(stream, msg).await
     }
 
     async fn transition_self_or_user_driven(&mut self, stream: &TcpStream) -> RussulaResult<()> {
         println!(
             "{}------------- moving to next state current: {:?}, next: {:?}",
-            self.name(),
+            self.name(stream),
             self,
             self.next_state()
         );
@@ -113,7 +122,7 @@ pub trait StateApi: Sized + Send + Sync + Debug + Serialize {
     async fn transition_next(&mut self, stream: &TcpStream) -> RussulaResult<()> {
         println!(
             "{}------------- moving to next state current: {:?}, next: {:?}",
-            self.name(),
+            self.name(stream),
             self,
             self.next_state()
         );
@@ -135,9 +144,9 @@ pub trait StateApi: Sized + Send + Sync + Debug + Serialize {
         while !matched {
             // aborts if there are no messages in the queue
             let mut msg = network_utils::recv_msg(stream).await?;
-            println!("{} <---- recv msg {:?}", self.name(), msg);
+            println!("{} <---- recv msg {:?}", self.name(stream), msg);
 
-            if self.matches_transition_msg(&mut msg).await? {
+            if self.matches_transition_msg(stream, &mut msg).await? {
                 matched = true;
             }
         }
@@ -152,9 +161,9 @@ pub trait StateApi: Sized + Send + Sync + Debug + Serialize {
         // loop until we receive a transition msg from peer or drain all msg from queue
         loop {
             let mut msg = network_utils::recv_msg(stream).await?;
-            println!("{} <---- recv msg {:?}", self.name(), msg);
+            println!("{} <---- recv msg {:?}", self.name(stream), msg);
 
-            if self.matches_transition_msg(&mut msg).await? {
+            if self.matches_transition_msg(stream, &mut msg).await? {
                 self.transition_next(stream).await?;
                 break;
             } else {
@@ -165,13 +174,17 @@ pub trait StateApi: Sized + Send + Sync + Debug + Serialize {
         Ok(())
     }
 
-    async fn matches_transition_msg(&mut self, recv_msg: &mut Msg) -> RussulaResult<bool> {
+    async fn matches_transition_msg(
+        &mut self,
+        stream: &TcpStream,
+        recv_msg: &mut Msg,
+    ) -> RussulaResult<bool> {
         match self.transition_step() {
             TransitionStep::AwaitNext(expected_msg) => {
                 let should_transition_to_next = expected_msg == recv_msg.as_bytes();
                 println!(
                     "{} ========transition: {}, expect_msg: {:?} recv_msg: {:?}",
-                    self.name(),
+                    self.name(stream),
                     expected_msg == recv_msg.as_bytes(),
                     std::str::from_utf8(&expected_msg),
                     recv_msg,
@@ -182,7 +195,7 @@ pub trait StateApi: Sized + Send + Sync + Debug + Serialize {
                 let should_transition_to_next = expected_msg == recv_msg.as_bytes();
                 println!(
                     "{} ========transition: {}, expect_msg: {:?} recv_msg: {:?}",
-                    self.name(),
+                    self.name(stream),
                     expected_msg == recv_msg.as_bytes(),
                     std::str::from_utf8(&expected_msg),
                     recv_msg,

@@ -64,8 +64,8 @@ impl Protocol for CoordProtocol {
 
 #[async_trait]
 impl StateApi for CoordState {
-    fn name(&self) -> String {
-        format!("[client-coord-{}]", 0)
+    fn name_prefix(&self) -> String {
+        "client-coord".to_string()
     }
 
     async fn run(&mut self, stream: &TcpStream, _name: String) -> RussulaResult<()> {
