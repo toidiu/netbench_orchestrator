@@ -15,6 +15,7 @@ use error::{RussulaError, RussulaResult};
 use protocol::{Protocol, StateApi, TransitionStep};
 
 // TODO
+// - make notify_peer_done part of the protocol impl
 // - make state transitions nicer
 //   - match on TransitionStep?
 //
@@ -51,32 +52,22 @@ impl<P: Protocol + Send> Russula<P> {
         }
     }
 
-    async fn poll_next(&mut self) -> RussulaResult<Poll<()>> {
-        for peer in self.peer_list.iter_mut() {
-            // poll till state and break if Pending
-            let poll = peer.protocol.poll_next(&peer.stream).await?;
-            if poll.is_pending() {
-                return Ok(Poll::Pending);
-            }
-        }
-        Ok(Poll::Ready(()))
-    }
-
     pub async fn run_till_state<F: Fn()>(&mut self, state: P::State, f: F) -> RussulaResult<()> {
-        let mut tries = 15;
-        while !self.check_self_state(state).await.unwrap() {
-            if let Err(err) = self.poll_next().await {
-                if err.is_fatal() {
-                    panic!("{}", err);
+        loop {
+            for peer in self.peer_list.iter_mut() {
+                // only run if the state doesnt match
+                if !state.eq(peer.protocol.state()) {
+                    if let Err(err) = peer.protocol.poll_next(&peer.stream).await {
+                        if err.is_fatal() {
+                            panic!("{}", err);
+                        }
+                    }
+                    f();
                 }
             }
-            f();
-
-            tries -= 1;
-            if tries == 0 {
-                panic!("didnt complete")
+            if self.self_state_matches(state) {
+                break;
             }
-
             tokio::time::sleep(POLL_RETRY_DURATION).await;
         }
 
@@ -84,7 +75,6 @@ impl<P: Protocol + Send> Russula<P> {
     }
 
     /// Notify peer that coordinator is done. This is best effort
-    // FIXME absorb this in to the Finished state to make all protocols impls more resilient
     pub async fn notify_peer_done(&mut self) -> RussulaResult<()> {
         for peer in self.peer_list.iter_mut() {
             if !peer.protocol.is_done_state() {
@@ -105,23 +95,15 @@ impl<P: Protocol + Send> Russula<P> {
         Ok(())
     }
 
-    pub async fn check_self_state(&self, state: P::State) -> RussulaResult<bool> {
-        let mut matches = true;
+    pub fn self_state_matches(&self, state: P::State) -> bool {
         for peer in self.peer_list.iter() {
             let protocol_state = peer.protocol.state();
-            matches &= state.eq(protocol_state);
+            if !state.eq(protocol_state) {
+                return false;
+            }
             // println!("{:?} {:?} {}", protocol_state, state, matches);
         }
-        Ok(matches)
-    }
-
-    pub fn transition_step(&mut self) -> Vec<TransitionStep> {
-        let mut steps = Vec::new();
-        for peer in self.peer_list.iter() {
-            let step = peer.protocol.state().transition_step();
-            steps.push(step);
-        }
-        steps
+        true
     }
 }
 
@@ -226,10 +208,7 @@ mod tests {
 
         println!("\nSTEP 1 --------------- : confirm current ready state");
         {
-            assert!(coord
-                .check_self_state(server::CoordState::Ready)
-                .await
-                .unwrap());
+            assert!(coord.self_state_matches(server::CoordState::Ready));
         }
 
         println!("\nSTEP 2 --------------- : poll next coord step");
@@ -264,14 +243,8 @@ mod tests {
             let (worker1, worker2) = tokio::join!(w1, w2);
             let worker1 = worker1.unwrap();
             let worker2 = worker2.unwrap();
-            assert!(worker1
-                .check_self_state(server::WorkerState::Done)
-                .await
-                .unwrap());
-            assert!(worker2
-                .check_self_state(server::WorkerState::Done)
-                .await
-                .unwrap());
+            assert!(worker1.self_state_matches(server::WorkerState::Done));
+            assert!(worker2.self_state_matches(server::WorkerState::Done));
         }
 
         assert!(22 == 20, "\n\n\nSUCCESS ---------------- INTENTIONAL FAIL");
@@ -328,10 +301,7 @@ mod tests {
 
         println!("\nclient-STEP 1 --------------- : confirm current ready state");
         {
-            assert!(coord
-                .check_self_state(client::CoordState::Ready)
-                .await
-                .unwrap());
+            assert!(coord.self_state_matches(client::CoordState::Ready));
         }
 
         println!("\nclient-STEP 2 --------------- : wait for workers to run");
@@ -358,14 +328,8 @@ mod tests {
             let (worker1, worker2) = tokio::join!(w1, w2);
             let worker1 = worker1.unwrap();
             let worker2 = worker2.unwrap();
-            assert!(worker1
-                .check_self_state(client::WorkerState::Done)
-                .await
-                .unwrap());
-            assert!(worker2
-                .check_self_state(client::WorkerState::Done)
-                .await
-                .unwrap());
+            assert!(worker1.self_state_matches(client::WorkerState::Done));
+            assert!(worker2.self_state_matches(client::WorkerState::Done));
         }
 
         assert!(
