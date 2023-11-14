@@ -52,22 +52,18 @@ impl<P: Protocol + Send> Russula<P> {
     }
 
     async fn poll_next(&mut self) -> RussulaResult<Poll<()>> {
-        let mut tries = 10;
         for peer in self.peer_list.iter_mut() {
             // poll till state and break if Pending
             let poll = peer.protocol.poll_next(&peer.stream).await?;
             if poll.is_pending() {
                 return Ok(Poll::Pending);
             }
-            tries -= 1;
-            if tries == 0 {
-                panic!("didnt complete")
-            }
         }
         Ok(Poll::Ready(()))
     }
 
     pub async fn run_till_state<F: Fn()>(&mut self, state: P::State, f: F) -> RussulaResult<()> {
+        let mut tries = 15;
         while !self.check_self_state(state).await.unwrap() {
             if let Err(err) = self.poll_next().await {
                 if err.is_fatal() {
@@ -75,6 +71,12 @@ impl<P: Protocol + Send> Russula<P> {
                 }
             }
             f();
+
+            tries -= 1;
+            if tries == 0 {
+                panic!("didnt complete")
+            }
+
             tokio::time::sleep(POLL_RETRY_DURATION).await;
         }
 
