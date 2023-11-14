@@ -218,7 +218,7 @@ mod tests {
                 .await
                 .unwrap();
             // // sleep to simulate the server running for some time
-            // tokio::time::sleep(POLL_RETRY_DURATION).await;
+            // tokio::time::sleep(Duration::from_secs(5)).await;
         }
 
         println!("\nSTEP 3 --------------- : kill worker");

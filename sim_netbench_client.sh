@@ -11,7 +11,7 @@ cd test_output
 touch $id
 echo "--------" >> $id
 
-    while [ $ctr -le 5 ]
+    while [ $ctr -le 4 ]
     do
         echo $ctr >> $id
         sleep 1
