@@ -21,6 +21,9 @@ use s3_utils::*;
 use ssm_utils::*;
 use state::*;
 
+// TODO
+// meta/hooks to kill ec2 hosts
+
 async fn check_requirements(iam_client: &aws_sdk_iam::Client) -> OrchResult<()> {
     // export PATH="/home/toidiu/projects/s2n-quic/netbench/target/release/:$PATH"
     Command::new("netbench-cli")
@@ -127,8 +130,8 @@ async fn main() -> OrchResult<()> {
 
     // ---------------------- running, git pull, cargo build, rusulla.start()
 
-    // let server = { [server_hosts] };
-    // let client = { [client_hosts] };
+    // let server_russul = { [server_hosts] };
+    // let client_russul = { [client_hosts] };
     //
     // server_russula.run_till_ready().await
     // client_russula.run_till_ready().await

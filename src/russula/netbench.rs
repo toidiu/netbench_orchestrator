@@ -6,6 +6,37 @@ mod client_worker;
 mod server_coord;
 mod server_worker;
 
+// CheckWorker   --------->  WaitCoordInit
+//                              |
+//                              v
+// CheckWorker   <---------  Ready
+//    |
+//    v
+// Ready
+//    | (user)
+//    v
+// RunWorker     --------->  Ready
+//                              |
+//                              v
+//                           Run
+//                              | (self)
+//                              v
+// RunWorker     <---------  RunningAwaitKill
+//    |
+//    v
+// WorkersRunning
+//    | (user)
+//    v
+// KillWorker    --------->  RunningAwaitKill
+//                              |
+//                              v
+// WorkerKilled  <---------  Stopped
+//    |
+//    v
+// Done          --------->  Stopped
+//                              |
+//                              v
+//                           Done
 pub mod server {
     pub use super::{server_coord::*, server_worker::*};
 }
