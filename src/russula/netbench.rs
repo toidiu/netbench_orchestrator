@@ -30,6 +30,9 @@ mod server_worker;
 // KillWorker    --------->  RunningAwaitKill
 //                              |
 //                              v
+//                           Killing
+//                              | (self)
+//                              v
 // WorkerKilled  <---------  Stopped
 //    |
 //    v

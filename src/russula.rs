@@ -15,6 +15,7 @@ use error::{RussulaError, RussulaResult};
 use protocol::{Protocol, StateApi, TransitionStep};
 
 // TODO
+// - track peer state for reporting
 // - make notify_peer_done part of the protocol impl
 // - make state transitions nicer
 //   - match on TransitionStep?

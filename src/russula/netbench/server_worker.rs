@@ -14,6 +14,9 @@ use std::{net::SocketAddr, process::Command};
 use sysinfo::{Pid, PidExt, ProcessExt, SystemExt};
 use tokio::net::{TcpListener, TcpStream};
 
+// Only used when creating a state variant
+const PLACEHOLDER_PID: u32 = 1000;
+
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 pub enum WorkerState {
     WaitCoordInit,
@@ -155,7 +158,7 @@ impl StateApi for WorkerState {
             WorkerState::WaitCoordInit => WorkerState::Ready,
             WorkerState::Ready => WorkerState::Run,
             // FIXME error prone
-            WorkerState::Run => WorkerState::RunningAwaitKill(0),
+            WorkerState::Run => WorkerState::RunningAwaitKill(PLACEHOLDER_PID),
             WorkerState::RunningAwaitKill(pid) => WorkerState::Killing(*pid),
             WorkerState::Killing(_) => WorkerState::Stopped,
             WorkerState::Stopped => WorkerState::Done,
