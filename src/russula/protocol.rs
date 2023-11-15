@@ -16,6 +16,17 @@ pub(crate) struct RussulaPeer<P: Protocol> {
     pub protocol: P,
 }
 
+// impl<P: Protocol> RussulaPeer<P> {
+//     async fn poll_state(
+//         &mut self,
+//         stream: &TcpStream,
+//         state: &P::State,
+//     ) -> RussulaResult<Poll<()>> {
+//         let stream = self.stream;
+//         self.protocol.poll_state(&stream, state).await
+//     }
+// }
+
 #[async_trait]
 pub trait Protocol: Clone {
     type State: StateApi + Debug + Copy;
@@ -40,7 +51,7 @@ pub trait Protocol: Clone {
         if !self.state().eq(state) {
             let prev = *self.state();
             let name = self.name();
-            self.state_mut().run(stream, name).await?;
+            if let Some(msg) = self.state_mut().run(stream, name).await? {}
             println!(
                 "{} poll_state--------{:?} -> {:?}",
                 self.name(),
@@ -58,12 +69,8 @@ pub trait Protocol: Clone {
 
     async fn run_current(&mut self, stream: &TcpStream) -> RussulaResult<()> {
         let name = self.name();
-        self.state_mut().run(stream, name).await
-    }
-
-    async fn poll_next(&mut self, stream: &TcpStream) -> RussulaResult<Poll<()>> {
-        let state = self.state().next_state();
-        self.poll_state(stream, &state).await
+        if let Some(msg) = self.state_mut().run(stream, name).await? {}
+        Ok(())
     }
 
     fn state(&self) -> &Self::State;
@@ -100,9 +107,10 @@ pub trait StateApi: Sized + Send + Sync + Debug + Serialize {
         )
     }
 
-    async fn run(&mut self, stream: &TcpStream, name: String) -> RussulaResult<()>;
+    async fn run(&mut self, stream: &TcpStream, _name: String) -> RussulaResult<Option<Msg>>;
     fn transition_step(&self) -> TransitionStep;
     fn next_state(&self) -> Self;
+    fn update_peer_state(&mut self, msg: &Msg) {}
 
     async fn notify_peer(&self, stream: &TcpStream) -> RussulaResult<usize> {
         let msg = Msg::new(self.as_bytes());
@@ -138,9 +146,11 @@ pub trait StateApi: Sized + Send + Sync + Debug + Serialize {
         if !matches!(self.transition_step(), TransitionStep::AwaitNext(_)) {
             panic!("expected AwaitNext but found: {:?}", self.transition_step());
         }
-        // loop until we receive a transition msg from peer or drain all msg from queue
+        // loop until we receive a transition msg from peer or drain all msg from queue.
+        // recv_msg aborts if the read queue is empty
         loop {
             let mut msg = network_utils::recv_msg(stream).await?;
+            self.update_peer_state(&msg);
             println!("{} <---- recv msg {:?}", self.name(stream), msg);
 
             if self.matches_transition_msg(stream, &mut msg).await? {

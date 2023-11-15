@@ -56,15 +56,12 @@ impl<P: Protocol + Send> Russula<P> {
     pub async fn run_till_state<F: Fn()>(&mut self, state: P::State, f: F) -> RussulaResult<()> {
         loop {
             for peer in self.peer_list.iter_mut() {
-                // only run if the state doesnt match
-                if !state.eq(peer.protocol.state()) {
-                    if let Err(err) = peer.protocol.poll_next(&peer.stream).await {
-                        if err.is_fatal() {
-                            panic!("{}", err);
-                        }
+                if let Err(err) = peer.protocol.poll_state(&peer.stream, &state).await {
+                    if err.is_fatal() {
+                        panic!("{}", err);
                     }
-                    f();
                 }
+                f();
             }
             if self.self_state_matches(state) {
                 break;

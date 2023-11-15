@@ -4,6 +4,7 @@
 use crate::russula::{
     error::{RussulaError, RussulaResult},
     netbench::server_coord::CoordState,
+    network_utils::Msg,
     protocol::Protocol,
     StateApi, TransitionStep,
 };
@@ -80,7 +81,7 @@ impl StateApi for WorkerState {
         "worker".to_string()
     }
 
-    async fn run(&mut self, stream: &TcpStream, name: String) -> RussulaResult<()> {
+    async fn run(&mut self, stream: &TcpStream, name: String) -> RussulaResult<Option<Msg>> {
         match self {
             WorkerState::WaitCoordInit => {
                 // self.notify_peer(stream).await?;
@@ -134,7 +135,7 @@ impl StateApi for WorkerState {
                 self.notify_peer(stream).await?;
             }
         }
-        Ok(())
+        Ok(None)
     }
 
     fn transition_step(&self) -> TransitionStep {

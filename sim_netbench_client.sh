@@ -13,7 +13,7 @@ echo "--------" >> $id
 
     while [ $ctr -le 4 ]
     do
-        echo $ctr >> $id
+        echo "c $ctr" >> "$id"
         sleep 1
         ctr=$((ctr+1))
     done
