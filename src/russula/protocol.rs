@@ -41,7 +41,7 @@ pub trait Protocol: Clone {
             let prev = *self.state();
             let name = self.name();
             if let Some(msg) = self.state_mut().run(stream, name).await? {
-                self.update_peer_state(msg);
+                self.update_peer_state(msg)?;
             }
             println!(
                 "{} poll_state--------{:?} -> {:?}",
@@ -61,14 +61,12 @@ pub trait Protocol: Clone {
     async fn run_current(&mut self, stream: &TcpStream) -> RussulaResult<()> {
         let name = self.name();
         if let Some(msg) = self.state_mut().run(stream, name).await? {
-            self.update_peer_state(msg);
+            self.update_peer_state(msg)?;
         }
         Ok(())
     }
 
-    fn update_peer_state(&mut self, msg: Msg) -> RussulaResult<()> {
-        Ok(())
-    }
+    fn update_peer_state(&mut self, msg: Msg) -> RussulaResult<()>;
     fn state(&self) -> &Self::State;
     fn state_mut(&mut self) -> &mut Self::State;
     fn state_ready(&self) -> Self::State;

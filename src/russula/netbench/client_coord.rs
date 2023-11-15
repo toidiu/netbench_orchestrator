@@ -55,7 +55,7 @@ impl Protocol for CoordProtocol {
     fn update_peer_state(&mut self, msg: Msg) -> RussulaResult<()> {
         self.worker_state = WorkerState::from_msg(msg)?;
         println!(
-            "{} i3i3l2iasdiei................................................................. {:?}",
+            "{} ................................................................. {:?}",
             self.name(),
             self.worker_state
         );
@@ -86,25 +86,25 @@ impl StateApi for CoordState {
         match self {
             CoordState::CheckWorker => {
                 self.notify_peer(stream).await?;
-                self.await_next_msg(stream).await?;
+                self.await_next_msg(stream).await.map(Some)
             }
             CoordState::Ready => {
                 self.transition_self_or_user_driven(stream).await?;
-                // self.await_peer_msg(stream).await?;
+                Ok(None)
             }
             CoordState::RunWorker => {
                 self.notify_peer(stream).await?;
-                self.await_next_msg(stream).await?;
+                self.await_next_msg(stream).await.map(Some)
             }
             CoordState::WorkerRunning => {
                 self.notify_peer(stream).await?;
-                self.await_next_msg(stream).await?;
+                self.await_next_msg(stream).await.map(Some)
             }
             CoordState::Done => {
                 self.notify_peer(stream).await?;
+                Ok(None)
             }
         }
-        Ok(None)
     }
 
     fn transition_step(&self) -> TransitionStep {

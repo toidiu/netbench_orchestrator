@@ -33,6 +33,7 @@ pub enum WorkerState {
 pub struct WorkerProtocol {
     id: u16,
     state: WorkerState,
+    coord_state: CoordState,
 }
 
 impl WorkerProtocol {
@@ -40,6 +41,7 @@ impl WorkerProtocol {
         WorkerProtocol {
             id,
             state: WorkerState::WaitCoordInit,
+            coord_state: CoordState::CheckWorker,
         }
     }
 }
@@ -60,6 +62,17 @@ impl Protocol for WorkerProtocol {
         println!("{} success connection: {addr}", self.name());
 
         Ok(stream)
+    }
+
+    fn update_peer_state(&mut self, msg: Msg) -> RussulaResult<()> {
+        self.coord_state = CoordState::from_msg(msg)?;
+        println!(
+            "{} ................................................................. {:?}",
+            self.name(),
+            self.coord_state
+        );
+
+        Ok(())
     }
 
     fn state(&self) -> &Self::State {
@@ -85,16 +98,16 @@ impl StateApi for WorkerState {
         match self {
             WorkerState::WaitCoordInit => {
                 // self.notify_peer(stream).await?;
-                self.await_next_msg(stream).await?;
+                self.await_next_msg(stream).await.map(Some)
             }
             WorkerState::Ready => {
                 self.notify_peer(stream).await?;
-                self.await_next_msg(stream).await?;
+                self.await_next_msg(stream).await.map(Some)
             }
             WorkerState::Run => {
                 // some long task
                 println!(
-                    "{} some looooooooooooooooooooooooooooooooooooooooooooong task",
+                    "{} starting some task sim_netbench_client",
                     self.name(stream)
                 );
                 let child = Command::new("sh")
@@ -110,10 +123,11 @@ impl StateApi for WorkerState {
                 );
 
                 *self = WorkerState::Running(pid);
+                Ok(None)
             }
             WorkerState::Running(_pid) => {
                 self.notify_peer(stream).await?;
-                self.await_next_msg(stream).await?;
+                self.await_next_msg(stream).await.map(Some)
             }
             WorkerState::RunningAwaitComplete(pid) => {
                 let pid = *pid;
@@ -138,16 +152,17 @@ impl StateApi for WorkerState {
 
                 // FIXME fix this
                 self.transition_self_or_user_driven(stream).await?;
+                Ok(None)
             }
             WorkerState::Stopped => {
                 self.notify_peer(stream).await?;
-                self.await_next_msg(stream).await?;
+                self.await_next_msg(stream).await.map(Some)
             }
             WorkerState::Done => {
                 self.notify_peer(stream).await?;
+                Ok(None)
             }
         }
-        Ok(None)
     }
 
     fn transition_step(&self) -> TransitionStep {
