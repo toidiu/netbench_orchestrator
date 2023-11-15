@@ -4,7 +4,11 @@
 mod error;
 mod russula;
 
-use error::{OrchError, OrchResult};
+use error::OrchResult;
+use russula::netbench::client;
+use russula::RussulaBuilder;
+use std::str::FromStr;
+use std::{collections::BTreeSet, net::SocketAddr};
 use structopt::{clap::arg_enum, StructOpt};
 
 #[derive(StructOpt)]
@@ -16,8 +20,6 @@ struct Opt {
 
 arg_enum! {
 enum RussulaProtocol {
-    NetbenchServerWorker,
-    NetbenchServerCoordinator,
     NetbenchClientWorker,
     NetbenchClientCoordinator,
 }
@@ -29,6 +31,25 @@ async fn main() -> OrchResult<()> {
 
     tracing_subscriber::fmt::init();
 
+    match opt.protocol {
+        RussulaProtocol::NetbenchClientWorker => run_client_worker().await,
+        RussulaProtocol::NetbenchClientCoordinator => run_client_coord().await,
+    };
+
     println!("hi");
     Ok(())
+}
+
+async fn run_client_worker() {
+    let w1_sock = SocketAddr::from_str("127.0.0.1:8991").unwrap();
+    let protocol = client::WorkerProtocol::new(w1_sock.port());
+    let worker = RussulaBuilder::new(BTreeSet::from_iter([w1_sock]), protocol);
+    let _worker = worker.build().await.unwrap();
+}
+
+async fn run_client_coord() {
+    let w1_sock = SocketAddr::from_str("127.0.0.1:8991").unwrap();
+    let protocol = client::CoordProtocol::new();
+    let worker = RussulaBuilder::new(BTreeSet::from_iter([w1_sock]), protocol);
+    let _coord = worker.build().await.unwrap();
 }

@@ -6,7 +6,7 @@ use core::{task::Poll, time::Duration};
 use std::{collections::BTreeSet, net::SocketAddr};
 
 mod error;
-mod netbench;
+pub mod netbench;
 mod network_utils;
 mod protocol;
 mod state_action;
