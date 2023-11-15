@@ -1,7 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-use super::network_utils::Msg;
+use super::{error::RussulaError, network_utils::Msg};
 use crate::russula::{network_utils, RussulaResult};
 use async_trait::async_trait;
 use bytes::Bytes;
@@ -41,7 +41,7 @@ pub trait Protocol: Clone {
             let prev = *self.state();
             let name = self.name();
             if let Some(msg) = self.state_mut().run(stream, name).await? {
-                self.update_peer_state(msg)
+                self.update_peer_state(msg);
             }
             println!(
                 "{} poll_state--------{:?} -> {:?}",
@@ -61,12 +61,14 @@ pub trait Protocol: Clone {
     async fn run_current(&mut self, stream: &TcpStream) -> RussulaResult<()> {
         let name = self.name();
         if let Some(msg) = self.state_mut().run(stream, name).await? {
-            self.update_peer_state(msg)
+            self.update_peer_state(msg);
         }
         Ok(())
     }
 
-    fn update_peer_state(&mut self, msg: Msg) {}
+    fn update_peer_state(&mut self, msg: Msg) -> RussulaResult<()> {
+        Ok(())
+    }
     fn state(&self) -> &Self::State;
     fn state_mut(&mut self) -> &mut Self::State;
     fn state_ready(&self) -> Self::State;
@@ -185,7 +187,19 @@ pub trait StateApi: Sized + Send + Sync + Debug + Serialize + for<'a> Deserializ
         serde_json::to_string(self).unwrap().into()
     }
 
-    fn from_msg(msg: Msg) -> Self {
-        serde_json::from_str(std::str::from_utf8(&msg.data).unwrap()).unwrap()
+    fn from_msg(msg: Msg) -> RussulaResult<Self> {
+        let msg_str = std::str::from_utf8(&msg.data).map_err(|_err| RussulaError::BadMsg {
+            dbg: format!(
+                "received a malformed msg. len: {} data: {:?}",
+                msg.len, msg.data
+            ),
+        })?;
+
+        serde_json::from_str(msg_str).map_err(|_err| RussulaError::BadMsg {
+            dbg: format!(
+                "received a malformed msg. len: {} data: {:?}",
+                msg.len, msg.data
+            ),
+        })
     }
 }

@@ -54,12 +54,15 @@ impl Protocol for CoordProtocol {
         Ok(connect)
     }
 
-    fn update_peer_state(&mut self, msg: Msg) {
-        self.worker_state = WorkerState::from_msg(msg);
+    fn update_peer_state(&mut self, msg: Msg) -> RussulaResult<()> {
+        self.worker_state = WorkerState::from_msg(msg)?;
         println!(
-            "i3i3l2iasdiei................................................................. {:?}",
+            "{} i3i3l2iasdiei................................................................. {:?}",
+            self.name(),
             self.worker_state
         );
+
+        Ok(())
     }
 
     fn state(&self) -> &Self::State {

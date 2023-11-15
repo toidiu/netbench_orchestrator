@@ -42,7 +42,7 @@ async fn read_msg(stream: &TcpStream) -> RussulaResult<Msg> {
 
 #[derive(Debug)]
 pub struct Msg {
-    len: u8,
+    pub len: u8,
     pub data: Bytes,
 }
 
