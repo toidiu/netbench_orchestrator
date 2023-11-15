@@ -54,6 +54,14 @@ impl Protocol for CoordProtocol {
         Ok(connect)
     }
 
+    fn update_peer_state(&mut self, msg: Msg) {
+        self.worker_state = WorkerState::from_msg(msg);
+        println!(
+            "i3i3l2iasdiei................................................................. {:?}",
+            self.worker_state
+        );
+    }
+
     fn state(&self) -> &Self::State {
         &self.state
     }
@@ -77,31 +85,34 @@ impl StateApi for CoordState {
         match self {
             CoordState::CheckWorker => {
                 self.notify_peer(stream).await?;
-                self.await_next_msg(stream).await?;
+                self.await_next_msg(stream).await.map(Some)
             }
             CoordState::Ready => {
                 self.transition_self_or_user_driven(stream).await?;
+                Ok(None)
             }
             CoordState::RunWorker => {
                 self.notify_peer(stream).await?;
-                self.await_next_msg(stream).await?;
+                self.await_next_msg(stream).await.map(Some)
             }
             CoordState::WorkersRunning => {
                 self.transition_self_or_user_driven(stream).await?;
+                Ok(None)
             }
             CoordState::KillWorker => {
                 self.notify_peer(stream).await?;
-                self.await_next_msg(stream).await?;
+                self.await_next_msg(stream).await.map(Some)
             }
             CoordState::WorkerKilled => {
                 self.transition_self_or_user_driven(stream).await?;
+                Ok(None)
             }
             CoordState::Done => {
                 // panic!("stopped---------------------------------");
                 self.notify_peer(stream).await?;
+                Ok(None)
             }
         }
-        Ok(None)
     }
 
     fn transition_step(&self) -> TransitionStep {

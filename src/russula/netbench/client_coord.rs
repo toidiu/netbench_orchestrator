@@ -26,12 +26,14 @@ pub enum CoordState {
 #[derive(Clone, Copy)]
 pub struct CoordProtocol {
     state: CoordState,
+    worker_state: WorkerState,
 }
 
 impl CoordProtocol {
     pub fn new() -> Self {
         CoordProtocol {
             state: CoordState::CheckWorker,
+            worker_state: WorkerState::WaitCoordInit,
         }
     }
 }
@@ -48,6 +50,10 @@ impl Protocol for CoordProtocol {
 
         let connect = TcpStream::connect(addr).await.map_err(RussulaError::from)?;
         Ok(connect)
+    }
+
+    fn update_peer_state(&mut self, msg: Msg) {
+        self.worker_state = WorkerState::from_msg(msg);
     }
 
     fn state(&self) -> &Self::State {

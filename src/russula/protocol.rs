@@ -6,7 +6,7 @@ use crate::russula::{network_utils, RussulaResult};
 use async_trait::async_trait;
 use bytes::Bytes;
 use core::{fmt::Debug, task::Poll};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 use tokio::net::TcpStream;
 
@@ -15,17 +15,6 @@ pub(crate) struct RussulaPeer<P: Protocol> {
     pub stream: TcpStream,
     pub protocol: P,
 }
-
-// impl<P: Protocol> RussulaPeer<P> {
-//     async fn poll_state(
-//         &mut self,
-//         stream: &TcpStream,
-//         state: &P::State,
-//     ) -> RussulaResult<Poll<()>> {
-//         let stream = self.stream;
-//         self.protocol.poll_state(&stream, state).await
-//     }
-// }
 
 #[async_trait]
 pub trait Protocol: Clone {
@@ -51,7 +40,9 @@ pub trait Protocol: Clone {
         if !self.state().eq(state) {
             let prev = *self.state();
             let name = self.name();
-            if let Some(msg) = self.state_mut().run(stream, name).await? {}
+            if let Some(msg) = self.state_mut().run(stream, name).await? {
+                self.update_peer_state(msg)
+            }
             println!(
                 "{} poll_state--------{:?} -> {:?}",
                 self.name(),
@@ -69,10 +60,13 @@ pub trait Protocol: Clone {
 
     async fn run_current(&mut self, stream: &TcpStream) -> RussulaResult<()> {
         let name = self.name();
-        if let Some(msg) = self.state_mut().run(stream, name).await? {}
+        if let Some(msg) = self.state_mut().run(stream, name).await? {
+            self.update_peer_state(msg)
+        }
         Ok(())
     }
 
+    fn update_peer_state(&mut self, msg: Msg) {}
     fn state(&self) -> &Self::State;
     fn state_mut(&mut self) -> &mut Self::State;
     fn state_ready(&self) -> Self::State;
@@ -96,7 +90,7 @@ pub enum TransitionStep {
 }
 
 #[async_trait]
-pub trait StateApi: Sized + Send + Sync + Debug + Serialize {
+pub trait StateApi: Sized + Send + Sync + Debug + Serialize + for<'a> Deserialize<'a> {
     fn name_prefix(&self) -> String;
 
     fn name(&self, stream: &TcpStream) -> String {
@@ -110,7 +104,6 @@ pub trait StateApi: Sized + Send + Sync + Debug + Serialize {
     async fn run(&mut self, stream: &TcpStream, _name: String) -> RussulaResult<Option<Msg>>;
     fn transition_step(&self) -> TransitionStep;
     fn next_state(&self) -> Self;
-    fn update_peer_state(&mut self, msg: &Msg) {}
 
     async fn notify_peer(&self, stream: &TcpStream) -> RussulaResult<usize> {
         let msg = Msg::new(self.as_bytes());
@@ -142,18 +135,18 @@ pub trait StateApi: Sized + Send + Sync + Debug + Serialize {
         self.notify_peer(stream).await.map(|_| ())
     }
 
-    async fn await_next_msg(&mut self, stream: &TcpStream) -> RussulaResult<()> {
+    async fn await_next_msg(&mut self, stream: &TcpStream) -> RussulaResult<Msg> {
         if !matches!(self.transition_step(), TransitionStep::AwaitNext(_)) {
             panic!("expected AwaitNext but found: {:?}", self.transition_step());
         }
         // loop until we receive a transition msg from peer or drain all msg from queue.
         // recv_msg aborts if the read queue is empty
+        let mut last_msg;
         loop {
-            let mut msg = network_utils::recv_msg(stream).await?;
-            self.update_peer_state(&msg);
-            println!("{} <---- recv msg {:?}", self.name(stream), msg);
+            last_msg = network_utils::recv_msg(stream).await?;
+            println!("{} <---- recv msg {:?}", self.name(stream), last_msg);
 
-            if self.matches_transition_msg(stream, &mut msg).await? {
+            if self.matches_transition_msg(stream, &mut last_msg).await? {
                 self.transition_next(stream).await?;
                 break;
             } else {
@@ -161,7 +154,7 @@ pub trait StateApi: Sized + Send + Sync + Debug + Serialize {
             }
         }
 
-        Ok(())
+        Ok(last_msg)
     }
 
     async fn matches_transition_msg(
@@ -190,5 +183,9 @@ pub trait StateApi: Sized + Send + Sync + Debug + Serialize {
 
     fn as_bytes(&self) -> Bytes {
         serde_json::to_string(self).unwrap().into()
+    }
+
+    fn from_msg(msg: Msg) -> Self {
+        serde_json::from_str(std::str::from_utf8(&msg.data).unwrap()).unwrap()
     }
 }
