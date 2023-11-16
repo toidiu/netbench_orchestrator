@@ -5,18 +5,22 @@ mod error;
 mod russula;
 
 use error::OrchResult;
-use russula::netbench::client;
-use russula::netbench::server;
-use russula::RussulaBuilder;
-use std::str::FromStr;
-use std::{collections::BTreeSet, net::SocketAddr};
+use russula::{
+    netbench::{client, server},
+    RussulaBuilder,
+};
+use std::{collections::BTreeSet, net::SocketAddr, str::FromStr};
 use structopt::{clap::arg_enum, StructOpt};
 
 #[derive(StructOpt)]
 struct Opt {
     /// specify the protocol
-    #[structopt(possible_values = &RussulaProtocol::variants(), case_insensitive = true, long, short)]
+    #[structopt(possible_values = &RussulaProtocol::variants(), case_insensitive = true, long)]
     protocol: RussulaProtocol,
+
+    /// specify the port
+    #[structopt(long)]
+    port: u16,
 }
 
 arg_enum! {
@@ -33,24 +37,24 @@ async fn main() -> OrchResult<()> {
     tracing_subscriber::fmt::init();
 
     match opt.protocol {
-        RussulaProtocol::NetbenchClientWorker => run_client_worker().await,
-        RussulaProtocol::NetbenchServerWorker => run_server_worker().await,
+        RussulaProtocol::NetbenchClientWorker => run_client_worker(opt.port).await,
+        RussulaProtocol::NetbenchServerWorker => run_server_worker(opt.port).await,
     };
 
     println!("hi");
     Ok(())
 }
 
-async fn run_client_worker() {
-    let w1_sock = SocketAddr::from_str("127.0.0.1:8991").unwrap();
-    let protocol = client::WorkerProtocol::new(w1_sock.port());
+async fn run_client_worker(port: u16) {
+    let w1_sock = SocketAddr::from_str(&format!("127.0.0.1:{}", port)).unwrap();
+    let protocol = client::WorkerProtocol::new(port);
     let worker = RussulaBuilder::new(BTreeSet::from_iter([w1_sock]), protocol);
     let _worker = worker.build().await.unwrap();
 }
 
-async fn run_server_worker() {
-    let w1_sock = SocketAddr::from_str("127.0.0.1:8991").unwrap();
-    let protocol = server::WorkerProtocol::new(w1_sock.port());
+async fn run_server_worker(port: u16) {
+    let w1_sock = SocketAddr::from_str(&format!("127.0.0.1:{}", port)).unwrap();
+    let protocol = server::WorkerProtocol::new(port);
     let worker = RussulaBuilder::new(BTreeSet::from_iter([w1_sock]), protocol);
     let _coord = worker.build().await.unwrap();
 }
