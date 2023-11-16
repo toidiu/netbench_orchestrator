@@ -5,10 +5,7 @@ mod error;
 mod russula;
 
 use error::OrchResult;
-use russula::{
-    netbench::{client, server},
-    RussulaBuilder,
-};
+use russula::{netbench::server, RussulaBuilder};
 use std::{collections::BTreeSet, net::SocketAddr, str::FromStr};
 use structopt::{clap::arg_enum, StructOpt};
 

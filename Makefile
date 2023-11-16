@@ -4,6 +4,6 @@ net_server_worker:
 	cargo run --bin russula -- --protocol NetbenchServerWorker
 
 
-net_client_worker:
-	cargo run --bin russula -- --protocol NetbenchClientWorker
+# net_client_worker:
+# 	cargo run --bin russula -- --protocol NetbenchClientWorker
 

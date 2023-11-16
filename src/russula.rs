@@ -1,6 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+#![allow(unused)]
 use crate::russula::protocol::{RussulaPeer, SockProtocol};
 use core::{task::Poll, time::Duration};
 use std::{collections::BTreeSet, net::SocketAddr};
@@ -9,7 +10,6 @@ mod error;
 pub mod netbench;
 mod network_utils;
 mod protocol;
-mod state_action;
 
 use error::{RussulaError, RussulaResult};
 use protocol::{Protocol, StateApi, TransitionStep};
