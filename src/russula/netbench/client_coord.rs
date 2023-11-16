@@ -19,7 +19,7 @@ pub enum CoordState {
     CheckWorker,
     Ready,
     RunWorker,
-    WorkerRunning,
+    WorkersRunning,
     Done,
 }
 
@@ -96,7 +96,7 @@ impl StateApi for CoordState {
                 self.notify_peer(stream).await?;
                 self.await_next_msg(stream).await.map(Some)
             }
-            CoordState::WorkerRunning => {
+            CoordState::WorkersRunning => {
                 self.notify_peer(stream).await?;
                 self.await_next_msg(stream).await.map(Some)
             }
@@ -112,7 +112,9 @@ impl StateApi for CoordState {
             CoordState::CheckWorker => TransitionStep::AwaitNext(WorkerState::Ready.as_bytes()),
             CoordState::Ready => TransitionStep::UserDriven,
             CoordState::RunWorker => TransitionStep::AwaitNext(WorkerState::Running(0).as_bytes()),
-            CoordState::WorkerRunning => TransitionStep::AwaitNext(WorkerState::Stopped.as_bytes()),
+            CoordState::WorkersRunning => {
+                TransitionStep::AwaitNext(WorkerState::Stopped.as_bytes())
+            }
             CoordState::Done => TransitionStep::Finished,
         }
     }
@@ -121,8 +123,8 @@ impl StateApi for CoordState {
         match self {
             CoordState::CheckWorker => CoordState::Ready,
             CoordState::Ready => CoordState::RunWorker,
-            CoordState::RunWorker => CoordState::WorkerRunning,
-            CoordState::WorkerRunning => CoordState::Done,
+            CoordState::RunWorker => CoordState::WorkersRunning,
+            CoordState::WorkersRunning => CoordState::Done,
             CoordState::Done => CoordState::Done,
         }
     }

@@ -173,7 +173,7 @@ impl StateApi for WorkerState {
             WorkerState::Ready => TransitionStep::AwaitNext(CoordState::RunWorker.as_bytes()),
             WorkerState::Run => TransitionStep::SelfDriven,
             WorkerState::Running(_) => {
-                TransitionStep::AwaitNext(CoordState::WorkerRunning.as_bytes())
+                TransitionStep::AwaitNext(CoordState::WorkersRunning.as_bytes())
             }
             WorkerState::RunningAwaitComplete(_) => TransitionStep::SelfDriven,
             WorkerState::Stopped => TransitionStep::AwaitNext(CoordState::Done.as_bytes()),

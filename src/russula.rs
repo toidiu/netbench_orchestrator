@@ -305,7 +305,7 @@ mod tests {
         println!("\nclient-STEP 2 --------------- : wait for workers to run");
         {
             coord
-                .run_till_state(client::CoordState::WorkerRunning, || {})
+                .run_till_state(client::CoordState::WorkersRunning, || {})
                 .await
                 .unwrap();
         }

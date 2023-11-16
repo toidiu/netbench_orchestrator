@@ -44,6 +44,37 @@ pub mod server {
     pub use super::{server_coord::*, server_worker::*};
 }
 
+// CheckWorker   --------->  WaitCoordInit
+//                              |
+//                              v
+// CheckWorker   <---------  Ready
+//    |
+//    v
+// Ready
+//    | (user)
+//    v
+// RunWorker     --------->  Ready
+//                              |
+//                              v
+//                           Run
+//                              | (self)
+//                              v
+// RunWorker     <---------  Running
+//    |
+//    v
+// WorkersRunning ---------> Running
+//                              |
+//                              v
+//                           RunningAwaitComplete
+//                              | (self)
+//                              v
+// WorkersRunning <---------  Stopped
+//    |
+//    v
+// Done          --------->  Stopped
+//                              |
+//                              v
+//                           Done
 pub mod client {
     pub use super::{client_coord::*, client_worker::*};
 }
