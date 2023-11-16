@@ -19,14 +19,15 @@ struct Opt {
     protocol: RussulaProtocol,
 
     /// specify the port
-    #[structopt(long)]
+    #[structopt(long, default_value = "8888")]
     port: u16,
 }
 
 arg_enum! {
 enum RussulaProtocol {
-    NetbenchClientWorker,
+    // NetbenchClientWorker,
     NetbenchServerWorker,
+    NetbenchServerCoordinator,
 }
 }
 
@@ -37,24 +38,32 @@ async fn main() -> OrchResult<()> {
     tracing_subscriber::fmt::init();
 
     match opt.protocol {
-        RussulaProtocol::NetbenchClientWorker => run_client_worker(opt.port).await,
+        // RussulaProtocol::NetbenchClientWorker => run_client_worker(opt.port).await,
         RussulaProtocol::NetbenchServerWorker => run_server_worker(opt.port).await,
+        RussulaProtocol::NetbenchServerCoordinator => run_server_coordinator(opt.port).await,
     };
 
     println!("hi");
     Ok(())
 }
 
-async fn run_client_worker(port: u16) {
-    let w1_sock = SocketAddr::from_str(&format!("127.0.0.1:{}", port)).unwrap();
-    let protocol = client::WorkerProtocol::new(port);
-    let worker = RussulaBuilder::new(BTreeSet::from_iter([w1_sock]), protocol);
-    let _worker = worker.build().await.unwrap();
-}
+// async fn run_client_worker(port: u16) {
+//     let w1_sock = SocketAddr::from_str(&format!("127.0.0.1:{}", port)).unwrap();
+//     let protocol = client::WorkerProtocol::new(port);
+//     let worker = RussulaBuilder::new(BTreeSet::from_iter([w1_sock]), protocol);
+//     let _worker = worker.build().await.unwrap();
+// }
 
 async fn run_server_worker(port: u16) {
     let w1_sock = SocketAddr::from_str(&format!("127.0.0.1:{}", port)).unwrap();
     let protocol = server::WorkerProtocol::new(port);
+    let worker = RussulaBuilder::new(BTreeSet::from_iter([w1_sock]), protocol);
+    let _coord = worker.build().await.unwrap();
+}
+
+async fn run_server_coordinator(port: u16) {
+    let w1_sock = SocketAddr::from_str(&format!("127.0.0.1:{}", port)).unwrap();
+    let protocol = server::CoordProtocol::new();
     let worker = RussulaBuilder::new(BTreeSet::from_iter([w1_sock]), protocol);
     let _coord = worker.build().await.unwrap();
 }
