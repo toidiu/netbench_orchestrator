@@ -146,11 +146,11 @@ async fn main() -> OrchResult<()> {
     // Copy results back
     orch_generate_report(&s3_client, &unique_id).await;
 
-    infra
-        .cleanup(&ec2_client)
-        .await
-        .map_err(|err| eprintln!("Failed to cleanup resources. {}", err))
-        .unwrap();
+    // infra
+    //     .cleanup(&ec2_client)
+    //     .await
+    //     .map_err(|err| eprintln!("Failed to cleanup resources. {}", err))
+    //     .unwrap();
 
     Ok(())
 }

@@ -20,7 +20,7 @@ pub const STATE: State = State {
     // TODO remove `vpc_region` and configure vpc/subnet in same `region`
     region: "us-west-1",
     vpc_region: "us-east-1",
-    instance_type: "c5.4xlarge",
+    instance_type: "c5.large",
     // Used to give permissions to the ec2 instance. Part of the IAM Role `NetbenchRunnerRole`
     instance_profile: "NetbenchRunnerInstanceProfile",
     // Used to find subnets with the following tag/value pair
