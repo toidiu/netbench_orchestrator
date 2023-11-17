@@ -5,7 +5,7 @@ use crate::ec2_utils::EndpointType;
 use core::time::Duration;
 
 pub const STATE: State = State {
-    version: "v1.0.18",
+    version: "v1.0.19",
 
     // git
     repo: "https://github.com/aws/s2n-quic.git",
@@ -20,7 +20,7 @@ pub const STATE: State = State {
     // TODO remove `vpc_region` and configure vpc/subnet in same `region`
     region: "us-west-1",
     vpc_region: "us-east-1",
-    instance_type: "c5.large",
+    instance_type: "c5.4xlarge",
     // Used to give permissions to the ec2 instance. Part of the IAM Role `NetbenchRunnerRole`
     instance_profile: "NetbenchRunnerInstanceProfile",
     // Used to find subnets with the following tag/value pair
@@ -33,12 +33,16 @@ pub const STATE: State = State {
 
     // orchestrator config
     host_count: HostCount {
-        clients: 3,
+        clients: 1,
         servers: 2,
     },
     workspace_dir: "./target/netbench",
     shutdown_time_sec: Duration::from_secs(60),
-    russula_port: 8888,
+
+    // russula
+    russula_repo: "https://github.com/toidiu/netbench_orchestrator.git",
+    russula_branch: "ak-main",
+    russula_port: 9000,
 };
 
 pub struct State {
@@ -64,7 +68,11 @@ pub struct State {
     pub host_count: HostCount,
     pub workspace_dir: &'static str,
     pub shutdown_time_sec: Duration,
-    pub russula_port: u16,
+
+    // russula
+    pub russula_repo: &'static str,
+    pub russula_branch: &'static str,
+    pub russula_port: i32,
 }
 
 #[derive(Clone)]

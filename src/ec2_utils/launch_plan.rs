@@ -130,6 +130,8 @@ async fn configure_networking(
         .collect();
 
     let ssh_ip_range = IpRange::builder().cidr_ip("0.0.0.0/0").build();
+    // TODO can we make this more restrictive?
+    let russula_ip_range = IpRange::builder().cidr_ip("0.0.0.0/0").build();
 
     ec2_client
         .authorize_security_group_egress()
@@ -164,6 +166,14 @@ async fn configure_networking(
                 .to_port(22)
                 .ip_protocol("tcp")
                 .ip_ranges(ssh_ip_range)
+                .build(),
+        )
+        .ip_permissions(
+            IpPermission::builder()
+                .from_port(STATE.russula_port)
+                .to_port(STATE.russula_port)
+                .ip_protocol("tcp")
+                .ip_ranges(russula_ip_range)
                 .build(),
         )
         .send()
