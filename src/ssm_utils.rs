@@ -24,7 +24,7 @@ pub async fn execute_ssm_client(
         format!("runuser -u ec2-user -- git clone --branch {} {}", STATE.russula_branch, STATE.russula_repo).as_str(),
         "cd netbench_orchestrator",
         "runuser -u ec2-user -- cargo build",
-        "runuser -u ec2-user -- RUST_LOG=debug cargo run --bin russula -- --protocol NetbenchClientWorker --port 8888",
+        format!("runuser -u ec2-user -- RUST_LOG=debug cargo run --bin russula -- --protocol NetbenchClientWorker --port {}", STATE.russula_port).as_str(),
         "cd ..",
 
         // russula END
