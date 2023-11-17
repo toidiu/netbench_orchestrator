@@ -46,7 +46,7 @@ pub async fn execute_ssm_client(
         "runuser -u ec2-user -- cd target/netbench",
         format!("runuser -u ec2-user -- aws s3 sync /home/ec2-user/s2n-quic/netbench/target/netbench {}", STATE.s3_path(unique_id)).as_str(),
         format!("runuser -u ec2-user -- echo report upload finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/client-step-8", STATE.s3_path(unique_id)).as_str(),
-        "shutdown -h +1",
+        // "shutdown -h +1",
         "exit 0"
     ].into_iter().map(String::from).collect()).await.expect("Timed out")
 }

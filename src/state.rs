@@ -34,7 +34,7 @@ pub const STATE: State = State {
     // orchestrator config
     host_count: HostCount {
         clients: 1,
-        servers: 2,
+        servers: 1,
     },
     workspace_dir: "./target/netbench",
     shutdown_time_sec: Duration::from_secs(86400), // 1 day
