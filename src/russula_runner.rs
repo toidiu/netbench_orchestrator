@@ -4,8 +4,9 @@
 mod error;
 mod russula;
 
+use core::time::Duration;
 use error::OrchResult;
-use russula::{netbench::server, RussulaBuilder};
+use russula::{error::RussulaError, netbench::server, RussulaBuilder};
 use std::{collections::BTreeSet, net::SocketAddr, str::FromStr};
 use structopt::{clap::arg_enum, StructOpt};
 
@@ -50,6 +51,13 @@ async fn run_server_worker(port: u16) {
     let worker = RussulaBuilder::new(BTreeSet::from_iter([w1_sock]), protocol);
     let mut worker = worker.build().await.unwrap();
     worker.run_till_ready().await;
+
+    worker
+        .run_till_state(server::WorkerState::Done, || {
+            println!("[server-worker-1] run-------loop till state: Done---------");
+        })
+        .await
+        .unwrap();
 }
 
 async fn run_server_coordinator(port: u16) {
@@ -57,7 +65,22 @@ async fn run_server_coordinator(port: u16) {
     let protocol = server::CoordProtocol::new();
     let coord = RussulaBuilder::new(BTreeSet::from_iter([w1_sock]), protocol);
     let mut coord = coord.build().await.unwrap();
-    coord.run_till_ready().await;
+
+    coord
+        .run_till_state(server::CoordState::WorkersRunning, || {})
+        .await
+        .unwrap();
+
+    println!("[server-coord-1] sleeping --------- to allow worker to run");
+    tokio::time::sleep(Duration::from_secs(5)).await;
+
+    coord
+        .run_till_state(server::CoordState::Done, || {})
+        .await
+        .unwrap();
+    if let Err(RussulaError::Usage { dbg }) = coord.notify_peer_done().await {
+        panic!("{}", dbg)
+    }
 }
 
 // async fn run_client_worker(port: u16) {

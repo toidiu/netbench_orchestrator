@@ -6,7 +6,7 @@ use crate::russula::protocol::{RussulaPeer, SockProtocol};
 use core::{task::Poll, time::Duration};
 use std::{collections::BTreeSet, net::SocketAddr};
 
-mod error;
+pub mod error;
 pub mod netbench;
 mod network_utils;
 mod protocol;
