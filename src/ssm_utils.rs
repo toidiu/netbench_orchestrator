@@ -25,9 +25,9 @@ pub async fn execute_ssm_client(
         "cd netbench_orchestrator",
         "runuser -u ec2-user -- cargo build",
         format!("runuser -u ec2-user -- RUST_LOG=debug cargo run --bin russula -- --protocol NetbenchClientWorker --port {}", STATE.russula_port).as_str(),
-        "finished running1",
+        "touch finished_running1",
         format!("runuser -u ec2-user -- RUST_LOG=debug cargo run --bin russula -- --protocol NetbenchClientWorker --port {}&", STATE.russula_port).as_str(),
-        "finished running2",
+        "touch finished_running2",
         "cd ..",
 
         // russula END
