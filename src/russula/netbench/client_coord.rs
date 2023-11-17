@@ -13,6 +13,7 @@ use core::fmt::Debug;
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 use tokio::net::TcpStream;
+use tracing::{debug, info};
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 pub enum CoordState {
@@ -46,7 +47,7 @@ impl Protocol for CoordProtocol {
     }
 
     async fn connect(&self, addr: &SocketAddr) -> RussulaResult<TcpStream> {
-        println!("--- Coordinator: attempt to connect on: {}", addr);
+        info!("--- Coordinator: attempt to connect on: {}", addr);
 
         let connect = TcpStream::connect(addr).await.map_err(RussulaError::from)?;
         Ok(connect)
@@ -54,7 +55,7 @@ impl Protocol for CoordProtocol {
 
     fn update_peer_state(&mut self, msg: Msg) -> RussulaResult<()> {
         self.worker_state = WorkerState::from_msg(msg)?;
-        println!(
+        debug!(
             "{} ................................................................. {:?}",
             self.name(),
             self.worker_state

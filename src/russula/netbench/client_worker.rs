@@ -14,6 +14,7 @@ use serde::{Deserialize, Serialize};
 use std::{net::SocketAddr, process::Command};
 use sysinfo::{Pid, PidExt, SystemExt};
 use tokio::net::{TcpListener, TcpStream};
+use tracing::{debug, info};
 
 // Only used when creating a state variant
 const PLACEHOLDER_PID: u32 = 1000;
@@ -56,17 +57,17 @@ impl Protocol for WorkerProtocol {
 
     async fn connect(&self, addr: &SocketAddr) -> RussulaResult<TcpStream> {
         let listener = TcpListener::bind(addr).await.unwrap();
-        println!("{} listening on: {}", self.name(), addr);
+        info!("{} listening on: {}", self.name(), addr);
 
         let (stream, _local_addr) = listener.accept().await.map_err(RussulaError::from)?;
-        println!("{} success connection: {addr}", self.name());
+        info!("{} success connection: {addr}", self.name());
 
         Ok(stream)
     }
 
     fn update_peer_state(&mut self, msg: Msg) -> RussulaResult<()> {
         self.coord_state = CoordState::from_msg(msg)?;
-        println!(
+        debug!(
             "{} ................................................................. {:?}",
             self.name(),
             self.coord_state
@@ -106,7 +107,7 @@ impl StateApi for WorkerState {
             }
             WorkerState::Run => {
                 // some long task
-                println!(
+                debug!(
                     "{} starting some task sim_netbench_client",
                     self.name(stream)
                 );
@@ -116,7 +117,7 @@ impl StateApi for WorkerState {
                     .expect("Failed to start echo process");
 
                 let pid = child.id();
-                println!(
+                debug!(
                     "{}----------------------------child id {}",
                     self.name(stream),
                     pid
@@ -139,12 +140,12 @@ impl StateApi for WorkerState {
                 let is_process_complete = !system.refresh_process(pid);
 
                 if is_process_complete {
-                    println!(
+                    debug!(
                         "process COMPLETED! pid: {} ----------------------------",
                         pid
                     );
                 } else {
-                    println!(
+                    debug!(
                         "process still RUNNING! pid: {} ----------------------------",
                         pid
                     );

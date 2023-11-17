@@ -107,7 +107,7 @@ impl StateApi for WorkerState {
             }
             WorkerState::Run => {
                 // some long task
-                println!(
+                debug!(
                     "{} starting some task sim_netbench_server",
                     self.name(stream)
                 );
@@ -117,7 +117,7 @@ impl StateApi for WorkerState {
                     .expect("Failed to start echo process");
 
                 let pid = child.id();
-                println!(
+                debug!(
                     "{}----------------------------child id {}",
                     self.name(stream),
                     pid
@@ -136,7 +136,7 @@ impl StateApi for WorkerState {
                 if system.refresh_process(pid) {
                     let process = system.process(pid).unwrap();
                     let kill = process.kill();
-                    println!("did KILL pid: {} {}----------------------------", pid, kill);
+                    debug!("did KILL pid: {} {}----------------------------", pid, kill);
                 }
 
                 // FIXME fix this

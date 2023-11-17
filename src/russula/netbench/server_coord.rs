@@ -13,7 +13,7 @@ use core::fmt::Debug;
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 use tokio::net::TcpStream;
-use tracing::info;
+use tracing::{debug, info};
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 pub enum CoordState {
@@ -57,7 +57,7 @@ impl Protocol for CoordProtocol {
 
     fn update_peer_state(&mut self, msg: Msg) -> RussulaResult<()> {
         self.worker_state = WorkerState::from_msg(msg)?;
-        println!(
+        debug!(
             "{} ................................................................. {:?}",
             self.name(),
             self.worker_state
