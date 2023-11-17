@@ -138,6 +138,7 @@ mod tests {
     #[tokio::test]
     #[allow(clippy::assertions_on_constants)] // for testing
     async fn netbench_server_protocol() {
+        env_logger::init();
         let w1_sock = SocketAddr::from_str("127.0.0.1:8991").unwrap();
         let w2_sock = SocketAddr::from_str("127.0.0.1:8992").unwrap();
         let worker_list = [w1_sock, w2_sock];
@@ -219,13 +220,12 @@ mod tests {
             assert!(worker1.self_state_matches(server::WorkerState::Done));
             assert!(worker2.self_state_matches(server::WorkerState::Done));
         }
-
-        assert!(22 == 20, "\n\n\nSUCCESS ---------------- INTENTIONAL FAIL");
     }
 
     #[tokio::test]
     #[allow(clippy::assertions_on_constants)] // for testing
     async fn netbench_client_protocol() {
+        env_logger::init();
         let w1_sock = SocketAddr::from_str("127.0.0.1:9991").unwrap();
         let w2_sock = SocketAddr::from_str("127.0.0.1:9992").unwrap();
         let worker_list = [w1_sock, w2_sock];
@@ -299,10 +299,5 @@ mod tests {
             assert!(worker1.self_state_matches(client::WorkerState::Done));
             assert!(worker2.self_state_matches(client::WorkerState::Done));
         }
-
-        assert!(
-            22 == 20,
-            "\n\n\nclient-SUCCESS ---------------- INTENTIONAL FAIL"
-        );
     }
 }
