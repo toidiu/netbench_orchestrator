@@ -12,7 +12,7 @@ use aws_sdk_ec2::types::{
 use base64::{engine::general_purpose, Engine as _};
 use std::{thread::sleep, time::Duration};
 
-#[derive(Debug)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum EndpointType {
     Server,
     Client,
@@ -27,25 +27,32 @@ impl EndpointType {
     }
 }
 
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub struct InstanceDetail {
     pub endpoint_type: EndpointType,
-    pub instance: Instance,
+    pub instance_id: String,
     pub ip: String,
 }
 
 impl InstanceDetail {
     pub fn new(endpoint_type: EndpointType, instance: Instance, ip: String) -> Self {
+        let instance_id = instance
+            .instance_id()
+            .ok_or(OrchError::Ec2 {
+                dbg: "No instance id".to_string(),
+            })
+            .unwrap()
+            .to_string();
+
         InstanceDetail {
             endpoint_type,
-            instance,
+            instance_id,
             ip,
         }
     }
 
     pub fn instance_id(&self) -> OrchResult<&str> {
-        self.instance.instance_id().ok_or(OrchError::Ec2 {
-            dbg: "No client id".to_string(),
-        })
+        Ok(&self.instance_id)
     }
 }
 

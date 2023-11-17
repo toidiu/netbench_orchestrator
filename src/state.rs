@@ -75,7 +75,7 @@ pub struct State {
     pub russula_port: i32,
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct HostCount {
     pub clients: u16,
     pub servers: u16,

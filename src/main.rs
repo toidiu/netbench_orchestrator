@@ -5,7 +5,10 @@
 use crate::report::orch_generate_report;
 use aws_types::region::Region;
 use error::{OrchError, OrchResult};
+use russula::{netbench::client, RussulaBuilder};
 use std::process::Command;
+use std::{net::SocketAddr, str::FromStr};
+use tracing::info;
 mod dashboard;
 mod ec2_utils;
 mod error;
@@ -130,18 +133,29 @@ async fn main() -> OrchResult<()> {
 
     // ---------------------- running, git pull, cargo build, rusulla.start()
 
-    // let server_russul = { [server_hosts] };
-    // let client_russul = { [client_hosts] };
-    //
-    // server_russula.run_till_ready().await
-    // client_russula.run_till_ready().await
-    //
-    // server_russula.start().await
-    // sleep(10)
-    //
-    // client_russula.run_till_done()
-    //
-    // server_russula.kill()
+    let addr = infra
+        .clients
+        .iter()
+        .map(|instance| {
+            SocketAddr::from_str(&format!("{}:{}", instance.ip, STATE.russula_port)).unwrap()
+        })
+        .collect();
+    let client_coord = RussulaBuilder::new(addr, client::CoordProtocol::new());
+    let mut client_coord = client_coord.build().await.unwrap();
+    client_coord.run_till_ready().await;
+    info!("client coord Ready");
+
+    client_coord
+        .run_till_state(client::CoordState::WorkersRunning, || {})
+        .await
+        .unwrap();
+    info!("client coord WorkersRunning");
+
+    client_coord
+        .run_till_state(client::CoordState::Done, || {})
+        .await
+        .unwrap();
+    info!("client coord Done");
 
     // Copy results back
     orch_generate_report(&s3_client, &unique_id).await;

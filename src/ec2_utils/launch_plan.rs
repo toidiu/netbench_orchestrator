@@ -13,7 +13,7 @@ use aws_sdk_ec2::types::{
 };
 use std::{thread::sleep, time::Duration};
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct LaunchPlan {
     pub subnet_id: String,
     pub security_group_id: String,

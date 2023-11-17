@@ -40,9 +40,7 @@ async fn main() -> OrchResult<()> {
 
     let file_appender = tracing_appender::rolling::hourly("./target", "russula.log");
     let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
-   tracing_subscriber::fmt()
-       .with_writer(non_blocking)
-       .init();
+    tracing_subscriber::fmt().with_writer(non_blocking).init();
 
     match opt.protocol {
         RussulaProtocol::NetbenchServerWorker => run_server_worker(opt.port).await,
