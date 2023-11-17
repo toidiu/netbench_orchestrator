@@ -33,7 +33,6 @@ use protocol::{Protocol, StateApi, TransitionStep};
 // halting problem https://en.wikipedia.org/wiki/Halting_problem
 
 const POLL_RETRY_DURATION: Duration = Duration::from_secs(1);
-const NOTIFY_RETRY_DURATION: Duration = Duration::from_secs(1);
 
 pub struct Russula<P: Protocol> {
     // TODO rename from peer->worker/coord because 'peer' can be confusing
