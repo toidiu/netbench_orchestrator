@@ -6,7 +6,7 @@ mod russula;
 
 use core::time::Duration;
 use error::OrchResult;
-use russula::{error::RussulaError, netbench::server, RussulaBuilder};
+use russula::{netbench::server, RussulaBuilder};
 use std::{collections::BTreeSet, net::SocketAddr, str::FromStr};
 use structopt::{clap::arg_enum, StructOpt};
 
@@ -78,9 +78,6 @@ async fn run_server_coordinator(port: u16) {
         .run_till_state(server::CoordState::Done, || {})
         .await
         .unwrap();
-    if let Err(RussulaError::Usage { dbg }) = coord.notify_peer_done().await {
-        panic!("{}", dbg)
-    }
 }
 
 // async fn run_client_worker(port: u16) {

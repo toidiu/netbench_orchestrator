@@ -5,10 +5,12 @@ use super::{error::RussulaError, network_utils::Msg};
 use crate::russula::{network_utils, RussulaResult};
 use async_trait::async_trait;
 use bytes::Bytes;
-use core::{fmt::Debug, task::Poll};
+use core::{fmt::Debug, task::Poll, time::Duration};
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 use tokio::net::TcpStream;
+
+const NOTIFY_DONE_TIMEOUT: Duration = Duration::from_secs(1);
 
 pub(crate) struct RussulaPeer<P: Protocol> {
     pub addr: SocketAddr,
@@ -39,10 +41,7 @@ pub trait Protocol: Clone {
     ) -> RussulaResult<Poll<()>> {
         if !self.state().eq(state) {
             let prev = *self.state();
-            let name = self.name();
-            if let Some(msg) = self.state_mut().run(stream, name).await? {
-                self.update_peer_state(msg)?;
-            }
+            self.run_current(stream).await?;
             println!(
                 "{} poll_state--------{:?} -> {:?}",
                 self.name(),
@@ -50,6 +49,15 @@ pub trait Protocol: Clone {
                 self.state()
             );
         }
+        // Notify the peer that the protocol has reached a terminal state
+        if self.is_done_state() {
+            // notify 3 time to account for packet loss
+            for _i in 0..3 {
+                self.run_current(stream).await?;
+                tokio::time::sleep(NOTIFY_DONE_TIMEOUT).await;
+            }
+        }
+
         let poll = if self.state().eq(state) {
             Poll::Ready(())
         } else {

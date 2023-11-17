@@ -6,7 +6,7 @@ use crate::russula::protocol::{RussulaPeer, SockProtocol};
 use core::{task::Poll, time::Duration};
 use std::{collections::BTreeSet, net::SocketAddr};
 
-pub mod error;
+mod error;
 pub mod netbench;
 mod network_utils;
 mod protocol;
@@ -16,7 +16,7 @@ use protocol::{Protocol, StateApi, TransitionStep};
 
 // TODO
 // - track peer state for reporting
-// - make notify_peer_done part of the protocol impl
+// D- make notify_peer_done part of the protocol impl
 // - make state transitions nicer
 //   - match on TransitionStep?
 //
@@ -67,27 +67,6 @@ impl<P: Protocol + Send> Russula<P> {
                 break;
             }
             tokio::time::sleep(POLL_RETRY_DURATION).await;
-        }
-
-        Ok(())
-    }
-
-    /// Notify peer that coordinator is done. This is best effort
-    pub async fn notify_peer_done(&mut self) -> RussulaResult<()> {
-        for peer in self.peer_list.iter_mut() {
-            if !peer.protocol.is_done_state() {
-                return Err(RussulaError::Usage {
-                    dbg: format!(
-                        "{} not in done state. current_state: {:?}",
-                        peer.protocol.name(),
-                        peer.protocol.state()
-                    ),
-                });
-            }
-            for _i in 0..3 {
-                peer.protocol.run_current(&peer.stream).await?;
-                tokio::time::sleep(NOTIFY_RETRY_DURATION).await;
-            }
         }
 
         Ok(())
@@ -231,11 +210,6 @@ mod tests {
             .await
             .unwrap();
 
-        println!("\nSTEP 5 --------------- : notify peer done");
-        if let Err(RussulaError::Usage { dbg }) = coord.notify_peer_done().await {
-            panic!("{}", dbg)
-        }
-
         println!("\nSTEP 20 --------------- : confirm worker done");
         {
             let (worker1, worker2) = tokio::join!(w1, w2);
@@ -315,11 +289,6 @@ mod tests {
             .run_till_state(client::CoordState::Done, || {})
             .await
             .unwrap();
-
-        println!("\nSTEP 4 --------------- : notify peer done");
-        if let Err(RussulaError::Usage { dbg }) = coord.notify_peer_done().await {
-            panic!("{}", dbg)
-        }
 
         println!("\nclient-STEP 20 --------------- : confirm worker done");
         {
