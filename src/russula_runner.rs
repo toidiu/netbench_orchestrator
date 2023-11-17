@@ -19,8 +19,12 @@ struct Opt {
     #[structopt(possible_values = &RussulaProtocol::variants(), case_insensitive = true, long)]
     protocol: RussulaProtocol,
 
+    /// specify the ip
+    #[structopt(long, default_value = "127.0.0.1")]
+    ip: String,
+
     /// specify the port
-    #[structopt(long, default_value = "8888")]
+    #[structopt(long, default_value = "9000")]
     port: u16,
 }
 
@@ -43,18 +47,18 @@ async fn main() -> OrchResult<()> {
     tracing_subscriber::fmt().with_writer(non_blocking).init();
 
     match opt.protocol {
-        RussulaProtocol::NetbenchServerWorker => run_server_worker(opt.port).await,
-        RussulaProtocol::NetbenchServerCoordinator => run_server_coordinator(opt.port).await,
-        RussulaProtocol::NetbenchClientWorker => run_client_worker(opt.port).await,
-        RussulaProtocol::NetbenchClientCoordinator => run_client_coordinator(opt.port).await,
+        RussulaProtocol::NetbenchServerWorker => run_server_worker(opt.ip, opt.port).await,
+        RussulaProtocol::NetbenchServerCoordinator => run_server_coordinator(opt.ip, opt.port).await,
+        RussulaProtocol::NetbenchClientWorker => run_client_worker(opt.ip, opt.port).await,
+        RussulaProtocol::NetbenchClientCoordinator => run_client_coordinator(opt.ip, opt.port).await,
     };
 
     println!("hi");
     Ok(())
 }
 
-async fn run_server_worker(port: u16) {
-    let w1_sock = SocketAddr::from_str(&format!("127.0.0.1:{}", port)).unwrap();
+async fn run_server_worker(ip: String, port: u16) {
+    let w1_sock = SocketAddr::from_str(&format!("{}:{}", ip, port)).unwrap();
     let protocol = server::WorkerProtocol::new(port);
     let worker = RussulaBuilder::new(BTreeSet::from_iter([w1_sock]), protocol);
     let mut worker = worker.build().await.unwrap();
@@ -68,8 +72,8 @@ async fn run_server_worker(port: u16) {
         .unwrap();
 }
 
-async fn run_server_coordinator(port: u16) {
-    let w1_sock = SocketAddr::from_str(&format!("127.0.0.1:{}", port)).unwrap();
+async fn run_server_coordinator(ip: String, port: u16) {
+    let w1_sock = SocketAddr::from_str(&format!("{}:{}", ip, port)).unwrap();
     let protocol = server::CoordProtocol::new();
     let coord = RussulaBuilder::new(BTreeSet::from_iter([w1_sock]), protocol);
     let mut coord = coord.build().await.unwrap();
@@ -88,8 +92,8 @@ async fn run_server_coordinator(port: u16) {
         .unwrap();
 }
 
-async fn run_client_worker(port: u16) {
-    let w1_sock = SocketAddr::from_str(&format!("127.0.0.1:{}", port)).unwrap();
+async fn run_client_worker(ip: String, port: u16) {
+    let w1_sock = SocketAddr::from_str(&format!("{}:{}", ip, port)).unwrap();
     let protocol = client::WorkerProtocol::new(port);
     let worker = RussulaBuilder::new(BTreeSet::from_iter([w1_sock]), protocol);
     let mut worker = worker.build().await.unwrap();
@@ -103,8 +107,8 @@ async fn run_client_worker(port: u16) {
         .unwrap();
 }
 
-async fn run_client_coordinator(port: u16) {
-    let w1_sock = SocketAddr::from_str(&format!("127.0.0.1:{}", port)).unwrap();
+async fn run_client_coordinator(ip: String, port: u16) {
+    let w1_sock = SocketAddr::from_str(&format!("{}:{}", ip, port)).unwrap();
     let protocol = client::CoordProtocol::new();
     let coord = RussulaBuilder::new(BTreeSet::from_iter([w1_sock]), protocol);
     let mut coord = coord.build().await.unwrap();

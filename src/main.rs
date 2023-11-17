@@ -115,6 +115,7 @@ async fn main() -> OrchResult<()> {
         let server_output =
             execute_ssm_server(&ssm_client, server_instance_id, &client.ip, &unique_id).await;
 
+        // / FIXME russula needs to go up here or interleave with this 
         let client_result = wait_for_ssm_results(
             "client",
             &ssm_client,
