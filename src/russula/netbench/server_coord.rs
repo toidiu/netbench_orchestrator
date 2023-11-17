@@ -13,6 +13,7 @@ use core::fmt::Debug;
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 use tokio::net::TcpStream;
+use tracing::info;
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 pub enum CoordState {
@@ -48,7 +49,7 @@ impl Protocol for CoordProtocol {
     }
 
     async fn connect(&self, addr: &SocketAddr) -> RussulaResult<TcpStream> {
-        println!("--- Coordinator: attempt to connect on: {}", addr);
+        info!("attempt to connect on: {}", addr);
 
         let connect = TcpStream::connect(addr).await.map_err(RussulaError::from)?;
         Ok(connect)

@@ -1,7 +1,7 @@
 net_server_coord:
-	cargo run --bin russula -- --protocol NetbenchServerCoordinator
+	RUST_LOG=debug cargo run --bin russula -- --protocol NetbenchServerCoordinator
 net_server_worker:
-	cargo run --bin russula -- --protocol NetbenchServerWorker
+	RUST_LOG=debug cargo run --bin russula -- --protocol NetbenchServerWorker
 
 
 # net_client_worker:

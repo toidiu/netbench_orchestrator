@@ -5,6 +5,7 @@
 use crate::russula::protocol::{RussulaPeer, SockProtocol};
 use core::{task::Poll, time::Duration};
 use std::{collections::BTreeSet, net::SocketAddr};
+use tracing::{debug, info, warn};
 
 mod error;
 pub mod netbench;
@@ -15,11 +16,12 @@ use error::{RussulaError, RussulaResult};
 use protocol::{Protocol, StateApi, TransitionStep};
 
 // TODO
-// - track peer state for reporting
-// D- make notify_peer_done part of the protocol impl
 // - make state transitions nicer
 //   - match on TransitionStep?
+// - convert prints to tracing events
 //
+// D- track peer state for reporting
+// D- make notify_peer_done part of the protocol impl
 // D- read all queued msg
 // D- len for msg
 // D- r.transition_step // what is the next step one should take
@@ -45,7 +47,7 @@ impl<P: Protocol + Send> Russula<P> {
             loop {
                 match peer.protocol.poll_ready(&peer.stream).await.unwrap() {
                     Poll::Ready(_) => break,
-                    Poll::Pending => println!("{} not yet ready", peer.protocol.name()),
+                    Poll::Pending => debug!("{} not yet ready", peer.protocol.name()),
                 }
                 tokio::time::sleep(POLL_RETRY_DURATION).await;
             }
@@ -77,7 +79,7 @@ impl<P: Protocol + Send> Russula<P> {
             if !state.eq(protocol_state) {
                 return false;
             }
-            // println!("{:?} {:?} {}", protocol_state, state, matches);
+            // info!("{:?} {:?} {}", protocol_state, state, matches);
         }
         true
     }
@@ -107,13 +109,13 @@ impl<P: Protocol> RussulaBuilder<P> {
                         break;
                     }
                     Err(RussulaError::NetworkConnectionRefused { dbg }) => {
-                        println!("Failed to connect.. retrying. addr: {} dbg: {}", addr, dbg);
+                        warn!("Failed to connect.. retrying. addr: {} dbg: {}", addr, dbg);
                         tokio::time::sleep(POLL_RETRY_DURATION).await;
                     }
                     Err(err) => return Err(err),
                 }
             }
-            println!("Coordinator: successfully connected to {}", addr);
+            info!("Coordinator: successfully connected to {}", addr);
             stream_protocol_list.push(RussulaPeer {
                 addr,
                 stream,
@@ -158,7 +160,7 @@ mod tests {
             let mut worker = worker.build().await.unwrap();
             worker
                 .run_till_state(server::WorkerState::Done, || {
-                    println!("[worker-1] run-------looooooooooop till done---------");
+                    // println!("[worker-1] run-------looooooooooop till done---------");
                 })
                 .await
                 .unwrap();
@@ -172,7 +174,7 @@ mod tests {
             let mut worker = worker.build().await.unwrap();
             worker
                 .run_till_state(server::WorkerState::Done, || {
-                    println!("[worker-2] run-------looooooooooop till done---------");
+                    // println!("[worker-2] run-------looooooooooop till done---------");
                 })
                 .await
                 .unwrap();
@@ -246,7 +248,7 @@ mod tests {
             let mut worker = worker.build().await.unwrap();
             worker
                 .run_till_state(client::WorkerState::Done, || {
-                    println!("[client-worker-1] run-------looooooooooop till done---------");
+                    // println!("[client-worker-1] run-------looooooooooop till done---------");
                 })
                 .await
                 .unwrap();
@@ -260,7 +262,7 @@ mod tests {
             let mut worker = worker.build().await.unwrap();
             worker
                 .run_till_state(client::WorkerState::Done, || {
-                    println!("[client-worker-2] run-------looooooooooop till done---------");
+                    // println!("[client-worker-2] run-------looooooooooop till done---------");
                 })
                 .await
                 .unwrap();

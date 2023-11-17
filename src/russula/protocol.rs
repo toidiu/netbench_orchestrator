@@ -9,6 +9,7 @@ use core::{fmt::Debug, task::Poll, time::Duration};
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 use tokio::net::TcpStream;
+use tracing::{debug, info};
 
 const NOTIFY_DONE_TIMEOUT: Duration = Duration::from_secs(1);
 
@@ -42,7 +43,7 @@ pub trait Protocol: Clone {
         if !self.state().eq(state) {
             let prev = *self.state();
             self.run_current(stream).await?;
-            println!(
+            debug!(
                 "{} poll_state--------{:?} -> {:?}",
                 self.name(),
                 prev,
@@ -115,12 +116,12 @@ pub trait StateApi: Sized + Send + Sync + Debug + Serialize + for<'a> Deserializ
 
     async fn notify_peer(&self, stream: &TcpStream) -> RussulaResult<usize> {
         let msg = Msg::new(self.as_bytes());
-        println!("{} ----> send msg {:?}", self.name(stream), msg);
+        debug!("{} ----> send msg {:?}", self.name(stream), msg);
         network_utils::send_msg(stream, msg).await
     }
 
     async fn transition_self_or_user_driven(&mut self, stream: &TcpStream) -> RussulaResult<()> {
-        println!(
+        info!(
             "{}------------- moving to next state current: {:?}, next: {:?}",
             self.name(stream),
             self,
@@ -132,7 +133,7 @@ pub trait StateApi: Sized + Send + Sync + Debug + Serialize + for<'a> Deserializ
     }
 
     async fn transition_next(&mut self, stream: &TcpStream) -> RussulaResult<()> {
-        println!(
+        info!(
             "{}------------- moving to next state current: {:?}, next: {:?}",
             self.name(stream),
             self,
@@ -152,7 +153,7 @@ pub trait StateApi: Sized + Send + Sync + Debug + Serialize + for<'a> Deserializ
         let mut last_msg;
         loop {
             last_msg = network_utils::recv_msg(stream).await?;
-            println!("{} <---- recv msg {:?}", self.name(stream), last_msg);
+            debug!("{} <---- recv msg {:?}", self.name(stream), last_msg);
 
             if self.matches_transition_msg(stream, &mut last_msg).await? {
                 self.transition_next(stream).await?;
@@ -172,13 +173,23 @@ pub trait StateApi: Sized + Send + Sync + Debug + Serialize + for<'a> Deserializ
     ) -> RussulaResult<bool> {
         if let TransitionStep::AwaitNext(expected_msg) = self.transition_step() {
             let should_transition_to_next = expected_msg == recv_msg.as_bytes();
-            println!(
-                "{} ========transition: {}, expect_msg: {:?} recv_msg: {:?}",
-                self.name(stream),
-                expected_msg == recv_msg.as_bytes(),
-                std::str::from_utf8(&expected_msg),
-                recv_msg,
-            );
+            if should_transition_to_next {
+                info!(
+                    "{} transition: {}, expect_msg: {:?} recv_msg: {:?}",
+                    self.name(stream),
+                    should_transition_to_next,
+                    std::str::from_utf8(&expected_msg),
+                    recv_msg,
+                );
+            } else {
+                debug!(
+                    "{} transition: {}, expect_msg: {:?} recv_msg: {:?}",
+                    self.name(stream),
+                    should_transition_to_next,
+                    std::str::from_utf8(&expected_msg),
+                    recv_msg,
+                );
+            }
             Ok(should_transition_to_next)
         } else {
             Ok(false)
