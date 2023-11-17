@@ -17,7 +17,21 @@ multiple Workers. This is driven by the need to test multiple server/client inca
 scenario.
 
 At its basis an instance of Russula is composed of a pair of Coordinator/Worker Protocols. Currently
-its possible to create an instance of NetbenchServer and NetbenchClient. For a detailed description
+its possible to create an instance of NetbenchServer and NetbenchClient, which can be used to run
+a multi server/client netbench scenario.
+
+Since Russula is used to run Netbench testing it has the following goals:
+- non-blocking: its not acceptable to block since we are trying to do performance testing
+- minimal network noise: since we are trying to measure transport protocols, the coordination protocol
+should add minimal traffic to the network and ideally none during the actual testing
+- easily configurable: the protocol should allow for new states to allow for expanding usecases
+- secure: the protocol should not accept executable code since this opens it up for code execution attack.
+- easy to develop: exposes logging and introspection into the peers states to allow for easy debugging
+- resilient: should be resilient to errors (network or otherwise); retrying requests when they are considered
+non-fatal
+
+#### Russula deep dive
+For a detailed description
 of a state machine pair, take a look at the [netbench module](src/russula/netbench.rs). A Netbench
 run might look something like this on the coordinator:
 
