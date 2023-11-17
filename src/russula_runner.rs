@@ -6,7 +6,10 @@ mod russula;
 
 use core::time::Duration;
 use error::OrchResult;
-use russula::{netbench::server, RussulaBuilder};
+use russula::{
+    netbench::{client, server},
+    RussulaBuilder,
+};
 use std::{collections::BTreeSet, net::SocketAddr, str::FromStr};
 use structopt::{clap::arg_enum, StructOpt};
 
@@ -22,10 +25,12 @@ struct Opt {
 }
 
 arg_enum! {
+#[allow(clippy::enum_variant_names)]
 enum RussulaProtocol {
-    // NetbenchClientWorker,
     NetbenchServerWorker,
     NetbenchServerCoordinator,
+    NetbenchClientWorker,
+    NetbenchClientCoordinator,
 }
 }
 
@@ -36,9 +41,10 @@ async fn main() -> OrchResult<()> {
     tracing_subscriber::fmt::init();
 
     match opt.protocol {
-        // RussulaProtocol::NetbenchClientWorker => run_client_worker(opt.port).await,
         RussulaProtocol::NetbenchServerWorker => run_server_worker(opt.port).await,
         RussulaProtocol::NetbenchServerCoordinator => run_server_coordinator(opt.port).await,
+        RussulaProtocol::NetbenchClientWorker => run_client_worker(opt.port).await,
+        RussulaProtocol::NetbenchClientCoordinator => run_client_coordinator(opt.port).await,
     };
 
     println!("hi");
@@ -80,9 +86,37 @@ async fn run_server_coordinator(port: u16) {
         .unwrap();
 }
 
-// async fn run_client_worker(port: u16) {
-//     let w1_sock = SocketAddr::from_str(&format!("127.0.0.1:{}", port)).unwrap();
-//     let protocol = client::WorkerProtocol::new(port);
-//     let worker = RussulaBuilder::new(BTreeSet::from_iter([w1_sock]), protocol);
-//     let _worker = worker.build().await.unwrap();
-// }
+async fn run_client_worker(port: u16) {
+    let w1_sock = SocketAddr::from_str(&format!("127.0.0.1:{}", port)).unwrap();
+    let protocol = client::WorkerProtocol::new(port);
+    let worker = RussulaBuilder::new(BTreeSet::from_iter([w1_sock]), protocol);
+    let mut worker = worker.build().await.unwrap();
+    worker.run_till_ready().await;
+
+    worker
+        .run_till_state(client::WorkerState::Done, || {
+            // println!("[server-worker-1] run-------loop till state: Done---------");
+        })
+        .await
+        .unwrap();
+}
+
+async fn run_client_coordinator(port: u16) {
+    let w1_sock = SocketAddr::from_str(&format!("127.0.0.1:{}", port)).unwrap();
+    let protocol = client::CoordProtocol::new();
+    let coord = RussulaBuilder::new(BTreeSet::from_iter([w1_sock]), protocol);
+    let mut coord = coord.build().await.unwrap();
+
+    coord
+        .run_till_state(client::CoordState::WorkersRunning, || {})
+        .await
+        .unwrap();
+
+    println!("[client-coord-1] sleeping --------- to allow worker to run");
+    tokio::time::sleep(Duration::from_secs(5)).await;
+
+    coord
+        .run_till_state(client::CoordState::Done, || {})
+        .await
+        .unwrap();
+}
