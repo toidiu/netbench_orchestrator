@@ -37,7 +37,7 @@ pub const STATE: State = State {
         servers: 2,
     },
     workspace_dir: "./target/netbench",
-    shutdown_time_sec: Duration::from_secs(60),
+    shutdown_time_sec: Duration::from_secs(86400), // 1 day
 
     // russula
     russula_repo: "https://github.com/toidiu/netbench_orchestrator.git",
