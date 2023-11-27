@@ -6,8 +6,7 @@ use crate::report::orch_generate_report;
 use aws_types::region::Region;
 use error::{OrchError, OrchResult};
 use russula::{netbench::client, RussulaBuilder};
-use std::process::Command;
-use std::{net::SocketAddr, str::FromStr};
+use std::{net::SocketAddr, process::Command, str::FromStr};
 use tracing::info;
 mod dashboard;
 mod ec2_utils;
@@ -115,7 +114,7 @@ async fn main() -> OrchResult<()> {
         let server_output =
             execute_ssm_server(&ssm_client, server_instance_id, &client.ip, &unique_id).await;
 
-        // FIXME russula needs to go up here or interleave with this 
+        // FIXME russula needs to go up here or interleave with this
         let client_result = wait_for_ssm_results(
             "client",
             &ssm_client,
@@ -134,14 +133,14 @@ async fn main() -> OrchResult<()> {
 
     // ---------------------- running, git pull, cargo build, rusulla.start()
 
-    let addr = infra
+    let client_ips = infra
         .clients
         .iter()
         .map(|instance| {
             SocketAddr::from_str(&format!("{}:{}", instance.ip, STATE.russula_port)).unwrap()
         })
         .collect();
-    let client_coord = RussulaBuilder::new(addr, client::CoordProtocol::new());
+    let client_coord = RussulaBuilder::new(client_ips, client::CoordProtocol::new());
     let mut client_coord = client_coord.build().await.unwrap();
     client_coord.run_till_ready().await;
     info!("client coord Ready");
