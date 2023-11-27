@@ -15,6 +15,6 @@ net_client_worker:
 
 # -------------------- lib russula
 test_server:
-	RUST_LOG=debug cargo test -- server --nocapture
+	RUST_LOG=debug cargo test --bin orchestrator -- server --nocapture
 test_client:
-	RUST_LOG=debug cargo test -- client --nocapture
+	RUST_LOG=debug cargo test --bin orchestrator -- client --nocapture

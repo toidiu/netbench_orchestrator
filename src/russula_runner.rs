@@ -20,7 +20,7 @@ struct Opt {
     protocol: RussulaProtocol,
 
     /// specify the ip
-    #[structopt(long, default_value = "127.0.0.1")]
+    #[structopt(long, default_value = "0.0.0.0")]
     ip: String,
 
     /// specify the port
