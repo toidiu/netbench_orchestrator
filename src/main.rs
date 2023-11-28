@@ -24,7 +24,12 @@ use ssm_utils::*;
 use state::*;
 
 // TODO
-// meta/hooks to kill ec2 hosts
+// - enable cleanup
+// - cleanup ssm
+// - breakup server ssm
+// - server russula
+// - russula poll state
+// - interleave poll russula and ssm
 
 async fn check_requirements(iam_client: &aws_sdk_iam::Client) -> OrchResult<()> {
     // export PATH="/home/toidiu/projects/s2n-quic/netbench/target/release/:$PATH"

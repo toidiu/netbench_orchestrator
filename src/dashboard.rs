@@ -1,6 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+use tracing::info;
 use crate::error::OrchResult;
 use crate::upload_object;
 use crate::InstanceDetail;
@@ -53,6 +54,7 @@ async fn upload_index_html(s3_client: &aws_sdk_s3::Client, unique_id: &str) -> O
     .await
     .unwrap();
     println!("Status: URL: {status}");
+    info!("Status: URL: {status}");
 
     Ok(())
 }
