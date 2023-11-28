@@ -14,12 +14,15 @@ pub async fn configure_client(
     unique_id: &str,
 ) -> SendCommandOutput {
     send_command("client", ssm_client, client_instance_id, vec![
+        "sleep 5",
+        "touch config_start----------",
         format!("runuser -u ec2-user -- echo ec2 up > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/client-step-1", STATE.s3_path(unique_id)).as_str(),
         "cd /home/ec2-user",
         "yum upgrade -y",
         format!("runuser -u ec2-user -- echo yum upgrade finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/client-step-2", STATE.s3_path(unique_id)).as_str(),
         format!("timeout 5m bash -c 'until yum install cmake cargo git perl openssl-devel bpftrace perf tree -y; do sleep 10; done' || (echo yum failed > /home/ec2-user/index.html; aws s3 cp /home/ec2-user/index.html {}/client-step-3; exit 1)", STATE.s3_path(unique_id)).as_str(),
         format!("echo yum finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/client-step-3", STATE.s3_path(unique_id)).as_str(),
+        "touch config_fin----------",
         "exit 0"
     ].into_iter().map(String::from).collect()).await.expect("Timed out")
 }
@@ -30,13 +33,15 @@ pub async fn run_client_russula(
 ) -> SendCommandOutput {
     send_command("client", ssm_client, client_instance_id, vec![
         // russula START
+        "sleep 5",
+        "touch russula_start----------",
         format!("runuser -u ec2-user -- git clone --branch {} {}", STATE.russula_branch, STATE.russula_repo).as_str(),
         "cd netbench_orchestrator",
         "runuser -u ec2-user -- cargo build",
         format!("RUST_LOG=debug ./target/debug/russula -- --protocol NetbenchClientWorker --port {}", STATE.russula_port).as_str(),
-        "touch finished_running----------",
         "cd ..",
         // russula END
+        "touch russula_fin----------",
         "exit 0"
     ].into_iter().map(String::from).collect()).await.expect("Timed out")
 }
@@ -48,6 +53,8 @@ pub async fn run_client_netbench(
     unique_id: &str,
 ) -> SendCommandOutput {
     send_command("client", ssm_client, client_instance_id, vec![
+        "sleep 5",
+        "touch run_start----------",
         format!("runuser -u ec2-user -- git clone --branch {} {}", STATE.branch, STATE.repo).as_str(),
         format!("runuser -u ec2-user -- echo git finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/client-step-4", STATE.s3_path(unique_id)).as_str(),
         format!("runuser -u ec2-user -- aws s3 cp s3://{}/{}/request_response.json /home/ec2-user/request_response.json", STATE.s3_log_bucket, STATE.s3_resource_folder).as_str(),
@@ -64,6 +71,7 @@ pub async fn run_client_netbench(
         format!("runuser -u ec2-user -- aws s3 sync /home/ec2-user/s2n-quic/netbench/target/netbench {}", STATE.s3_path(unique_id)).as_str(),
         format!("runuser -u ec2-user -- echo report upload finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/client-step-8", STATE.s3_path(unique_id)).as_str(),
         // "shutdown -h +1",
+        "touch run_fin----------",
         "exit 0"
     ].into_iter().map(String::from).collect()).await.expect("Timed out")
 }
