@@ -112,25 +112,21 @@ async fn main() -> OrchResult<()> {
         // server
         let server_output =
             execute_ssm_server(&ssm_client, server_instance_id, &client.ip, &unique_id).await;
-        let server_result = wait_for_ssm_results(
-            "server",
-            &ssm_client,
-            server_output.command().unwrap().command_id().unwrap(),
-        )
-        .await;
-        println!("Server Finished!: Successful: {}", server_result);
 
         // client
         let configure_client = configure_client(&ssm_client, client_instance_id, &unique_id).await;
+        // let run_client_russula = run_client_russula(&ssm_client, client_instance_id).await;
+        let run_client_netbench =
+            run_client_netbench(&ssm_client, client_instance_id, &server.ip, &unique_id).await;
+
+        // wait complete
         let configure_client = wait_for_ssm_results(
-            "server",
+            "client",
             &ssm_client,
             configure_client.command().unwrap().command_id().unwrap(),
         )
         .await;
         println!("Client Config!: Successful: {}", configure_client);
-
-        // let run_client_russula = run_client_russula(&ssm_client, client_instance_id).await;
         // let run_client_russula = wait_for_ssm_results(
         //     "server",
         //     &ssm_client,
@@ -138,9 +134,6 @@ async fn main() -> OrchResult<()> {
         // )
         // .await;
         // println!("Client Config!: Successful: {}", run_client_russula);
-
-        let run_client_netbench =
-            run_client_netbench(&ssm_client, client_instance_id, &server.ip, &unique_id).await;
         let run_client_netbench = wait_for_ssm_results(
             "client",
             &ssm_client,
@@ -148,6 +141,14 @@ async fn main() -> OrchResult<()> {
         )
         .await;
         println!("Client Finished!: Successful: {}", run_client_netbench);
+
+        let server_result = wait_for_ssm_results(
+            "server",
+            &ssm_client,
+            server_output.command().unwrap().command_id().unwrap(),
+        )
+        .await;
+        println!("Server Finished!: Successful: {}", server_result);
 
     }
 
