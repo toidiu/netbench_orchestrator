@@ -55,23 +55,40 @@ impl<P: Protocol + Send> Russula<P> {
         }
     }
 
-    pub async fn run_till_state<F: Fn()>(&mut self, state: P::State, f: F) -> RussulaResult<()> {
+    pub async fn run_till_state(&mut self, state: P::State) -> RussulaResult<()> {
         loop {
-            for peer in self.peer_list.iter_mut() {
-                if let Err(err) = peer.protocol.poll_state(&peer.stream, &state).await {
-                    if err.is_fatal() {
-                        panic!("{}", err);
-                    }
-                }
-                f();
-            }
-            if self.self_state_matches(state) {
-                break;
-            }
+            self.poll_state(state);
+            // for peer in self.peer_list.iter_mut() {
+            //     if let Err(err) = peer.protocol.poll_state(&peer.stream, &state).await {
+            //         if err.is_fatal() {
+            //             panic!("{}", err);
+            //         }
+            //     }
+            //     f();
+            // }
+            // if self.self_state_matches(state) {
+            //     break;
+            // }
             tokio::time::sleep(POLL_RETRY_DURATION).await;
         }
 
         Ok(())
+    }
+
+    pub async fn poll_state(&mut self, state: P::State) -> RussulaResult<Poll<()>> {
+        for peer in self.peer_list.iter_mut() {
+            if let Err(err) = peer.protocol.poll_state(&peer.stream, &state).await {
+                if err.is_fatal() {
+                    panic!("{}", err);
+                }
+            }
+        }
+        let poll = if self.self_state_matches(state) {
+            Poll::Ready(())
+        } else {
+            Poll::Pending
+        };
+        Ok(poll)
     }
 
     pub fn self_state_matches(&self, state: P::State) -> bool {
@@ -161,9 +178,7 @@ mod tests {
             );
             let mut worker = worker.build().await.unwrap();
             worker
-                .run_till_state(server::WorkerState::Done, || {
-                    // println!("[worker-1] run-------looooooooooop till done---------");
-                })
+                .run_till_state(server::WorkerState::Done)
                 .await
                 .unwrap();
             worker
@@ -175,9 +190,7 @@ mod tests {
             );
             let mut worker = worker.build().await.unwrap();
             worker
-                .run_till_state(server::WorkerState::Done, || {
-                    // println!("[worker-2] run-------looooooooooop till done---------");
-                })
+                .run_till_state(server::WorkerState::Done)
                 .await
                 .unwrap();
             worker
@@ -194,7 +207,7 @@ mod tests {
         println!("\nSTEP 2 --------------- : poll next coord step");
         {
             coord
-                .run_till_state(server::CoordState::WorkersRunning, || {})
+                .run_till_state(server::CoordState::WorkersRunning)
                 .await
                 .unwrap();
             // // sleep to simulate the server running for some time
@@ -203,13 +216,13 @@ mod tests {
 
         println!("\nSTEP 3 --------------- : kill worker");
         coord
-            .run_till_state(server::CoordState::WorkerKilled, || {})
+            .run_till_state(server::CoordState::WorkerKilled)
             .await
             .unwrap();
 
         println!("\nSTEP 4 --------------- : wait till done");
         coord
-            .run_till_state(server::CoordState::Done, || {})
+            .run_till_state(server::CoordState::Done)
             .await
             .unwrap();
 
@@ -248,9 +261,7 @@ mod tests {
             );
             let mut worker = worker.build().await.unwrap();
             worker
-                .run_till_state(client::WorkerState::Done, || {
-                    // println!("[client-worker-1] run-------looooooooooop till done---------");
-                })
+                .run_till_state(client::WorkerState::Done)
                 .await
                 .unwrap();
             worker
@@ -262,9 +273,7 @@ mod tests {
             );
             let mut worker = worker.build().await.unwrap();
             worker
-                .run_till_state(client::WorkerState::Done, || {
-                    // println!("[client-worker-2] run-------looooooooooop till done---------");
-                })
+                .run_till_state(client::WorkerState::Done)
                 .await
                 .unwrap();
             worker
@@ -281,14 +290,14 @@ mod tests {
         println!("\nclient-STEP 2 --------------- : wait for workers to run");
         {
             coord
-                .run_till_state(client::CoordState::WorkersRunning, || {})
+                .run_till_state(client::CoordState::WorkersRunning)
                 .await
                 .unwrap();
         }
 
         println!("\nSTEP 3 --------------- : wait till done");
         coord
-            .run_till_state(client::CoordState::Done, || {})
+            .run_till_state(client::CoordState::Done)
             .await
             .unwrap();
 

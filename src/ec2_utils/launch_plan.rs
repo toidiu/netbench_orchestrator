@@ -1,7 +1,6 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-use tracing::info;
 use crate::ec2_utils::instance::launch_instance;
 use crate::ec2_utils::instance::{EndpointType, InstanceDetail};
 use crate::ec2_utils::poll_state;
@@ -13,6 +12,7 @@ use aws_sdk_ec2::types::{
     Filter, InstanceStateName, IpPermission, IpRange, ResourceType, TagSpecification,
 };
 use std::{thread::sleep, time::Duration};
+use tracing::info;
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct LaunchPlan {

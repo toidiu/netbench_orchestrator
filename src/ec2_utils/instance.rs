@@ -1,7 +1,6 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-use tracing::info;
 use crate::error::{OrchError, OrchResult};
 use crate::state::STATE;
 use crate::LaunchPlan;
@@ -12,6 +11,7 @@ use aws_sdk_ec2::types::{
 };
 use base64::{engine::general_purpose, Engine as _};
 use std::{thread::sleep, time::Duration};
+use tracing::info;
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum EndpointType {

@@ -24,12 +24,13 @@ use ssm_utils::*;
 use state::*;
 
 // TODO
+// - russula poll state
+// - interleave poll russula and ssm
+//
 // - enable cleanup
 // - cleanup ssm
 // - breakup server ssm
 // - server russula
-// - russula poll state
-// - interleave poll russula and ssm
 
 async fn check_requirements(iam_client: &aws_sdk_iam::Client) -> OrchResult<()> {
     // export PATH="/home/toidiu/projects/s2n-quic/netbench/target/release/:$PATH"
@@ -159,13 +160,13 @@ async fn main() -> OrchResult<()> {
             }
 
             client_coord
-                .run_till_state(client::CoordState::WorkersRunning, || {})
+                .run_till_state(client::CoordState::WorkersRunning)
                 .await
                 .unwrap();
             info!("client coord WorkersRunning");
 
             client_coord
-                .run_till_state(client::CoordState::Done, || {})
+                .run_till_state(client::CoordState::Done)
                 .await
                 .unwrap();
             info!("client coord Done");

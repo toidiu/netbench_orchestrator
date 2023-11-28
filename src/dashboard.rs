@@ -1,13 +1,13 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-use tracing::info;
 use crate::error::OrchResult;
 use crate::upload_object;
 use crate::InstanceDetail;
 use crate::STATE;
 use aws_sdk_s3::primitives::ByteStream;
 use bytes::Bytes;
+use tracing::info;
 
 pub enum Step<'a> {
     UploadIndex,

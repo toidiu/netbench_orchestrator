@@ -69,9 +69,7 @@ async fn run_server_worker(ip: String, port: u16) {
     worker.run_till_ready().await;
 
     worker
-        .run_till_state(server::WorkerState::Done, || {
-            // println!("[server-worker-1] run-------loop till state: Done---------");
-        })
+        .run_till_state(server::WorkerState::Done)
         .await
         .unwrap();
 }
@@ -83,7 +81,7 @@ async fn run_server_coordinator(ip: String, port: u16) {
     let mut coord = coord.build().await.unwrap();
 
     coord
-        .run_till_state(server::CoordState::WorkersRunning, || {})
+        .run_till_state(server::CoordState::WorkersRunning)
         .await
         .unwrap();
 
@@ -91,7 +89,7 @@ async fn run_server_coordinator(ip: String, port: u16) {
     tokio::time::sleep(Duration::from_secs(5)).await;
 
     coord
-        .run_till_state(server::CoordState::Done, || {})
+        .run_till_state(server::CoordState::Done)
         .await
         .unwrap();
 }
@@ -104,9 +102,7 @@ async fn run_client_worker(ip: String, port: u16) {
     worker.run_till_ready().await;
 
     worker
-        .run_till_state(client::WorkerState::Done, || {
-            // println!("[server-worker-1] run-------loop till state: Done---------");
-        })
+        .run_till_state(client::WorkerState::Done)
         .await
         .unwrap();
 }
@@ -118,7 +114,7 @@ async fn run_client_coordinator(ip: String, port: u16) {
     let mut coord = coord.build().await.unwrap();
 
     coord
-        .run_till_state(client::CoordState::WorkersRunning, || {})
+        .run_till_state(client::CoordState::WorkersRunning)
         .await
         .unwrap();
 
@@ -126,7 +122,7 @@ async fn run_client_coordinator(ip: String, port: u16) {
     tokio::time::sleep(Duration::from_secs(5)).await;
 
     coord
-        .run_till_state(client::CoordState::Done, || {})
+        .run_till_state(client::CoordState::Done)
         .await
         .unwrap();
 }

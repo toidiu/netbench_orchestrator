@@ -1,11 +1,11 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-use tracing::info;
 use self::instance::poll_state;
 use crate::ec2_utils::instance::delete_instance;
 use crate::error::{OrchError, OrchResult};
 use std::{thread::sleep, time::Duration};
+use tracing::info;
 
 mod cluster;
 mod instance;
