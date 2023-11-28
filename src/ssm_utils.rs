@@ -37,11 +37,12 @@ pub async fn run_client_russula(
         // russula START
         "cd /home/ec2-user",
         "until [ -f config_fin ]; do sleep 5; done",
+        "sleep 5",
         "touch russula_start----------",
         format!("runuser -u ec2-user -- git clone --branch {} {}", STATE.russula_branch, STATE.russula_repo).as_str(),
         "cd netbench_orchestrator",
         "runuser -u ec2-user -- cargo build",
-        format!("RUST_LOG=debug ./target/debug/russula -- --protocol NetbenchClientWorker --port {}", STATE.russula_port).as_str(),
+        format!("RUST_LOG=debug ./target/debug/russula --protocol NetbenchClientWorker --port {}", STATE.russula_port).as_str(),
         "cd ..",
         // russula END
         "touch russula_fin",
@@ -59,6 +60,7 @@ pub async fn run_client_netbench(
         "cd /home/ec2-user",
         "until [ -f russula_fin ]; do sleep 5; done",
         // "until [ -f config_fin ]; do sleep 5; done",
+        "sleep 5",
         "touch run_start----------",
         format!("runuser -u ec2-user -- git clone --branch {} {}", STATE.branch, STATE.repo).as_str(),
         format!("runuser -u ec2-user -- echo git finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/client-step-4", STATE.s3_path(unique_id)).as_str(),
