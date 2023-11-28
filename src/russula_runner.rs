@@ -48,9 +48,13 @@ async fn main() -> OrchResult<()> {
 
     match opt.protocol {
         RussulaProtocol::NetbenchServerWorker => run_server_worker(opt.ip, opt.port).await,
-        RussulaProtocol::NetbenchServerCoordinator => run_server_coordinator(opt.ip, opt.port).await,
+        RussulaProtocol::NetbenchServerCoordinator => {
+            run_server_coordinator(opt.ip, opt.port).await
+        }
         RussulaProtocol::NetbenchClientWorker => run_client_worker(opt.ip, opt.port).await,
-        RussulaProtocol::NetbenchClientCoordinator => run_client_coordinator(opt.ip, opt.port).await,
+        RussulaProtocol::NetbenchClientCoordinator => {
+            run_client_coordinator(opt.ip, opt.port).await
+        }
     };
 
     println!("hi");

@@ -1,11 +1,13 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::error::{OrchError, OrchResult};
 use crate::state::STATE;
 use aws_sdk_ssm::{
     operation::send_command::SendCommandOutput,
     types::{CloudWatchOutputConfig, CommandInvocationStatus},
 };
+use core::task::Poll;
 use std::{thread::sleep, time::Duration};
 
 pub async fn configure_client(
@@ -55,8 +57,8 @@ pub async fn run_client_netbench(
 ) -> SendCommandOutput {
     send_command("client", ssm_client, client_instance_id, vec![
         "cd /home/ec2-user",
-        // "until [ -f russula_fin ]; do sleep 5; done",
-        "until [ -f config_fin ]; do sleep 5; done",
+        "until [ -f russula_fin ]; do sleep 5; done",
+        // "until [ -f config_fin ]; do sleep 5; done",
         "touch run_start----------",
         format!("runuser -u ec2-user -- git clone --branch {} {}", STATE.branch, STATE.repo).as_str(),
         format!("runuser -u ec2-user -- echo git finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/client-step-4", STATE.s3_path(unique_id)).as_str(),
@@ -113,50 +115,6 @@ pub async fn execute_ssm_server(
     ].into_iter().map(String::from).collect()).await.expect("Timed out")
 }
 
-pub async fn wait_for_ssm_results(
-    endpoint: &str,
-    ssm_client: &aws_sdk_ssm::Client,
-    command_id: &str,
-) -> bool {
-    loop {
-        let o_status = ssm_client
-            .list_command_invocations()
-            .command_id(command_id)
-            .send()
-            .await
-            .unwrap()
-            .command_invocations()
-            .unwrap()
-            .iter()
-            .find_map(|command| command.status())
-            .cloned();
-        let status = match o_status {
-            Some(s) => s,
-            None => {
-                println!("{} command complete: {}", endpoint, command_id);
-                return true
-            },
-        };
-        let dbg = format!("endpoint: {} status: {:?} command_id {}", endpoint, status.clone(), command_id);
-        dbg!(dbg);
-
-        match status {
-            CommandInvocationStatus::Cancelled
-            | CommandInvocationStatus::Cancelling
-            | CommandInvocationStatus::Failed
-            | CommandInvocationStatus::TimedOut => break false,
-            CommandInvocationStatus::Delayed
-            | CommandInvocationStatus::InProgress
-            | CommandInvocationStatus::Pending => {
-                sleep(Duration::from_secs(10));
-                continue;
-            }
-            CommandInvocationStatus::Success => break true,
-            _ => panic!("Unhandled Status"),
-        };
-    }
-}
-
 pub async fn send_command(
     endpoint: &str,
     ssm_client: &aws_sdk_ssm::Client,
@@ -165,7 +123,10 @@ pub async fn send_command(
 ) -> Option<SendCommandOutput> {
     let mut remaining_try_count: u32 = 30;
     loop {
-        println!("send_command... endpoint: {} remaining_try_count: {}", endpoint, remaining_try_count);
+        println!(
+            "send_command... endpoint: {} remaining_try_count: {}",
+            endpoint, remaining_try_count
+        );
         match ssm_client
             .send_command()
             .instance_ids(instance_id)
@@ -199,4 +160,77 @@ pub async fn send_command(
             }
         };
     }
+}
+
+pub async fn wait_for_ssm_results(
+    endpoint: &str,
+    ssm_client: &aws_sdk_ssm::Client,
+    command_id: &str,
+) -> bool {
+    loop {
+        match poll_ssm_results(endpoint, ssm_client, command_id).await {
+            Ok(Poll::Ready(_)) => break true,
+            Ok(Poll::Pending) => {
+                sleep(Duration::from_secs(10));
+                continue;
+            }
+            Err(_err) => break false,
+        }
+    }
+}
+
+pub async fn poll_ssm_results(
+    endpoint: &str,
+    ssm_client: &aws_sdk_ssm::Client,
+    command_id: &str,
+) -> OrchResult<Poll<()>> {
+    let o_status = ssm_client
+        .list_command_invocations()
+        .command_id(command_id)
+        .send()
+        .await
+        .unwrap()
+        .command_invocations()
+        .unwrap()
+        .iter()
+        .find_map(|command| command.status())
+        .cloned();
+    let status = match o_status {
+        Some(s) => s,
+        None => {
+            println!("{} command complete: {}", endpoint, command_id);
+            return Ok(Poll::Ready(()));
+        }
+    };
+    let dbg = format!(
+        "endpoint: {} status: {:?} command_id {}",
+        endpoint,
+        status.clone(),
+        command_id
+    );
+    dbg!(dbg);
+
+    let status = match status {
+        CommandInvocationStatus::Cancelled
+        | CommandInvocationStatus::Cancelling
+        | CommandInvocationStatus::Failed
+        | CommandInvocationStatus::TimedOut => {
+            return Err(OrchError::Ssm {
+                dbg: "timeout".to_string(),
+            })
+        }
+        CommandInvocationStatus::Delayed
+        | CommandInvocationStatus::InProgress
+        | CommandInvocationStatus::Pending => {
+            // sleep(Duration::from_secs(10));
+            Poll::Pending
+        }
+        CommandInvocationStatus::Success => Poll::Ready(()),
+        _ => {
+            return Err(OrchError::Ssm {
+                dbg: "unhandled status".to_string(),
+            })
+        }
+    };
+    Ok(status)
 }
