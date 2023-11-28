@@ -128,12 +128,6 @@ async fn main() -> OrchResult<()> {
         .await;
         println!("Client Config!: Successful: {}", configure_client);
 
-        // let run_client_russula = wait_for_ssm_results(
-        //     "server",
-        //     &ssm_client,
-        //     run_client_russula.command().unwrap().command_id().unwrap(),
-        // )
-        // .await;
         {
             let client_ips = infra
                 .clients
@@ -150,12 +144,13 @@ async fn main() -> OrchResult<()> {
 
             // run rullula workers
             {
-                let _poll_client_russula = poll_ssm_results(
+                let poll_client_russula = poll_ssm_results(
                     "server",
                     &ssm_client,
                     run_client_russula.command().unwrap().command_id().unwrap(),
                 )
                 .await;
+                println!("Client Russula!: Successful: {:?}", poll_client_russula);
             }
 
             client_coord
@@ -169,7 +164,6 @@ async fn main() -> OrchResult<()> {
                 .await
                 .unwrap();
             info!("client coord Done");
-            println!("Client Russula!: Successful: {:?}", run_client_russula);
         }
 
         let run_client_netbench = wait_for_ssm_results(

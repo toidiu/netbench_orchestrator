@@ -5,7 +5,7 @@ use crate::ec2_utils::EndpointType;
 use core::time::Duration;
 
 pub const STATE: State = State {
-    version: "v1.0.21",
+    version: "v1.0.22",
 
     // git
     repo: "https://github.com/aws/s2n-quic.git",
