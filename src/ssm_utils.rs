@@ -2,15 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::state::STATE;
-use aws_sdk_ssm::operation::send_command::SendCommandOutput;
-use aws_sdk_ssm::types::{CloudWatchOutputConfig, CommandInvocationStatus};
-use std::thread::sleep;
-use std::time::Duration;
+use aws_sdk_ssm::{
+    operation::send_command::SendCommandOutput,
+    types::{CloudWatchOutputConfig, CommandInvocationStatus},
+};
+use std::{thread::sleep, time::Duration};
 
-pub async fn execute_ssm_client(
+pub async fn configure_client(
     ssm_client: &aws_sdk_ssm::Client,
     client_instance_id: &str,
-    server_ip: &str,
     unique_id: &str,
 ) -> SendCommandOutput {
     send_command("client", ssm_client, client_instance_id, vec![
@@ -20,6 +20,15 @@ pub async fn execute_ssm_client(
         format!("runuser -u ec2-user -- echo yum upgrade finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/client-step-2", STATE.s3_path(unique_id)).as_str(),
         format!("timeout 5m bash -c 'until yum install cmake cargo git perl openssl-devel bpftrace perf tree -y; do sleep 10; done' || (echo yum failed > /home/ec2-user/index.html; aws s3 cp /home/ec2-user/index.html {}/client-step-3; exit 1)", STATE.s3_path(unique_id)).as_str(),
         format!("echo yum finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/client-step-3", STATE.s3_path(unique_id)).as_str(),
+        "exit 0"
+    ].into_iter().map(String::from).collect()).await.expect("Timed out")
+}
+
+pub async fn run_client_russula(
+    ssm_client: &aws_sdk_ssm::Client,
+    client_instance_id: &str,
+) -> SendCommandOutput {
+    send_command("client", ssm_client, client_instance_id, vec![
         // russula START
         format!("runuser -u ec2-user -- git clone --branch {} {}", STATE.russula_branch, STATE.russula_repo).as_str(),
         "cd netbench_orchestrator",
@@ -27,8 +36,18 @@ pub async fn execute_ssm_client(
         format!("RUST_LOG=debug ./target/debug/russula -- --protocol NetbenchClientWorker --port {}", STATE.russula_port).as_str(),
         "touch finished_running----------",
         "cd ..",
-
         // russula END
+        "exit 0"
+    ].into_iter().map(String::from).collect()).await.expect("Timed out")
+}
+
+pub async fn run_client_netbench(
+    ssm_client: &aws_sdk_ssm::Client,
+    client_instance_id: &str,
+    server_ip: &str,
+    unique_id: &str,
+) -> SendCommandOutput {
+    send_command("client", ssm_client, client_instance_id, vec![
         format!("runuser -u ec2-user -- git clone --branch {} {}", STATE.branch, STATE.repo).as_str(),
         format!("runuser -u ec2-user -- echo git finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/client-step-4", STATE.s3_path(unique_id)).as_str(),
         format!("runuser -u ec2-user -- aws s3 cp s3://{}/{}/request_response.json /home/ec2-user/request_response.json", STATE.s3_log_bucket, STATE.s3_resource_folder).as_str(),

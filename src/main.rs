@@ -109,19 +109,37 @@ async fn main() -> OrchResult<()> {
 
     // TODO move into ssm_utils
     {
-        let client_output =
-            execute_ssm_client(&ssm_client, client_instance_id, &server.ip, &unique_id).await;
+        let configure_client = configure_client(&ssm_client, client_instance_id, &unique_id).await;
+        let _configure_client = wait_for_ssm_results(
+            "server",
+            &ssm_client,
+            configure_client.command().unwrap().command_id().unwrap(),
+        )
+        .await;
+
+        // let run_client_russula = run_client_russula(&ssm_client, client_instance_id).await;
+        // let _run_client_russula = wait_for_ssm_results(
+        //     "server",
+        //     &ssm_client,
+        //     run_client_russula.command().unwrap().command_id().unwrap(),
+        // )
+        // .await;
+
+        let run_client_netbench =
+            run_client_netbench(&ssm_client, client_instance_id, &server.ip, &unique_id).await;
         let server_output =
             execute_ssm_server(&ssm_client, server_instance_id, &client.ip, &unique_id).await;
 
         // FIXME russula needs to go up here or interleave with this
-        let client_result = wait_for_ssm_results(
+        let run_client_netbench = wait_for_ssm_results(
             "client",
             &ssm_client,
-            client_output.command().unwrap().command_id().unwrap(),
+            run_client_netbench.command().unwrap().command_id().unwrap(),
         )
         .await;
-        println!("Client Finished!: Successful: {}", client_result);
+        println!("Client Finished!: Successful: {}", run_client_netbench);
+
+        // server
         let server_result = wait_for_ssm_results(
             "server",
             &ssm_client,
