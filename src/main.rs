@@ -150,7 +150,7 @@ async fn main() -> OrchResult<()> {
 
             // run rullula workers
             {
-                let run_client_russula = poll_ssm_results(
+                let _poll_client_russula = poll_ssm_results(
                     "server",
                     &ssm_client,
                     run_client_russula.command().unwrap().command_id().unwrap(),

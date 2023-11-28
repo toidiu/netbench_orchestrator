@@ -15,7 +15,8 @@ pub async fn configure_client(
     client_instance_id: &str,
     unique_id: &str,
 ) -> SendCommandOutput {
-    send_command("client", ssm_client, client_instance_id, vec![
+    send_command("client", "configure_client",ssm_client, client_instance_id, vec![
+
         "cd /home/ec2-user",
         "touch config_start----------",
         format!("runuser -u ec2-user -- echo ec2 up > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/client-step-1", STATE.s3_path(unique_id)).as_str(),
@@ -23,6 +24,8 @@ pub async fn configure_client(
         format!("runuser -u ec2-user -- echo yum upgrade finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/client-step-2", STATE.s3_path(unique_id)).as_str(),
         format!("timeout 5m bash -c 'until yum install cmake cargo git perl openssl-devel bpftrace perf tree -y; do sleep 10; done' || (echo yum failed > /home/ec2-user/index.html; aws s3 cp /home/ec2-user/index.html {}/server-step-3; exit 1)", STATE.s3_path(unique_id)).as_str(),
         format!("echo yum finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/client-step-3", STATE.s3_path(unique_id)).as_str(),
+        // log
+        "cd /home/ec2-user",
         "touch config_fin",
         "exit 0"
     ].into_iter().map(String::from).collect()).await.expect("Timed out")
@@ -32,7 +35,7 @@ pub async fn run_client_russula(
     ssm_client: &aws_sdk_ssm::Client,
     client_instance_id: &str,
 ) -> SendCommandOutput {
-    send_command("client", ssm_client, client_instance_id, vec![
+    send_command("client", "run_client_russula", ssm_client, client_instance_id, vec![
         // russula START
         "cd /home/ec2-user",
         "until [ -f config_fin ]; do sleep 5; done",
@@ -41,9 +44,10 @@ pub async fn run_client_russula(
         format!("runuser -u ec2-user -- git clone --branch {} {}", STATE.russula_branch, STATE.russula_repo).as_str(),
         "cd netbench_orchestrator",
         "runuser -u ec2-user -- cargo build",
-        format!("sudo RUST_LOG=debug ./target/debug/russula --protocol NetbenchClientWorker --port {}", STATE.russula_port).as_str(),
-        "cd ..",
+        format!("env RUST_LOG=debug ./target/debug/russula --protocol NetbenchClientWorker --port {}", STATE.russula_port).as_str(),
         // russula END
+        // log
+        "cd /home/ec2-user",
         "touch russula_fin",
         "exit 0"
     ].into_iter().map(String::from).collect()).await.expect("Timed out")
@@ -55,7 +59,7 @@ pub async fn run_client_netbench(
     server_ip: &str,
     unique_id: &str,
 ) -> SendCommandOutput {
-    send_command("client", ssm_client, client_instance_id, vec![
+    send_command("client", "run_client_netbench", ssm_client, client_instance_id, vec![
         "cd /home/ec2-user",
         "until [ -f russula_fin ]; do sleep 5; done",
         // "until [ -f config_fin ]; do sleep 5; done",
@@ -77,7 +81,9 @@ pub async fn run_client_netbench(
         format!("runuser -u ec2-user -- aws s3 sync /home/ec2-user/s2n-quic/netbench/target/netbench {}", STATE.s3_path(unique_id)).as_str(),
         format!("runuser -u ec2-user -- echo report upload finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/client-step-8", STATE.s3_path(unique_id)).as_str(),
         // "shutdown -h +1",
-        "touch run_fin----------",
+        // log
+        "cd /home/ec2-user",
+        "touch run_fin",
         "exit 0"
     ].into_iter().map(String::from).collect()).await.expect("Timed out")
 }
@@ -88,7 +94,7 @@ pub async fn execute_ssm_server(
     client_ip: &str,
     unique_id: &str,
 ) -> SendCommandOutput {
-    send_command("server", ssm_client, server_instance_id, vec![
+    send_command("server", "execute_ssm_server", ssm_client, server_instance_id, vec![
         "cd /home/ec2-user",
         "touch run_start----------",
         format!("runuser -u ec2-user -- echo starting > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/server-step-1", STATE.s3_path(unique_id)).as_str(),
@@ -116,8 +122,9 @@ pub async fn execute_ssm_server(
     ].into_iter().map(String::from).collect()).await.expect("Timed out")
 }
 
-pub async fn send_command(
+async fn send_command(
     endpoint: &str,
+    comment: &str,
     ssm_client: &aws_sdk_ssm::Client,
     instance_id: &str,
     commands: Vec<String>,
@@ -125,11 +132,12 @@ pub async fn send_command(
     let mut remaining_try_count: u32 = 30;
     loop {
         println!(
-            "send_command... endpoint: {} remaining_try_count: {}",
-            endpoint, remaining_try_count
+            "send_command... endpoint: {} remaining_try_count: {} comment: {}",
+            endpoint, remaining_try_count, comment
         );
         match ssm_client
             .send_command()
+            .comment(comment)
             .instance_ids(instance_id)
             .document_name("AWS-RunShellScript")
             .document_version("$LATEST")
@@ -152,7 +160,7 @@ pub async fn send_command(
                 if remaining_try_count > 0 {
                     println!("Error message: {}", error_message);
                     println!("Trying again, waiting 30 seconds...");
-                    sleep(Duration::from_secs(1));
+                    sleep(Duration::from_secs(2));
                     remaining_try_count -= 1;
                     continue;
                 } else {
@@ -185,7 +193,7 @@ pub async fn poll_ssm_results(
     ssm_client: &aws_sdk_ssm::Client,
     command_id: &str,
 ) -> OrchResult<Poll<()>> {
-    let o_status = ssm_client
+    let status_comment = ssm_client
         .list_command_invocations()
         .command_id(command_id)
         .send()
@@ -194,22 +202,29 @@ pub async fn poll_ssm_results(
         .command_invocations()
         .unwrap()
         .iter()
-        .find_map(|command| command.status())
-        .cloned();
-    let status = match o_status {
-        Some(s) => s,
+        .find_map(|command| {
+            let status = command.status().cloned();
+            let comment = command.comment().map(|s| s.to_string());
+            status.zip(comment)
+        });
+    let status = match status_comment {
+        Some((status, comment)) => {
+            let dbg = format!(
+                "endpoint: {} status: {:?} command_id {}, comment {}",
+                endpoint,
+                status.clone(),
+                command_id,
+                comment
+            );
+            dbg!(dbg);
+
+            status
+        }
         None => {
             println!("{} command complete: {}", endpoint, command_id);
             return Ok(Poll::Ready(()));
         }
     };
-    let dbg = format!(
-        "endpoint: {} status: {:?} command_id {}",
-        endpoint,
-        status.clone(),
-        command_id
-    );
-    dbg!(dbg);
 
     let status = match status {
         CommandInvocationStatus::Cancelled
@@ -222,10 +237,7 @@ pub async fn poll_ssm_results(
         }
         CommandInvocationStatus::Delayed
         | CommandInvocationStatus::InProgress
-        | CommandInvocationStatus::Pending => {
-            // sleep(Duration::from_secs(10));
-            Poll::Pending
-        }
+        | CommandInvocationStatus::Pending => Poll::Pending,
         CommandInvocationStatus::Success => Poll::Ready(()),
         _ => {
             return Err(OrchError::Ssm {
