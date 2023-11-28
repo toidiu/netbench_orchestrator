@@ -34,7 +34,8 @@ use protocol::{Protocol, StateApi, TransitionStep};
 // https://statecharts.dev/
 // halting problem https://en.wikipedia.org/wiki/Halting_problem
 
-const POLL_RETRY_DURATION: Duration = Duration::from_secs(1);
+const POLL_CONNECT_DURATION: Duration = Duration::from_secs(5);
+const POLL_RETRY_DURATION: Duration = Duration::from_secs(10);
 
 pub struct Russula<P: Protocol> {
     // TODO rename from peer->worker/coord because 'peer' can be confusing
@@ -110,7 +111,7 @@ impl<P: Protocol> RussulaBuilder<P> {
                     }
                     Err(RussulaError::NetworkConnectionRefused { dbg }) => {
                         warn!("Failed to connect.. retrying. addr: {} dbg: {}", addr, dbg);
-                        tokio::time::sleep(POLL_RETRY_DURATION).await;
+                        tokio::time::sleep(POLL_CONNECT_DURATION).await;
                     }
                     Err(err) => return Err(err),
                 }

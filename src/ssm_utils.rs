@@ -9,6 +9,7 @@ use aws_sdk_ssm::{
 };
 use core::task::Poll;
 use std::{thread::sleep, time::Duration};
+use tracing::debug;
 
 pub async fn configure_client(
     ssm_client: &aws_sdk_ssm::Client,
@@ -65,7 +66,7 @@ pub async fn run_client_netbench(
         // "until [ -f config_fin ]; do sleep 5; done",
         "sleep 5",
         "touch run_start----------",
-        format!("runuser -u ec2-user -- git clone --branch {} {}", STATE.branch, STATE.repo).as_str(),
+        format!("runuser -u ec2-user -- git clone --branch {} {}", STATE.netbench_branch, STATE.netbench_repo).as_str(),
         format!("runuser -u ec2-user -- echo git finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/client-step-4", STATE.s3_path(unique_id)).as_str(),
         format!("runuser -u ec2-user -- aws s3 cp s3://{}/{}/request_response.json /home/ec2-user/request_response.json", STATE.s3_log_bucket, STATE.s3_resource_folder).as_str(),
         format!("runuser -u ec2-user -- echo SCENARIO finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/client-step-5", STATE.s3_path(unique_id)).as_str(),
@@ -102,7 +103,7 @@ pub async fn execute_ssm_server(
         format!("runuser -u ec2-user -- echo yum upgrade finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/server-step-2", STATE.s3_path(unique_id)).as_str(),
         format!("timeout 5m bash -c 'until yum install cmake cargo git perl openssl-devel bpftrace perf tree -y; do sleep 10; done' || (echo yum failed > /home/ec2-user/index.html; aws s3 cp /home/ec2-user/index.html {}/server-step-3; exit 1)", STATE.s3_path(unique_id)).as_str(),
         format!("runuser -u ec2-user -- echo yum install finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/server-step-3", STATE.s3_path(unique_id)).as_str(),
-        format!("runuser -u ec2-user -- git clone --branch {} {}", STATE.branch, STATE.repo).as_str(),
+        format!("runuser -u ec2-user -- git clone --branch {} {}", STATE.netbench_branch, STATE.netbench_repo).as_str(),
         format!("runuser -u ec2-user -- echo git clone finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/server-step-4", STATE.s3_path(unique_id)).as_str(),
         format!("runuser -u ec2-user -- aws s3 cp s3://{}/{}/request_response.json /home/ec2-user/request_response.json", STATE.s3_log_bucket, STATE.s3_resource_folder).as_str(),
         format!("runuser -u ec2-user -- echo SCENARIO finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/server-step-5", STATE.s3_path(unique_id)).as_str(),
@@ -131,7 +132,7 @@ async fn send_command(
 ) -> Option<SendCommandOutput> {
     let mut remaining_try_count: u32 = 30;
     loop {
-        println!(
+        debug!(
             "send_command... endpoint: {} remaining_try_count: {} comment: {}",
             endpoint, remaining_try_count, comment
         );
@@ -155,11 +156,13 @@ async fn send_command(
             Ok(sent_command) => {
                 break Some(sent_command);
             }
-            Err(error_message) => {
+            Err(err) => {
                 // TODO is this necessary?
                 if remaining_try_count > 0 {
-                    println!("Error message: {}", error_message);
-                    println!("Trying again, waiting 30 seconds...");
+                    debug!(
+                        "Send command failed: remaining: {} err: {}",
+                        remaining_try_count, err
+                    );
                     sleep(Duration::from_secs(2));
                     remaining_try_count -= 1;
                     continue;
@@ -209,19 +212,18 @@ pub async fn poll_ssm_results(
         });
     let status = match status_comment {
         Some((status, comment)) => {
-            let dbg = format!(
+            debug!(
                 "endpoint: {} status: {:?} command_id {}, comment {}",
                 endpoint,
                 status.clone(),
                 command_id,
                 comment
             );
-            dbg!(dbg);
 
             status
         }
         None => {
-            println!("{} command complete: {}", endpoint, command_id);
+            debug!("{} command complete: {}", endpoint, command_id);
             return Ok(Poll::Ready(()));
         }
     };

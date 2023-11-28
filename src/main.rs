@@ -126,7 +126,7 @@ async fn main() -> OrchResult<()> {
             configure_client.command().unwrap().command_id().unwrap(),
         )
         .await;
-        println!("Client Config!: Successful: {}", configure_client);
+        info!("Client Config!: Successful: {}", configure_client);
 
         {
             let client_ips = infra
@@ -150,7 +150,7 @@ async fn main() -> OrchResult<()> {
                     run_client_russula.command().unwrap().command_id().unwrap(),
                 )
                 .await;
-                println!("Client Russula!: Successful: {:?}", poll_client_russula);
+                info!("Client Russula!: Successful: {:?}", poll_client_russula);
             }
 
             client_coord
@@ -164,6 +164,8 @@ async fn main() -> OrchResult<()> {
                 .await
                 .unwrap();
             info!("client coord Done");
+
+            info!("Client Russula!: Successful");
         }
 
         let run_client_netbench = wait_for_ssm_results(
@@ -172,7 +174,7 @@ async fn main() -> OrchResult<()> {
             run_client_netbench.command().unwrap().command_id().unwrap(),
         )
         .await;
-        println!("Client Finished!: Successful: {}", run_client_netbench);
+        info!("Client Finished!: Successful: {}", run_client_netbench);
 
         let server_result = wait_for_ssm_results(
             "server",
@@ -180,7 +182,7 @@ async fn main() -> OrchResult<()> {
             server_output.command().unwrap().command_id().unwrap(),
         )
         .await;
-        println!("Server Finished!: Successful: {}", server_result);
+        info!("Server Finished!: Successful: {}", server_result);
     }
 
     // Copy results back

@@ -1,6 +1,6 @@
 # -------------------- bin orchestrator
 orch:
-	cargo run --bin orchestrator
+	RUST_LOG=debug cargo run --bin orchestrator
 
 # -------------------- bin russula_runner
 net_server_coord:

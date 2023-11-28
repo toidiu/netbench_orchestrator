@@ -7,9 +7,22 @@ use core::time::Duration;
 pub const STATE: State = State {
     version: "v1.0.22",
 
-    // git
-    repo: "https://github.com/aws/s2n-quic.git",
-    branch: "ak-netbench-sync",
+    // netbench
+    netbench_repo: "https://github.com/aws/s2n-quic.git",
+    netbench_branch: "ak-netbench-sync",
+
+    // orchestrator
+    host_count: HostCount {
+        clients: 1,
+        servers: 1,
+    },
+    workspace_dir: "./target/netbench",
+    shutdown_time_sec: Duration::from_secs(86400), // 1 day
+
+    // russula
+    russula_repo: "https://github.com/toidiu/netbench_orchestrator.git",
+    russula_branch: "ak-main",
+    russula_port: 9000,
 
     // aws
     s3_log_bucket: "netbenchrunnerlogs",
@@ -30,26 +43,23 @@ pub const STATE: State = State {
     ),
     // create/import a key pair to the account
     ssh_key_name: "apoorvko_m1",
-
-    // orchestrator config
-    host_count: HostCount {
-        clients: 1,
-        servers: 1,
-    },
-    workspace_dir: "./target/netbench",
-    shutdown_time_sec: Duration::from_secs(86400), // 1 day
-
-    // russula
-    russula_repo: "https://github.com/toidiu/netbench_orchestrator.git",
-    russula_branch: "ak-main",
-    russula_port: 9000,
 };
 
 pub struct State {
     pub version: &'static str,
-    // git
-    pub repo: &'static str,
-    pub branch: &'static str,
+    // netbench
+    pub netbench_repo: &'static str,
+    pub netbench_branch: &'static str,
+
+    // orchestrator
+    pub host_count: HostCount,
+    pub workspace_dir: &'static str,
+    pub shutdown_time_sec: Duration,
+
+    // russula
+    pub russula_repo: &'static str,
+    pub russula_branch: &'static str,
+    pub russula_port: i32,
 
     // aws
     pub s3_log_bucket: &'static str,
@@ -63,16 +73,6 @@ pub struct State {
     pub instance_profile: &'static str,
     pub subnet_tag_value: (&'static str, &'static str),
     pub ssh_key_name: &'static str,
-
-    // orchestrator config
-    pub host_count: HostCount,
-    pub workspace_dir: &'static str,
-    pub shutdown_time_sec: Duration,
-
-    // russula
-    pub russula_repo: &'static str,
-    pub russula_branch: &'static str,
-    pub russula_port: i32,
 }
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
