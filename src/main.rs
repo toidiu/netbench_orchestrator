@@ -109,28 +109,38 @@ async fn main() -> OrchResult<()> {
 
     // TODO move into ssm_utils
     {
+        // server
+        let server_output =
+            execute_ssm_server(&ssm_client, server_instance_id, &client.ip, &unique_id).await;
+        let server_result = wait_for_ssm_results(
+            "server",
+            &ssm_client,
+            server_output.command().unwrap().command_id().unwrap(),
+        )
+        .await;
+        println!("Server Finished!: Successful: {}", server_result);
+
+        // client
         let configure_client = configure_client(&ssm_client, client_instance_id, &unique_id).await;
-        let _configure_client = wait_for_ssm_results(
+        let configure_client = wait_for_ssm_results(
             "server",
             &ssm_client,
             configure_client.command().unwrap().command_id().unwrap(),
         )
         .await;
+        println!("Client Config!: Successful: {}", configure_client);
 
         // let run_client_russula = run_client_russula(&ssm_client, client_instance_id).await;
-        // let _run_client_russula = wait_for_ssm_results(
+        // let run_client_russula = wait_for_ssm_results(
         //     "server",
         //     &ssm_client,
         //     run_client_russula.command().unwrap().command_id().unwrap(),
         // )
         // .await;
+        // println!("Client Config!: Successful: {}", run_client_russula);
 
         let run_client_netbench =
             run_client_netbench(&ssm_client, client_instance_id, &server.ip, &unique_id).await;
-        let server_output =
-            execute_ssm_server(&ssm_client, server_instance_id, &client.ip, &unique_id).await;
-
-        // FIXME russula needs to go up here or interleave with this
         let run_client_netbench = wait_for_ssm_results(
             "client",
             &ssm_client,
@@ -139,41 +149,35 @@ async fn main() -> OrchResult<()> {
         .await;
         println!("Client Finished!: Successful: {}", run_client_netbench);
 
-        // server
-        let server_result = wait_for_ssm_results(
-            "server",
-            &ssm_client,
-            server_output.command().unwrap().command_id().unwrap(),
-        )
-        .await;
-        println!("Server Finished!: Successful: {}", server_result);
     }
 
     // ---------------------- running, git pull, cargo build, rusulla.start()
 
-    let client_ips = infra
-        .clients
-        .iter()
-        .map(|instance| {
-            SocketAddr::from_str(&format!("{}:{}", instance.ip, STATE.russula_port)).unwrap()
-        })
-        .collect();
-    let client_coord = RussulaBuilder::new(client_ips, client::CoordProtocol::new());
-    let mut client_coord = client_coord.build().await.unwrap();
-    client_coord.run_till_ready().await;
-    info!("client coord Ready");
+    // {
+    // let client_ips = infra
+    //     .clients
+    //     .iter()
+    //     .map(|instance| {
+    //         SocketAddr::from_str(&format!("{}:{}", instance.ip, STATE.russula_port)).unwrap()
+    //     })
+    //     .collect();
+    // let client_coord = RussulaBuilder::new(client_ips, client::CoordProtocol::new());
+    // let mut client_coord = client_coord.build().await.unwrap();
+    // client_coord.run_till_ready().await;
+    // info!("client coord Ready");
 
-    client_coord
-        .run_till_state(client::CoordState::WorkersRunning, || {})
-        .await
-        .unwrap();
-    info!("client coord WorkersRunning");
+    // client_coord
+    //     .run_till_state(client::CoordState::WorkersRunning, || {})
+    //     .await
+    //     .unwrap();
+    // info!("client coord WorkersRunning");
 
-    client_coord
-        .run_till_state(client::CoordState::Done, || {})
-        .await
-        .unwrap();
-    info!("client coord Done");
+    // client_coord
+    //     .run_till_state(client::CoordState::Done, || {})
+    //     .await
+    //     .unwrap();
+    // info!("client coord Done");
+    // }
 
     // Copy results back
     orch_generate_report(&s3_client, &unique_id).await;
