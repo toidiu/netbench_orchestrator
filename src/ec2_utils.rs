@@ -1,6 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+use tracing::info;
 use self::instance::poll_state;
 use crate::ec2_utils::instance::delete_instance;
 use crate::error::{OrchError, OrchResult};
@@ -29,7 +30,7 @@ impl InfraDetail {
 
 impl InfraDetail {
     async fn delete_instances(&self, ec2_client: &aws_sdk_ec2::Client) -> OrchResult<()> {
-        println!("Start: deleting instances");
+        info!("Start: deleting instances");
         let ids: Vec<String> = self
             .servers
             .iter()
@@ -42,7 +43,7 @@ impl InfraDetail {
     }
 
     async fn delete_security_group(&self, ec2_client: &aws_sdk_ec2::Client) -> OrchResult<()> {
-        println!("Start: deleting security groups");
+        info!("Start: deleting security groups");
         let mut deleted_sec_group = ec2_client
             .delete_security_group()
             .group_id(self.security_group_id.to_string())

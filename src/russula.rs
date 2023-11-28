@@ -34,7 +34,7 @@ use protocol::{Protocol, StateApi, TransitionStep};
 // https://statecharts.dev/
 // halting problem https://en.wikipedia.org/wiki/Halting_problem
 
-const POLL_CONNECT_DURATION: Duration = Duration::from_secs(5);
+const POLL_CONNECT_DURATION: Duration = Duration::from_secs(15);
 const POLL_RETRY_DURATION: Duration = Duration::from_secs(10);
 
 pub struct Russula<P: Protocol> {

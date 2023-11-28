@@ -1,6 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+use tracing::info;
 use crate::error::{OrchError, OrchResult};
 use crate::state::STATE;
 use crate::LaunchPlan;
@@ -176,7 +177,7 @@ pub async fn poll_state(
             .unwrap()
             .clone();
 
-        println!(
+        info!(
             "{:?} {} state: {:?}",
             endpoint_type, enumerate, actual_state
         );

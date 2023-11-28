@@ -1,6 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+use tracing::info;
 use crate::ec2_utils::instance::launch_instance;
 use crate::ec2_utils::instance::{EndpointType, InstanceDetail};
 use crate::ec2_utils::poll_state;
@@ -116,7 +117,7 @@ async fn configure_networking(
         .iter()
         .chain(infra.servers.iter())
         .map(|instance_detail| {
-            println!(
+            info!(
                 "{:?}: {} -- {}",
                 instance_detail.endpoint_type,
                 instance_detail.instance_id().unwrap(),
