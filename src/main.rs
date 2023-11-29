@@ -120,7 +120,8 @@ async fn main() -> OrchResult<()> {
             execute_ssm_server(&ssm_client, server_instance_id, &client.ip, &unique_id).await;
 
         // client
-        let configure_client = configure_client(&ssm_client, client_instance_id, &unique_id).await;
+        let configure_client =
+            configure_client("client", &ssm_client, client_instance_id, &unique_id).await;
         let build_client_russula = build_client_russula(&ssm_client, client_instance_id).await;
         let run_client_russula = run_client_russula(&ssm_client, client_instance_id).await;
         let run_client_netbench =

@@ -6,25 +6,22 @@ use aws_sdk_ssm::operation::send_command::SendCommandOutput;
 
 mod common;
 
-use common::send_command;
 pub use common::{poll_ssm_results, wait_for_ssm_results};
-// pub mod client;
-// pub mod common;
 
 pub async fn configure_client(
+    host_group: &str,
     ssm_client: &aws_sdk_ssm::Client,
-    client_instance_id: &str,
+    instance_id: &str,
     unique_id: &str,
 ) -> SendCommandOutput {
-    send_command("client", "configure_client",ssm_client, client_instance_id, vec![
-
+    common::send_command(host_group, "configure_client",ssm_client, instance_id, vec![
         "cd /home/ec2-user",
         "touch config_start----------",
-        format!("runuser -u ec2-user -- echo ec2 up > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/client-step-1", STATE.s3_path(unique_id)).as_str(),
+        format!("runuser -u ec2-user -- echo ec2 up > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/{}-step-1", STATE.s3_path(unique_id), host_group).as_str(),
         "yum upgrade -y",
-        format!("runuser -u ec2-user -- echo yum upgrade finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/client-step-2", STATE.s3_path(unique_id)).as_str(),
+        format!("runuser -u ec2-user -- echo yum upgrade finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/{}-step-2", STATE.s3_path(unique_id), host_group).as_str(),
         format!("timeout 5m bash -c 'until yum install cmake cargo git perl openssl-devel bpftrace perf tree -y; do sleep 10; done' || (echo yum failed > /home/ec2-user/index.html; aws s3 cp /home/ec2-user/index.html {}/server-step-3; exit 1)", STATE.s3_path(unique_id)).as_str(),
-        format!("echo yum finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/client-step-3", STATE.s3_path(unique_id)).as_str(),
+        format!("echo yum finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/{}-step-3", STATE.s3_path(unique_id), host_group).as_str(),
         // log
         "cd /home/ec2-user",
         "touch config_fin",
@@ -34,13 +31,13 @@ pub async fn configure_client(
 
 pub async fn build_client_russula(
     ssm_client: &aws_sdk_ssm::Client,
-    client_instance_id: &str,
+    instance_id: &str,
 ) -> SendCommandOutput {
-    send_command(
+    common::send_command(
         "client",
         "build_client_russula",
         ssm_client,
-        client_instance_id,
+        instance_id,
         vec![
             // russula START
             "cd /home/ec2-user",
@@ -70,9 +67,9 @@ pub async fn build_client_russula(
 
 pub async fn run_client_russula(
     ssm_client: &aws_sdk_ssm::Client,
-    client_instance_id: &str,
+    instance_id: &str,
 ) -> SendCommandOutput {
-    send_command("client", "run_client_russula", ssm_client, client_instance_id, vec![
+    common::send_command("client", "run_client_russula", ssm_client, instance_id, vec![
         // russula START
         "cd /home/ec2-user",
         "until [ -f russula_build_fin ]; do sleep 5; done",
@@ -92,11 +89,11 @@ pub async fn run_client_russula(
 
 pub async fn run_client_netbench(
     ssm_client: &aws_sdk_ssm::Client,
-    client_instance_id: &str,
+    instance_id: &str,
     server_ip: &str,
     unique_id: &str,
 ) -> SendCommandOutput {
-    send_command("client", "run_client_netbench", ssm_client, client_instance_id, vec![
+    common::send_command("client", "run_client_netbench", ssm_client, instance_id, vec![
         "cd /home/ec2-user",
         "until [ -f russula_run_fin ]; do sleep 5; done",
         "sleep 5",
@@ -116,7 +113,9 @@ pub async fn run_client_netbench(
         "runuser -u ec2-user -- cd target/netbench",
         format!("runuser -u ec2-user -- aws s3 sync /home/ec2-user/s2n-quic/netbench/target/netbench {}", STATE.s3_path(unique_id)).as_str(),
         format!("runuser -u ec2-user -- echo report upload finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/client-step-8", STATE.s3_path(unique_id)).as_str(),
-        // "shutdown -h +1",
+
+        // FIXME move to start of ssm commands
+        "shutdown -h +60",
         // log
         "cd /home/ec2-user",
         "touch run_fin",
@@ -126,11 +125,11 @@ pub async fn run_client_netbench(
 
 pub async fn execute_ssm_server(
     ssm_client: &aws_sdk_ssm::Client,
-    server_instance_id: &str,
+    instance_id: &str,
     client_ip: &str,
     unique_id: &str,
 ) -> SendCommandOutput {
-    send_command("server", "execute_ssm_server", ssm_client, server_instance_id, vec![
+    common::send_command("server", "execute_ssm_server", ssm_client, instance_id, vec![
         "cd /home/ec2-user",
         "touch run_start----------",
         format!("runuser -u ec2-user -- echo starting > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/server-step-1", STATE.s3_path(unique_id)).as_str(),
