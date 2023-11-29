@@ -57,18 +57,9 @@ impl<P: Protocol + Send> Russula<P> {
 
     pub async fn run_till_state(&mut self, state: P::State) -> RussulaResult<()> {
         loop {
-            self.poll_state(state);
-            // for peer in self.peer_list.iter_mut() {
-            //     if let Err(err) = peer.protocol.poll_state(&peer.stream, &state).await {
-            //         if err.is_fatal() {
-            //             panic!("{}", err);
-            //         }
-            //     }
-            //     f();
-            // }
-            // if self.self_state_matches(state) {
-            //     break;
-            // }
+            if let Poll::Ready(_) = self.poll_state(state).await? {
+                break;
+            }
             tokio::time::sleep(POLL_RETRY_DURATION).await;
         }
 
