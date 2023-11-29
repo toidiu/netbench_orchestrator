@@ -6,8 +6,8 @@ use crate::report::orch_generate_report;
 use aws_types::region::Region;
 use error::{OrchError, OrchResult};
 use russula::{netbench::client, RussulaBuilder};
-use std::{net::SocketAddr, process::Command, str::FromStr};
-use tracing::info;
+use std::{net::SocketAddr, process::Command, str::FromStr, time::Duration};
+use tracing::{debug, info};
 mod dashboard;
 mod ec2_utils;
 mod error;
@@ -148,28 +148,31 @@ async fn main() -> OrchResult<()> {
             client_coord.run_till_ready().await;
             info!("client coord Ready");
 
-            // run rullula workers
-            {
-                let poll_client_russula = poll_ssm_results(
+            // run russula workers
+            loop {
+                let poll_worker = poll_ssm_results(
                     "server",
                     &ssm_client,
                     run_client_russula.command().unwrap().command_id().unwrap(),
                 )
-                .await;
-                info!("Client Russula!: Successful: {:?}", poll_client_russula);
+                .await
+                .unwrap();
+
+                let poll_coord = client_coord
+                    .poll_state(client::CoordState::Done)
+                    .await
+                    .unwrap();
+
+                debug!(
+                    "Client Russula!: Coordinator: {:?} Worker {:?}",
+                    poll_coord, poll_worker
+                );
+
+                if poll_coord.is_ready() && poll_worker.is_ready() {
+                    break;
+                }
+                tokio::time::sleep(Duration::from_secs(10)).await;
             }
-
-            client_coord
-                .run_till_state(client::CoordState::WorkersRunning)
-                .await
-                .unwrap();
-            info!("client coord WorkersRunning");
-
-            client_coord
-                .run_till_state(client::CoordState::Done)
-                .await
-                .unwrap();
-            info!("client coord Done");
 
             info!("Client Russula!: Successful");
         }

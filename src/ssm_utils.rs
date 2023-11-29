@@ -1,8 +1,10 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::error::{OrchError, OrchResult};
-use crate::state::STATE;
+use crate::{
+    error::{OrchError, OrchResult},
+    state::STATE,
+};
 use aws_sdk_ssm::{
     operation::send_command::SendCommandOutput,
     types::{CloudWatchOutputConfig, CommandInvocationStatus},
@@ -183,7 +185,9 @@ pub async fn wait_for_ssm_results(
         match poll_ssm_results(endpoint, ssm_client, command_id).await {
             Ok(Poll::Ready(_)) => break true,
             Ok(Poll::Pending) => {
+                // FIXME can we use tokio sleep here?
                 sleep(Duration::from_secs(10));
+                // tokio::time::sleep(Duration::from_secs(10)).await;
                 continue;
             }
             Err(_err) => break false,
@@ -214,10 +218,7 @@ pub async fn poll_ssm_results(
         Some((status, comment)) => {
             debug!(
                 "endpoint: {} status: {:?} command_id {}, comment {}",
-                endpoint,
-                status.clone(),
-                command_id,
-                comment
+                endpoint, status, command_id, comment
             );
 
             status
