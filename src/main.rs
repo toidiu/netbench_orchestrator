@@ -30,6 +30,7 @@ use state::*;
 // D- cleanup ssm
 // - breakup server ssm
 // - ssm take list of ids
+// - parallize netbench and russula build
 //
 // - server russula
 // - enable cleanup
