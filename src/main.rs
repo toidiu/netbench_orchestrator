@@ -138,9 +138,17 @@ async fn main() -> OrchResult<()> {
             &unique_id,
         )
         .await;
-        let build_russula = ssm_utils::common::build_russula(&ssm_client, client_ids.clone()).await;
+        let build_russula =
+            ssm_utils::common::build_russula("client", &ssm_client, client_ids.clone()).await;
         let run_client_russula =
             ssm_utils::client::run_client_russula(&ssm_client, client_ids).await;
+        let build_client_netbench = ssm_utils::common::build_netbench(
+            "client",
+            &ssm_client,
+            client_instance_id,
+            &unique_id,
+        )
+        .await;
         let run_client_netbench = ssm_utils::client::run_client_netbench(
             &ssm_client,
             client_instance_id,
@@ -215,6 +223,20 @@ async fn main() -> OrchResult<()> {
             info!("Client Russula!: Successful worker: {}", wait_worker);
         }
 
+        let build_client_netbench = wait_for_ssm_results(
+            "client",
+            &ssm_client,
+            build_client_netbench
+                .command()
+                .unwrap()
+                .command_id()
+                .unwrap(),
+        )
+        .await;
+        info!(
+            "Client build netbench!: Successful: {}",
+            build_client_netbench
+        );
         let run_client_netbench = wait_for_ssm_results(
             "client",
             &ssm_client,
