@@ -24,13 +24,15 @@ use ssm_utils::*;
 use state::*;
 
 // TODO
-// - russula poll state
-// - interleave poll russula and ssm
+// D- russula poll state
+// D- interleave poll russula and ssm
 //
-// - enable cleanup
-// - cleanup ssm
+// D- cleanup ssm
 // - breakup server ssm
+// - ssm take list of ids
+//
 // - server russula
+// - enable cleanup
 
 async fn check_requirements(iam_client: &aws_sdk_iam::Client) -> OrchResult<()> {
     // export PATH="/home/toidiu/projects/s2n-quic/netbench/target/release/:$PATH"
@@ -96,6 +98,15 @@ async fn main() -> OrchResult<()> {
     .await?;
     let client = &infra.clients[0];
     let server = &infra.servers[0];
+    let client_ids: Vec<String> = infra
+        .clients
+        .clone()
+        .into_iter()
+        .map(|infra_detail| {
+            let id = infra_detail.instance_id().unwrap();
+            id.to_string()
+        })
+        .collect();
 
     let client_instance_id = client.instance_id()?;
     let server_instance_id = server.instance_id()?;
@@ -120,12 +131,23 @@ async fn main() -> OrchResult<()> {
             execute_ssm_server(&ssm_client, server_instance_id, &client.ip, &unique_id).await;
 
         // client
-        let configure_client =
-            configure_client("client", &ssm_client, client_instance_id, &unique_id).await;
-        let build_client_russula = build_client_russula(&ssm_client, client_instance_id).await;
-        let run_client_russula = run_client_russula(&ssm_client, client_instance_id).await;
-        let run_client_netbench =
-            run_client_netbench(&ssm_client, client_instance_id, &server.ip, &unique_id).await;
+        let configure_client = ssm_utils::common::configure_hosts(
+            "client",
+            &ssm_client,
+            client_ids.clone(),
+            &unique_id,
+        )
+        .await;
+        let build_russula = ssm_utils::common::build_russula(&ssm_client, client_ids.clone()).await;
+        let run_client_russula =
+            ssm_utils::client::run_client_russula(&ssm_client, client_ids).await;
+        let run_client_netbench = ssm_utils::client::run_client_netbench(
+            &ssm_client,
+            client_instance_id,
+            &server.ip,
+            &unique_id,
+        )
+        .await;
 
         // wait complete
         let configure_client = ssm_utils::wait_for_ssm_results(
@@ -139,11 +161,7 @@ async fn main() -> OrchResult<()> {
         let build_russula = wait_for_ssm_results(
             "client",
             &ssm_client,
-            build_client_russula
-                .command()
-                .unwrap()
-                .command_id()
-                .unwrap(),
+            build_russula.command().unwrap().command_id().unwrap(),
         )
         .await;
         info!("Client Russula build!: Successful: {}", build_russula);
