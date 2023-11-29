@@ -34,12 +34,12 @@ use protocol::{Protocol, StateApi, TransitionStep};
 // https://statecharts.dev/
 // halting problem https://en.wikipedia.org/wiki/Halting_problem
 
-const POLL_CONNECT_DURATION: Duration = Duration::from_secs(15);
 const POLL_RETRY_DURATION: Duration = Duration::from_secs(10);
 
 pub struct Russula<P: Protocol> {
     // TODO rename from peer->worker/coord because 'peer' can be confusing
     peer_list: Vec<RussulaPeer<P>>,
+    poll_delay: Duration,
 }
 
 impl<P: Protocol + Send> Russula<P> {
@@ -50,7 +50,7 @@ impl<P: Protocol + Send> Russula<P> {
                     Poll::Ready(_) => break,
                     Poll::Pending => debug!("{} not yet ready", peer.protocol.name()),
                 }
-                tokio::time::sleep(POLL_RETRY_DURATION).await;
+                tokio::time::sleep(self.poll_delay).await;
             }
         }
     }
@@ -60,7 +60,7 @@ impl<P: Protocol + Send> Russula<P> {
             if let Poll::Ready(_) = self.poll_state(state).await? {
                 break;
             }
-            tokio::time::sleep(POLL_RETRY_DURATION).await;
+            tokio::time::sleep(self.poll_delay).await;
         }
 
         Ok(())
@@ -96,6 +96,7 @@ impl<P: Protocol + Send> Russula<P> {
 
 pub struct RussulaBuilder<P: Protocol> {
     peer_list: Vec<SockProtocol<P>>,
+    poll_delay: Duration,
 }
 
 impl<P: Protocol> RussulaBuilder<P> {
@@ -104,7 +105,15 @@ impl<P: Protocol> RussulaBuilder<P> {
         addr.into_iter().for_each(|addr| {
             map.push((addr, protocol.clone()));
         });
-        Self { peer_list: map }
+        Self {
+            peer_list: map,
+            poll_delay: POLL_RETRY_DURATION,
+        }
+    }
+
+    pub fn poll_delay(mut self, delay: Duration) -> Self {
+        self.poll_delay = delay;
+        self
     }
 
     pub async fn build(self) -> RussulaResult<Russula<P>> {
@@ -119,7 +128,7 @@ impl<P: Protocol> RussulaBuilder<P> {
                     }
                     Err(RussulaError::NetworkConnectionRefused { dbg }) => {
                         warn!("Failed to connect.. retrying. addr: {} dbg: {}", addr, dbg);
-                        tokio::time::sleep(POLL_CONNECT_DURATION).await;
+                        tokio::time::sleep(self.poll_delay).await;
                     }
                     Err(err) => return Err(err),
                 }
@@ -134,6 +143,7 @@ impl<P: Protocol> RussulaBuilder<P> {
 
         Ok(Russula {
             peer_list: stream_protocol_list,
+            poll_delay: self.poll_delay,
         })
     }
 }
@@ -157,7 +167,11 @@ mod tests {
         let c1 = tokio::spawn(async move {
             let addr = BTreeSet::from_iter(worker_list);
             let coord = RussulaBuilder::new(addr, server::CoordProtocol::new());
-            let mut coord = coord.build().await.unwrap();
+            let mut coord = coord
+                .poll_delay(Duration::from_secs(1))
+                .build()
+                .await
+                .unwrap();
             coord.run_till_ready().await;
             coord
         });
@@ -167,7 +181,11 @@ mod tests {
                 BTreeSet::from_iter([w1_sock]),
                 server::WorkerProtocol::new(w1_sock.port()),
             );
-            let mut worker = worker.build().await.unwrap();
+            let mut worker = worker
+                .poll_delay(Duration::from_secs(1))
+                .build()
+                .await
+                .unwrap();
             worker
                 .run_till_state(server::WorkerState::Done)
                 .await
@@ -179,7 +197,11 @@ mod tests {
                 BTreeSet::from_iter([w2_sock]),
                 server::WorkerProtocol::new(w2_sock.port()),
             );
-            let mut worker = worker.build().await.unwrap();
+            let mut worker = worker
+                .poll_delay(Duration::from_secs(1))
+                .build()
+                .await
+                .unwrap();
             worker
                 .run_till_state(server::WorkerState::Done)
                 .await
@@ -240,7 +262,11 @@ mod tests {
         let c1 = tokio::spawn(async move {
             let addr = BTreeSet::from_iter(worker_list);
             let coord = RussulaBuilder::new(addr, client::CoordProtocol::new());
-            let mut coord = coord.build().await.unwrap();
+            let mut coord = coord
+                .poll_delay(Duration::from_secs(1))
+                .build()
+                .await
+                .unwrap();
             coord.run_till_ready().await;
             coord
         });
@@ -250,7 +276,11 @@ mod tests {
                 BTreeSet::from_iter([w1_sock]),
                 client::WorkerProtocol::new(w1_sock.port()),
             );
-            let mut worker = worker.build().await.unwrap();
+            let mut worker = worker
+                .poll_delay(Duration::from_secs(1))
+                .build()
+                .await
+                .unwrap();
             worker
                 .run_till_state(client::WorkerState::Done)
                 .await
@@ -262,7 +292,11 @@ mod tests {
                 BTreeSet::from_iter([w2_sock]),
                 client::WorkerProtocol::new(w2_sock.port()),
             );
-            let mut worker = worker.build().await.unwrap();
+            let mut worker = worker
+                .poll_delay(Duration::from_secs(1))
+                .build()
+                .await
+                .unwrap();
             worker
                 .run_till_state(client::WorkerState::Done)
                 .await
