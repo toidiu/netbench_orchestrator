@@ -127,7 +127,7 @@ async fn main() -> OrchResult<()> {
             run_client_netbench(&ssm_client, client_instance_id, &server.ip, &unique_id).await;
 
         // wait complete
-        let configure_client = wait_for_ssm_results(
+        let configure_client = ssm_utils::wait_for_ssm_results(
             "client",
             &ssm_client,
             configure_client.command().unwrap().command_id().unwrap(),
