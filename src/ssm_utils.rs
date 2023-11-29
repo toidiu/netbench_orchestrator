@@ -81,7 +81,7 @@ pub async fn run_client_russula(
         "sleep 5",
         "touch russula_start----------",
         // format!("runuser -u ec2-user -- git clone --branch {} {}", STATE.russula_branch, STATE.russula_repo).as_str(),
-        // "cd netbench_orchestrator",
+        "cd netbench_orchestrator",
         // "runuser -u ec2-user -- cargo build",
         format!("env RUST_LOG=debug ./target/debug/russula --protocol NetbenchClientWorker --port {}", STATE.russula_port).as_str(),
         // russula END
