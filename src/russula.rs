@@ -56,10 +56,7 @@ impl<P: Protocol + Send> Russula<P> {
     }
 
     pub async fn run_till_state(&mut self, state: P::State) -> RussulaResult<()> {
-        loop {
-            if let Poll::Ready(_) = self.poll_state(state).await? {
-                break;
-            }
+        while self.poll_state(state).await?.is_pending() {
             tokio::time::sleep(self.poll_delay).await;
         }
 
@@ -155,7 +152,6 @@ mod tests {
     use std::str::FromStr;
 
     #[tokio::test]
-    #[allow(clippy::assertions_on_constants)] // for testing
     async fn netbench_server_protocol() {
         env_logger::init();
         let w1_sock = SocketAddr::from_str("127.0.0.1:8991").unwrap();
@@ -223,21 +219,18 @@ mod tests {
                 .run_till_state(server::CoordState::WorkersRunning)
                 .await
                 .unwrap();
-            // // sleep to simulate the server running for some time
-            // tokio::time::sleep(Duration::from_secs(5)).await;
         }
 
-        println!("\nSTEP 3 --------------- : kill worker");
-        coord
-            .run_till_state(server::CoordState::WorkerKilled)
+        println!("\nSTEP 3 --------------- : wait till done");
+        while coord
+            .poll_state(server::CoordState::Done)
             .await
-            .unwrap();
-
-        println!("\nSTEP 4 --------------- : wait till done");
-        coord
-            .run_till_state(server::CoordState::Done)
-            .await
-            .unwrap();
+            .unwrap()
+            .is_pending()
+        {
+            println!("\npoll state: Done");
+            tokio::time::sleep(Duration::from_secs(1)).await;
+        }
 
         println!("\nSTEP 20 --------------- : confirm worker done");
         {
@@ -250,7 +243,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[allow(clippy::assertions_on_constants)] // for testing
     async fn netbench_client_protocol() {
         env_logger::init();
         let w1_sock = SocketAddr::from_str("127.0.0.1:9991").unwrap();
@@ -321,10 +313,15 @@ mod tests {
         }
 
         println!("\nSTEP 3 --------------- : wait till done");
-        coord
-            .run_till_state(client::CoordState::Done)
+        while coord
+            .poll_state(client::CoordState::Done)
             .await
-            .unwrap();
+            .unwrap()
+            .is_pending()
+        {
+            println!("\npoll state: Done");
+            tokio::time::sleep(Duration::from_secs(1)).await;
+        }
 
         println!("\nclient-STEP 20 --------------- : confirm worker done");
         {
