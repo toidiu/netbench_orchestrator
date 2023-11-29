@@ -121,6 +121,7 @@ async fn main() -> OrchResult<()> {
 
         // client
         let configure_client = configure_client(&ssm_client, client_instance_id, &unique_id).await;
+        let build_client_russula = build_client_russula(&ssm_client, client_instance_id).await;
         let run_client_russula = run_client_russula(&ssm_client, client_instance_id).await;
         let run_client_netbench =
             run_client_netbench(&ssm_client, client_instance_id, &server.ip, &unique_id).await;
@@ -133,6 +134,18 @@ async fn main() -> OrchResult<()> {
         )
         .await;
         info!("Client Config!: Successful: {}", configure_client);
+        // wait complete
+        let build_russula = wait_for_ssm_results(
+            "client",
+            &ssm_client,
+            build_client_russula
+                .command()
+                .unwrap()
+                .command_id()
+                .unwrap(),
+        )
+        .await;
+        info!("Client Russula build!: Successful: {}", build_russula);
 
         {
             let client_ips = infra
@@ -158,23 +171,29 @@ async fn main() -> OrchResult<()> {
                 .await
                 .unwrap();
 
-                let poll_coord = client_coord
+                let poll_coord_done = client_coord
                     .poll_state(client::CoordState::Done)
                     .await
                     .unwrap();
 
                 debug!(
                     "Client Russula!: Coordinator: {:?} Worker {:?}",
-                    poll_coord, poll_worker
+                    poll_coord_done, poll_worker
                 );
 
-                if poll_coord.is_ready() && poll_worker.is_ready() {
+                if poll_coord_done.is_ready() {
                     break;
                 }
                 tokio::time::sleep(Duration::from_secs(10)).await;
             }
 
-            info!("Client Russula!: Successful");
+            let wait_worker = wait_for_ssm_results(
+                "server",
+                &ssm_client,
+                run_client_russula.command().unwrap().command_id().unwrap(),
+            )
+            .await;
+            info!("Client Russula!: Successful worker: {}", wait_worker);
         }
 
         let run_client_netbench = wait_for_ssm_results(

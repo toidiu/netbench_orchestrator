@@ -34,6 +34,42 @@ pub async fn configure_client(
     ].into_iter().map(String::from).collect()).await.expect("Timed out")
 }
 
+pub async fn build_client_russula(
+    ssm_client: &aws_sdk_ssm::Client,
+    client_instance_id: &str,
+) -> SendCommandOutput {
+    send_command(
+        "client",
+        "build_client_russula",
+        ssm_client,
+        client_instance_id,
+        vec![
+            // russula START
+            "cd /home/ec2-user",
+            "until [ -f config_fin ]; do sleep 5; done",
+            "sleep 5",
+            "touch russula_build_start----------",
+            format!(
+                "runuser -u ec2-user -- git clone --branch {} {}",
+                STATE.russula_branch, STATE.russula_repo
+            )
+            .as_str(),
+            "cd netbench_orchestrator",
+            "runuser -u ec2-user -- cargo build",
+            // russula END
+            // log
+            "cd /home/ec2-user",
+            "touch russula_build_fin",
+            "exit 0",
+        ]
+        .into_iter()
+        .map(String::from)
+        .collect(),
+    )
+    .await
+    .expect("Timed out")
+}
+
 pub async fn run_client_russula(
     ssm_client: &aws_sdk_ssm::Client,
     client_instance_id: &str,
@@ -41,17 +77,17 @@ pub async fn run_client_russula(
     send_command("client", "run_client_russula", ssm_client, client_instance_id, vec![
         // russula START
         "cd /home/ec2-user",
-        "until [ -f config_fin ]; do sleep 5; done",
+        "until [ -f russula_build_fin ]; do sleep 5; done",
         "sleep 5",
         "touch russula_start----------",
-        format!("runuser -u ec2-user -- git clone --branch {} {}", STATE.russula_branch, STATE.russula_repo).as_str(),
-        "cd netbench_orchestrator",
-        "runuser -u ec2-user -- cargo build",
+        // format!("runuser -u ec2-user -- git clone --branch {} {}", STATE.russula_branch, STATE.russula_repo).as_str(),
+        // "cd netbench_orchestrator",
+        // "runuser -u ec2-user -- cargo build",
         format!("env RUST_LOG=debug ./target/debug/russula --protocol NetbenchClientWorker --port {}", STATE.russula_port).as_str(),
         // russula END
         // log
         "cd /home/ec2-user",
-        "touch russula_fin",
+        "touch russula_run_fin",
         "exit 0"
     ].into_iter().map(String::from).collect()).await.expect("Timed out")
 }
@@ -64,8 +100,7 @@ pub async fn run_client_netbench(
 ) -> SendCommandOutput {
     send_command("client", "run_client_netbench", ssm_client, client_instance_id, vec![
         "cd /home/ec2-user",
-        "until [ -f russula_fin ]; do sleep 5; done",
-        // "until [ -f config_fin ]; do sleep 5; done",
+        "until [ -f russula_run_fin ]; do sleep 5; done",
         "sleep 5",
         "touch run_start----------",
         format!("runuser -u ec2-user -- git clone --branch {} {}", STATE.netbench_branch, STATE.netbench_repo).as_str(),
