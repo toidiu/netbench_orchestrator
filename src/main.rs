@@ -109,7 +109,6 @@ async fn main() -> OrchResult<()> {
         })
         .collect();
 
-    let client_instance_id = client.instance_id()?;
     let server_instance_id = server.instance_id()?;
 
     update_dashboard(
@@ -142,17 +141,17 @@ async fn main() -> OrchResult<()> {
         let build_russula =
             ssm_utils::common::build_russula("client", &ssm_client, client_ids.clone()).await;
         let run_client_russula =
-            ssm_utils::client::run_client_russula(&ssm_client, client_ids).await;
+            ssm_utils::client::run_client_russula(&ssm_client, client_ids.clone()).await;
         let build_client_netbench = ssm_utils::common::build_netbench(
             "client",
             &ssm_client,
-            client_instance_id,
+            client_ids.clone(),
             &unique_id,
         )
         .await;
         let run_client_netbench = ssm_utils::client::run_client_netbench(
             &ssm_client,
-            client_instance_id,
+            client_ids.clone(),
             &server.ip,
             &unique_id,
         )

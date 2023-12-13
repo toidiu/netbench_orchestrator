@@ -8,10 +8,10 @@ use aws_sdk_ssm::operation::send_command::SendCommandOutput;
 pub async fn configure_hosts(
     host_group: &str,
     ssm_client: &aws_sdk_ssm::Client,
-    instance_id: Vec<String>,
+    instance_ids: Vec<String>,
     unique_id: &str,
 ) -> SendCommandOutput {
-    send_command(host_group, "configure_host",ssm_client, instance_id, vec![
+    send_command(host_group, "configure_host",ssm_client, instance_ids, vec![
         "cd /home/ec2-user",
         "touch config_start----------",
         format!("runuser -u ec2-user -- echo ec2 up > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/{}-step-1", STATE.s3_path(unique_id), host_group).as_str(),
@@ -29,13 +29,13 @@ pub async fn configure_hosts(
 pub async fn build_russula(
     host_group: &str,
     ssm_client: &aws_sdk_ssm::Client,
-    instance_id: Vec<String>,
+    instance_ids: Vec<String>,
 ) -> SendCommandOutput {
     send_command(
         host_group,
         "build_russula",
         ssm_client,
-        instance_id,
+        instance_ids,
         vec![
             // russula START
             "cd /home/ec2-user",
@@ -66,10 +66,10 @@ pub async fn build_russula(
 pub async fn build_netbench(
     host_group: &str,
     ssm_client: &aws_sdk_ssm::Client,
-    instance_id: &str,
+    instance_ids: Vec<String>,
     unique_id: &str,
 ) -> SendCommandOutput {
-    send_command(host_group, "run_netbench", ssm_client, vec![instance_id.to_string()], vec![
+    send_command(host_group, "run_netbench", ssm_client, instance_ids, vec![
         "cd /home/ec2-user",
         "until [ -f russula_run_fin ]; do sleep 5; done",
         "sleep 5",

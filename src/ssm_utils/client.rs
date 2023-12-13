@@ -7,9 +7,9 @@ use aws_sdk_ssm::operation::send_command::SendCommandOutput;
 
 pub async fn run_client_russula(
     ssm_client: &aws_sdk_ssm::Client,
-    instance_id: Vec<String>,
+    instance_ids: Vec<String>,
 ) -> SendCommandOutput {
-    send_command("client", "run_client_russula", ssm_client, instance_id, vec![
+    send_command("client", "run_client_russula", ssm_client, instance_ids, vec![
         // russula START
         "cd /home/ec2-user",
         "until [ -f russula_build_fin ]; do sleep 5; done",
@@ -29,11 +29,11 @@ pub async fn run_client_russula(
 
 pub async fn run_client_netbench(
     ssm_client: &aws_sdk_ssm::Client,
-    instance_id: &str,
+    instance_ids: Vec<String>,
     server_ip: &str,
     unique_id: &str,
 ) -> SendCommandOutput {
-    send_command("client", "run_client_netbench", ssm_client, vec![instance_id.to_string()], vec![
+    send_command("client", "run_client_netbench", ssm_client, instance_ids, vec![
         "cd /home/ec2-user",
         "until [ -f build_netbench_fin ]; do sleep 5; done",
         "sleep 5",
