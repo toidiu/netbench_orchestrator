@@ -24,7 +24,7 @@ pub async fn run_client_russula(
         // log
         // "cd /home/ec2-user",
         // "touch russula_run_fin",
-        "exit 0"
+        // "exit 0"
     ].into_iter().map(String::from).collect()).await.expect("Timed out")
 }
 
@@ -62,6 +62,6 @@ pub async fn run_client_netbench(
         // log
         // "cd /home/ec2-user",
         // "touch netbench_run_fin",
-        "exit 0"
+        // "exit 0"
     ].into_iter().map(String::from).collect()).await.expect("Timed out")
 }

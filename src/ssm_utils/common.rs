@@ -23,7 +23,7 @@ pub async fn configure_hosts(
         // log
         // "cd /home/ec2-user",
         // "touch config_fin",
-        "exit 0"
+        // "exit 0"
     ].into_iter().map(String::from).collect()).await.expect("Timed out")
 }
 
@@ -57,7 +57,7 @@ pub async fn build_russula(
             // log
             // "cd /home/ec2-user",
             // "touch russula_build_fin",
-            "exit 0",
+            // "exit 0",
         ]
         .into_iter()
         .map(String::from)
@@ -93,6 +93,6 @@ pub async fn build_netbench(
         // log
         // "cd /home/ec2-user",
         // "touch build_netbench_fin",
-        "exit 0"
+        // "exit 0"
     ].into_iter().map(String::from).collect()).await.expect("Timed out")
 }

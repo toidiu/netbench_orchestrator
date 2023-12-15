@@ -83,19 +83,22 @@ async fn send_command(
 ) -> Option<SendCommandOutput> {
     let mut remaining_try_count: u32 = 30;
 
-    let commands = prepend(commands, "cd /home/ec2-user");
-    let mut commands = commands;
+    // let commands = prepend(commands, "cd /home/ec2-user");
+    // let commands = commands;
+    let mut commands = prepend(commands, &format!("cd /home/ec2-user; touch {}_start___", step.as_str()));
     for wait_step in wait_steps {
         commands = prepend(
             commands,
-            &format!("until [ -f {}_fin ]; do sleep 5; done", wait_step.as_str()),
+            &format!("cd /home/ec2-user; until [ -f {}_fin___ ]; do sleep 5; done", wait_step.as_str()),
         );
     }
-    let mut commands = prepend(commands, &format!("touch {}_start>>>", step.as_str()));
     commands.extend(vec![
         "cd /home/ec2-user".to_string(),
-        format!("touch <<<{}_fin", step.as_str()),
+        format!("touch {}_fin___", step.as_str()),
     ]);
+
+    println!("{:?}", commands);
+
 
     loop {
         debug!(
