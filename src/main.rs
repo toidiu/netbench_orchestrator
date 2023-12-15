@@ -125,12 +125,13 @@ async fn main() -> OrchResult<()> {
     .await?;
 
     // TODO move into ssm_utils
-    {
-        // server
-        let server_output =
-            execute_ssm_server(&ssm_client, server_instance_id, &client.ip, &unique_id).await;
+    // server
+    let server_output =
+        execute_ssm_server(&ssm_client, server_instance_id, &client.ip, &unique_id).await;
 
-        // client
+    // TODO move into ssm_utils
+    // client
+    {
         let configure_client = ssm_utils::common::configure_hosts(
             "client",
             &ssm_client,
@@ -191,7 +192,7 @@ async fn main() -> OrchResult<()> {
             // run russula workers
             loop {
                 let poll_worker = poll_ssm_results(
-                    "server",
+                    "client",
                     &ssm_client,
                     run_client_russula.command().unwrap().command_id().unwrap(),
                 )
@@ -215,7 +216,7 @@ async fn main() -> OrchResult<()> {
             }
 
             let wait_worker = wait_for_ssm_results(
-                "server",
+                "client",
                 &ssm_client,
                 run_client_russula.command().unwrap().command_id().unwrap(),
             )
@@ -244,7 +245,10 @@ async fn main() -> OrchResult<()> {
         )
         .await;
         info!("Client Finished!: Successful: {}", run_client_netbench);
+    }
 
+    // server
+    {
         let server_result = wait_for_ssm_results(
             "server",
             &ssm_client,
