@@ -1,7 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-use super::send_command;
+use super::{send_command, Step};
 use crate::state::STATE;
 use aws_sdk_ssm::operation::send_command::SendCommandOutput;
 
@@ -9,7 +9,7 @@ pub async fn run_client_russula(
     ssm_client: &aws_sdk_ssm::Client,
     instance_ids: Vec<String>,
 ) -> SendCommandOutput {
-    send_command("client", "run_client_russula", ssm_client, instance_ids, vec![
+    send_command(vec![Step::BuildRussula], Step::RunRussula, "client", "run_client_russula", ssm_client, instance_ids, vec![
         // russula START
         "cd /home/ec2-user",
         "until [ -f russula_build_fin ]; do sleep 5; done",
@@ -33,7 +33,7 @@ pub async fn run_client_netbench(
     server_ip: &str,
     unique_id: &str,
 ) -> SendCommandOutput {
-    send_command("client", "run_client_netbench", ssm_client, instance_ids, vec![
+    send_command(vec![Step::BuildNetbench], Step::RunNetbench, "client", "run_client_netbench", ssm_client, instance_ids, vec![
         "cd /home/ec2-user",
         "until [ -f build_netbench_fin ]; do sleep 5; done",
         "sleep 5",

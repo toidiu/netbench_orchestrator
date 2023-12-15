@@ -1,8 +1,10 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::error::{OrchError, OrchResult};
-use crate::state::STATE;
+use crate::{
+    error::{OrchError, OrchResult},
+    state::STATE,
+};
 use aws_sdk_ssm::{
     operation::send_command::SendCommandOutput,
     types::{CloudWatchOutputConfig, CommandInvocationStatus},
@@ -14,13 +16,35 @@ use tracing::debug;
 pub mod client;
 pub mod common;
 
+enum Step {
+    Configure,
+    BuildRussula,
+    BuildNetbench,
+    RunRussula,
+    RunNetbench,
+}
+
+impl Step {
+    fn as_str(&self) -> &str {
+        match self {
+            Step::Configure => "configure",
+            Step::BuildRussula => "build_russula",
+            Step::BuildNetbench => "build_netbench",
+            Step::RunRussula => "run_russula",
+            Step::RunNetbench => "run_netbench",
+        }
+    }
+}
+
 pub async fn execute_ssm_server(
     ssm_client: &aws_sdk_ssm::Client,
     instance_id: &str,
     client_ip: &str,
     unique_id: &str,
 ) -> SendCommandOutput {
-    send_command("server", "execute_ssm_server", ssm_client, vec![instance_id.to_string()], vec![
+    send_command(
+        vec![],
+        Step::Configure, "server", "execute_ssm_server", ssm_client, vec![instance_id.to_string()], vec![
         "cd /home/ec2-user",
         "touch run_start----------",
         format!("runuser -u ec2-user -- echo starting > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/server-step-1", STATE.s3_path(unique_id)).as_str(),
@@ -49,6 +73,8 @@ pub async fn execute_ssm_server(
 }
 
 async fn send_command(
+    wait_steps: Vec<Step>,
+    step: Step,
     endpoint: &str,
     comment: &str,
     ssm_client: &aws_sdk_ssm::Client,
@@ -56,6 +82,21 @@ async fn send_command(
     commands: Vec<String>,
 ) -> Option<SendCommandOutput> {
     let mut remaining_try_count: u32 = 30;
+
+    let commands = prepend(commands, "cd /home/ec2-user");
+    let mut commands = commands;
+    for wait_step in wait_steps {
+        commands = prepend(
+            commands,
+            &format!("until [ -f {}_fin ]; do sleep 5; done", wait_step.as_str()),
+        );
+    }
+    let mut commands = prepend(commands, &format!("touch {}_start>>>", step.as_str()));
+    commands.extend(vec![
+        "cd /home/ec2-user".to_string(),
+        format!("touch <<<{}_fin", step.as_str()),
+    ]);
+
     loop {
         debug!(
             "send_command... endpoint: {} remaining_try_count: {} comment: {}",
@@ -173,4 +214,10 @@ pub(crate) async fn poll_ssm_results(
         }
     };
     Ok(status)
+}
+
+fn prepend(v: Vec<String>, s: &str) -> Vec<String> {
+    let mut tmp: Vec<String> = vec![s.to_owned()];
+    tmp.extend(v);
+    tmp
 }

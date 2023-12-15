@@ -1,7 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-use super::send_command;
+use super::{send_command, Step};
 use crate::state::STATE;
 use aws_sdk_ssm::operation::send_command::SendCommandOutput;
 
@@ -11,7 +11,7 @@ pub async fn configure_hosts(
     instance_ids: Vec<String>,
     unique_id: &str,
 ) -> SendCommandOutput {
-    send_command(host_group, "configure_host",ssm_client, instance_ids, vec![
+    send_command(vec![], Step::Configure, host_group, "configure_host",ssm_client, instance_ids, vec![
         "cd /home/ec2-user",
         "touch config_start----------",
         format!("runuser -u ec2-user -- echo ec2 up > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/{}-step-1", STATE.s3_path(unique_id), host_group).as_str(),
@@ -32,6 +32,8 @@ pub async fn build_russula(
     instance_ids: Vec<String>,
 ) -> SendCommandOutput {
     send_command(
+        vec![Step::Configure],
+        Step::BuildRussula,
         host_group,
         "build_russula",
         ssm_client,
@@ -69,7 +71,9 @@ pub async fn build_netbench(
     instance_ids: Vec<String>,
     unique_id: &str,
 ) -> SendCommandOutput {
-    send_command(host_group, "run_netbench", ssm_client, instance_ids, vec![
+    send_command(
+        vec![Step::Configure],
+        Step::BuildNetbench,host_group, "run_netbench", ssm_client, instance_ids, vec![
         "cd /home/ec2-user",
         "until [ -f russula_run_fin ]; do sleep 5; done",
         "sleep 5",
