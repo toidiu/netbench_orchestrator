@@ -81,25 +81,28 @@ async fn send_command(
     ids: Vec<String>,
     commands: Vec<String>,
 ) -> Option<SendCommandOutput> {
-    let mut remaining_try_count: u32 = 30;
-
-    // let commands = prepend(commands, "cd /home/ec2-user");
-    // let commands = commands;
-    let mut commands = prepend(commands, &format!("cd /home/ec2-user; touch {}_start___", step.as_str()));
-    for wait_step in wait_steps {
-        commands = prepend(
-            commands,
-            &format!("cd /home/ec2-user; until [ -f {}_fin___ ]; do sleep 5; done", wait_step.as_str()),
-        );
+    let mut assemble_command = Vec::new();
+    // wait for previous steps
+    for step in wait_steps {
+        assemble_command.push(format!(
+            "cd /home/ec2-user; until [ -f {}_fin___ ]; do sleep 5; done",
+            step.as_str()
+        ));
     }
-    commands.extend(vec![
+    // indicate that this step has started
+    assemble_command.push(format!(
+        "cd /home/ec2-user; touch {}_start___",
+        step.as_str()
+    ));
+    assemble_command.extend(commands);
+    // indicate that this step has finished
+    assemble_command.extend(vec![
         "cd /home/ec2-user".to_string(),
         format!("touch {}_fin___", step.as_str()),
     ]);
+    debug!("{:?}", assemble_command);
 
-    println!("{:?}", commands);
-
-
+    let mut remaining_try_count: u32 = 30;
     loop {
         debug!(
             "send_command... endpoint: {} remaining_try_count: {} comment: {}",
@@ -112,7 +115,7 @@ async fn send_command(
             .set_instance_ids(Some(ids.clone()))
             .document_name("AWS-RunShellScript")
             .document_version("$LATEST")
-            .parameters("commands", commands.clone())
+            .parameters("commands", assemble_command.clone())
             .cloud_watch_output_config(
                 CloudWatchOutputConfig::builder()
                     .cloud_watch_log_group_name(STATE.cloud_watch_group)
@@ -219,8 +222,8 @@ pub(crate) async fn poll_ssm_results(
     Ok(status)
 }
 
-fn prepend(v: Vec<String>, s: &str) -> Vec<String> {
-    let mut tmp: Vec<String> = vec![s.to_owned()];
-    tmp.extend(v);
-    tmp
-}
+// fn prepend(v: Vec<String>, s: Vec<String>) -> Vec<String> {
+//     let mut tmp: Vec<String> = s;
+//     tmp.extend(v);
+//     tmp
+// }
