@@ -24,13 +24,15 @@ use ssm_utils::*;
 use state::*;
 
 // TODO
+//
+// - make ssm russula runs nicer
+//
 // D- russula poll state
 // D- interleave poll russula and ssm
-//
 // D- cleanup ssm
-// - breakup server ssm
-// - ssm take list of ids
-// - parallize netbench and russula build
+// D- breakup server ssm
+// D- ssm take list of ids
+// D- parallize netbench and russula build
 //
 // - server russula
 // - enable cleanup
@@ -133,14 +135,14 @@ async fn main() -> OrchResult<()> {
 
     // configure and build
     {
-        let mut build_cmds = ssm_utils::common::config_build_cmds(
+        let mut build_cmds = ssm_utils::common::collect_config_cmds(
             "server",
             &ssm_client,
             server_ids.clone(),
             &unique_id,
         )
         .await;
-        let client_build_cmds = ssm_utils::common::config_build_cmds(
+        let client_build_cmds = ssm_utils::common::collect_config_cmds(
             "client",
             &ssm_client,
             client_ids.clone(),
@@ -148,7 +150,7 @@ async fn main() -> OrchResult<()> {
         )
         .await;
         build_cmds.extend(client_build_cmds);
-        ssm_utils::common::poll_cmds("client_server_config", &ssm_client, build_cmds).await;
+        ssm_utils::common::wait_cmds("client_server_config", &ssm_client, build_cmds).await;
 
         info!("client_server install_deps!: Successful");
     }
@@ -195,12 +197,13 @@ async fn main() -> OrchResult<()> {
             &unique_id,
         )
         .await;
-        ssm_utils::common::poll_cmds(
+        ssm_utils::common::wait_cmds(
             "client_server_netbench",
             &ssm_client,
             vec![run_server_netbench, run_client_netbench],
         )
         .await;
+        info!("client_server netbench!: Successful");
     }
 
     // Copy results back
