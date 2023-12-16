@@ -145,7 +145,7 @@ async fn main() -> OrchResult<()> {
         ssm_utils::server::run_netbench(&ssm_client, server_ids.clone(), &client.ip, &unique_id)
             .await;
 
-    // client
+    // client russula
     {
         // client run commands
         let (run_client_russula, run_client_netbench) = {
