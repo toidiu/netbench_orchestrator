@@ -108,6 +108,15 @@ async fn main() -> OrchResult<()> {
             id.to_string()
         })
         .collect();
+    let server_ids: Vec<String> = infra
+        .servers
+        .clone()
+        .into_iter()
+        .map(|infra_detail| {
+            let id = infra_detail.instance_id().unwrap();
+            id.to_string()
+        })
+        .collect();
 
     let server_instance_id = server.instance_id()?;
 
@@ -124,10 +133,14 @@ async fn main() -> OrchResult<()> {
     )
     .await?;
 
-    // TODO move into ssm_utils
     // server commands
-    let server_output =
-        execute_ssm_server(&ssm_client, server_instance_id, &client.ip, &unique_id).await;
+    // FIXME need to config_build server and client together so we dont block
+    {
+        ssm_utils::common::config_build("server", &ssm_client, server_ids.clone(), &unique_id)
+            .await;
+    }
+    // let server_output =
+    //     execute_ssm_server(&ssm_client, server_instance_id, &client.ip, &unique_id).await;
 
     // client
     {
@@ -181,10 +194,17 @@ async fn main() -> OrchResult<()> {
 
     // server
     {
+        let run_server_netbench = ssm_utils::server::run_netbench(
+            &ssm_client,
+            client_ids.clone(),
+            &server.ip,
+            &unique_id,
+        )
+        .await;
         let server_result = wait_for_ssm_results(
             "server",
             &ssm_client,
-            server_output.command().unwrap().command_id().unwrap(),
+            run_server_netbench.command().unwrap().command_id().unwrap(),
         )
         .await;
         info!("Server Finished!: Successful: {}", server_result);

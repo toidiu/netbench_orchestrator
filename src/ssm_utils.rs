@@ -15,6 +15,7 @@ use tracing::debug;
 
 pub mod client;
 pub mod common;
+pub mod server;
 
 enum Step {
     Configure,
@@ -46,7 +47,6 @@ pub async fn execute_ssm_server(
         vec![],
         Step::Configure, "server", "execute_ssm_server", ssm_client, vec![instance_id.to_string()], vec![
         "cd /home/ec2-user",
-        "touch run_start----------",
         format!("runuser -u ec2-user -- echo starting > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/server-step-1", STATE.s3_path(unique_id)).as_str(),
         "yum upgrade -y",
         format!("runuser -u ec2-user -- echo yum upgrade finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/server-step-2", STATE.s3_path(unique_id)).as_str(),
@@ -61,13 +61,14 @@ pub async fn execute_ssm_server(
         "runuser -u ec2-user -- mkdir -p target/netbench",
         "runuser -u ec2-user -- cp /home/ec2-user/request_response.json target/netbench/request_response.json",
         format!("runuser -u ec2-user -- echo cargo build finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/server-step-6", STATE.s3_path(unique_id)).as_str(),
+
+
         format!("env COORD_CLIENT_0={}:8080 ./scripts/netbench-test-player-as-server.sh", client_ip).as_str(),
         "chown ec2-user: -R .",
         format!("runuser -u ec2-user -- echo run finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/server-step-7", STATE.s3_path(unique_id)).as_str(),
         format!("runuser -u ec2-user -- aws s3 sync /home/ec2-user/s2n-quic/netbench/target/netbench {}", STATE.s3_path(unique_id)).as_str(),
         format!("runuser -u ec2-user -- echo report upload finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/server-step-8", STATE.s3_path(unique_id)).as_str(),
         "shutdown -h +1",
-        "touch run_fin",
         "exit 0",
     ].into_iter().map(String::from).collect()).await.expect("Timed out")
 }
