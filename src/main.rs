@@ -118,8 +118,6 @@ async fn main() -> OrchResult<()> {
         })
         .collect();
 
-    let server_instance_id = server.instance_id()?;
-
     update_dashboard(
         Step::ServerHostsRunning(&infra.servers),
         &s3_client,
@@ -139,6 +137,9 @@ async fn main() -> OrchResult<()> {
         ssm_utils::common::config_build("server", &ssm_client, server_ids.clone(), &unique_id)
             .await;
     }
+    let run_server_netbench =
+        ssm_utils::server::run_netbench(&ssm_client, server_ids.clone(), &client.ip, &unique_id)
+            .await;
     // let server_output =
     //     execute_ssm_server(&ssm_client, server_instance_id, &client.ip, &unique_id).await;
 
@@ -194,13 +195,6 @@ async fn main() -> OrchResult<()> {
 
     // server
     {
-        let run_server_netbench = ssm_utils::server::run_netbench(
-            &ssm_client,
-            client_ids.clone(),
-            &server.ip,
-            &unique_id,
-        )
-        .await;
         let server_result = wait_for_ssm_results(
             "server",
             &ssm_client,
