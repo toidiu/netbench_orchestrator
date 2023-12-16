@@ -15,7 +15,7 @@ use aws_sdk_ssm::operation::send_command::SendCommandOutput;
 use core::time::Duration;
 use tracing::{debug, info};
 
-pub async fn poll_russula(
+pub async fn wait_russula(
     ssm_client: &aws_sdk_ssm::Client,
     mut client_coord: Russula<CoordProtocol>,
     run_russula_cmd: SendCommandOutput,
@@ -55,7 +55,7 @@ pub async fn poll_russula(
     }
 }
 
-pub async fn run_client_russula(
+pub async fn run_russula(
     ssm_client: &aws_sdk_ssm::Client,
     instance_ids: Vec<String>,
 ) -> SendCommandOutput {
@@ -65,7 +65,7 @@ pub async fn run_client_russula(
     ].into_iter().map(String::from).collect()).await.expect("Timed out")
 }
 
-pub async fn run_client_netbench(
+pub async fn run_netbench(
     ssm_client: &aws_sdk_ssm::Client,
     instance_ids: Vec<String>,
     server_ip: &str,
