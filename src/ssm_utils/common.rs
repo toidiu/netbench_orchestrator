@@ -1,11 +1,55 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-use super::{send_command, Step};
+use super::{send_command, wait_for_ssm_results, Step};
 use crate::state::STATE;
 use aws_sdk_ssm::operation::send_command::SendCommandOutput;
+use tracing::info;
 
-pub async fn configure_hosts(
+pub async fn config_build(
+    host_group: &str,
+    ssm_client: &aws_sdk_ssm::Client,
+    instance_ids: Vec<String>,
+    unique_id: &str,
+) {
+    // configure and build
+    let install_deps = install_deps(host_group, ssm_client, instance_ids.clone(), unique_id).await;
+    let build_russula = build_russula(host_group, ssm_client, instance_ids.clone()).await;
+    let build_client_netbench =
+        build_netbench(host_group, ssm_client, instance_ids.clone(), unique_id).await;
+    // wait complete
+    let install_deps = wait_for_ssm_results(
+        host_group,
+        ssm_client,
+        install_deps.command().unwrap().command_id().unwrap(),
+    )
+    .await;
+    info!("Client install_deps!: Successful: {}", install_deps);
+    // wait complete
+    let build_russula = wait_for_ssm_results(
+        host_group,
+        ssm_client,
+        build_russula.command().unwrap().command_id().unwrap(),
+    )
+    .await;
+    info!("Client Russula build!: Successful: {}", build_russula);
+    let build_client_netbench = wait_for_ssm_results(
+        host_group,
+        ssm_client,
+        build_client_netbench
+            .command()
+            .unwrap()
+            .command_id()
+            .unwrap(),
+    )
+    .await;
+    info!(
+        "Client Netbench build!: Successful: {}",
+        build_client_netbench
+    );
+}
+
+async fn install_deps(
     host_group: &str,
     ssm_client: &aws_sdk_ssm::Client,
     instance_ids: Vec<String>,
@@ -20,7 +64,7 @@ pub async fn configure_hosts(
     ].into_iter().map(String::from).collect()).await.expect("Timed out")
 }
 
-pub async fn build_russula(
+async fn build_russula(
     host_group: &str,
     ssm_client: &aws_sdk_ssm::Client,
     instance_ids: Vec<String>,
@@ -49,7 +93,7 @@ pub async fn build_russula(
     .expect("Timed out")
 }
 
-pub async fn build_netbench(
+async fn build_netbench(
     host_group: &str,
     ssm_client: &aws_sdk_ssm::Client,
     instance_ids: Vec<String>,

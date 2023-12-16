@@ -132,55 +132,8 @@ async fn main() -> OrchResult<()> {
     // TODO move into ssm_utils
     // client
     {
-        // configure and build
-        {
-            let configure_client = ssm_utils::common::configure_hosts(
-                "client",
-                &ssm_client,
-                client_ids.clone(),
-                &unique_id,
-            )
+        ssm_utils::common::config_build("client", &ssm_client, client_ids.clone(), &unique_id)
             .await;
-            let build_russula =
-                ssm_utils::common::build_russula("client", &ssm_client, client_ids.clone()).await;
-            let build_client_netbench = ssm_utils::common::build_netbench(
-                "client",
-                &ssm_client,
-                client_ids.clone(),
-                &unique_id,
-            )
-            .await;
-            // wait complete
-            let configure_client = ssm_utils::wait_for_ssm_results(
-                "client",
-                &ssm_client,
-                configure_client.command().unwrap().command_id().unwrap(),
-            )
-            .await;
-            info!("Client Config!: Successful: {}", configure_client);
-            // wait complete
-            let build_russula = wait_for_ssm_results(
-                "client",
-                &ssm_client,
-                build_russula.command().unwrap().command_id().unwrap(),
-            )
-            .await;
-            info!("Client Russula build!: Successful: {}", build_russula);
-            let build_client_netbench = wait_for_ssm_results(
-                "client",
-                &ssm_client,
-                build_client_netbench
-                    .command()
-                    .unwrap()
-                    .command_id()
-                    .unwrap(),
-            )
-            .await;
-            info!(
-                "Client build netbench!: Successful: {}",
-                build_client_netbench
-            );
-        }
 
         // client run commands
         let (run_client_russula, run_client_netbench) = {
