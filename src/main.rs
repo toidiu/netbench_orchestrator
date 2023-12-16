@@ -4,7 +4,6 @@
 #![allow(dead_code)]
 use crate::report::orch_generate_report;
 use aws_types::region::Region;
-use core::time::Duration;
 use error::{OrchError, OrchResult};
 use russula::{netbench::client, RussulaBuilder};
 use std::{net::SocketAddr, process::Command, str::FromStr};
@@ -149,7 +148,7 @@ async fn main() -> OrchResult<()> {
         )
         .await;
         build_cmds.extend(client_build_cmds);
-        ssm_utils::common::poll_cmds("client_server", &ssm_client, build_cmds).await;
+        ssm_utils::common::poll_cmds("client_server_config", &ssm_client, build_cmds).await;
     }
 
     // run russula
@@ -194,31 +193,12 @@ async fn main() -> OrchResult<()> {
             &unique_id,
         )
         .await;
-        loop {
-            // client netbench
-            let client_result = poll_ssm_results(
-                "client",
-                &ssm_client,
-                run_client_netbench.command().unwrap().command_id().unwrap(),
-            )
-            .await
-            .unwrap();
-            info!("Client Finished!: Successful: {:?}", client_result);
-            // server
-            let server_result = poll_ssm_results(
-                "server",
-                &ssm_client,
-                run_server_netbench.command().unwrap().command_id().unwrap(),
-            )
-            .await
-            .unwrap();
-            info!("Server Finished!: Successful: {:?}", server_result);
-
-            if client_result.is_ready() && server_result.is_ready() {
-                break;
-            }
-            tokio::time::sleep(Duration::from_secs(10)).await;
-        }
+        ssm_utils::common::poll_cmds(
+            "client_server_netbench",
+            &ssm_client,
+            vec![run_server_netbench, run_client_netbench],
+        )
+        .await;
     }
 
     // Copy results back
