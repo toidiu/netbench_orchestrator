@@ -129,7 +129,6 @@ async fn main() -> OrchResult<()> {
     let server_output =
         execute_ssm_server(&ssm_client, server_instance_id, &client.ip, &unique_id).await;
 
-    // TODO move into ssm_utils
     // client
     {
         ssm_utils::common::config_build("client", &ssm_client, client_ids.clone(), &unique_id)
@@ -150,7 +149,7 @@ async fn main() -> OrchResult<()> {
         };
 
         // client coord
-        let mut client_coord = {
+        let client_coord = {
             let client_ips = infra
                 .clients
                 .iter()
@@ -166,44 +165,7 @@ async fn main() -> OrchResult<()> {
             client_coord
         };
 
-        {
-            // poll client russula workers/coord
-            loop {
-                let poll_worker = poll_ssm_results(
-                    "client",
-                    &ssm_client,
-                    run_client_russula.command().unwrap().command_id().unwrap(),
-                )
-                .await
-                .unwrap();
-
-                let poll_coord_done = client_coord
-                    .poll_state(client::CoordState::Done)
-                    .await
-                    .unwrap();
-
-                debug!(
-                    "Client Russula!: Coordinator: {:?} Worker {:?}",
-                    poll_coord_done, poll_worker
-                );
-
-                if poll_coord_done.is_ready() {
-                    break;
-                }
-                tokio::time::sleep(Duration::from_secs(10)).await;
-            }
-
-            // client russula worker ssm
-            {
-                let wait_worker = wait_for_ssm_results(
-                    "client",
-                    &ssm_client,
-                    run_client_russula.command().unwrap().command_id().unwrap(),
-                )
-                .await;
-                info!("Client Russula!: Successful worker: {}", wait_worker);
-            }
-        }
+        ssm_utils::client::poll_russula(&ssm_client, client_coord, run_client_russula).await;
 
         // client netbench
         {
