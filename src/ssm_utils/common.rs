@@ -5,6 +5,7 @@ use super::{send_command, wait_for_ssm_results, Step};
 use crate::{poll_ssm_results, state::STATE};
 use aws_sdk_ssm::operation::send_command::SendCommandOutput;
 use core::time::Duration;
+use tracing::debug;
 use tracing::info;
 
 pub async fn poll_cmds(
@@ -15,23 +16,20 @@ pub async fn poll_cmds(
     loop {
         let mut complete = true;
         for cmd in cmds.iter() {
-            let comment = cmd.command().unwrap().comment().unwrap();
             let cmd_id = cmd.command().unwrap().command_id().unwrap();
             let poll_cmd = poll_ssm_results(host_group, ssm_client, cmd_id)
                 .await
                 .unwrap();
-            info!(
-                "{} SSM command. comment: {}, poll: {:?}",
-                host_group, comment, poll_cmd
-            );
             complete &= poll_cmd.is_ready();
         }
 
         if complete {
-            info!("{} SSM poll complete", host_group);
+            debug!("{} SSM poll complete", host_group);
             break;
+        } else {
+            debug!("tasks not complete. wait to poll  again ...");
         }
-        tokio::time::sleep(Duration::from_secs(10)).await;
+        tokio::time::sleep(Duration::from_secs(20)).await;
     }
 }
 
@@ -47,15 +45,15 @@ pub async fn config_build_cmds(
     let build_client_netbench =
         build_netbench(host_group, ssm_client, instance_ids.clone(), unique_id).await;
     // wait complete
-    let install_deps = wait_for_ssm_results(
-        host_group,
-        ssm_client,
-        install_deps.command().unwrap().command_id().unwrap(),
-    )
-    .await;
-    info!("{} install_deps!: Successful: {}", host_group, install_deps);
+    // let install_deps = wait_for_ssm_results(
+    //     host_group,
+    //     ssm_client,
+    //     install_deps.command().unwrap().command_id().unwrap(),
+    // )
+    // .await;
+    // info!("{} install_deps!: Successful: {}", host_group, install_deps);
 
-    vec![build_russula, build_client_netbench]
+    vec![install_deps, build_russula, build_client_netbench]
 }
 
 async fn install_deps(
@@ -64,7 +62,7 @@ async fn install_deps(
     instance_ids: Vec<String>,
     unique_id: &str,
 ) -> SendCommandOutput {
-    send_command(vec![], Step::Configure, host_group, "configure_host",ssm_client, instance_ids, vec![
+    send_command(vec![], Step::Configure, host_group, &format!("configure_host_{}", host_group) ,ssm_client, instance_ids, vec![
         format!("runuser -u ec2-user -- echo ec2 up > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/{}-step-1", STATE.s3_path(unique_id), host_group).as_str(),
         "yum upgrade -y",
         format!("runuser -u ec2-user -- echo yum upgrade finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/{}-step-2", STATE.s3_path(unique_id), host_group).as_str(),
@@ -82,7 +80,7 @@ async fn build_russula(
         vec![Step::Configure],
         Step::BuildRussula,
         host_group,
-        "build_russula",
+        &format!("build_russula_{}", host_group),
         ssm_client,
         instance_ids,
         vec![
@@ -111,7 +109,10 @@ async fn build_netbench(
     send_command(
         vec![Step::Configure],
         Step::BuildNetbench,
-        host_group, "run_netbench", ssm_client, instance_ids, vec![
+        host_group,
+        &format!("build_netbench_{}", host_group),
+        ssm_client, instance_ids,
+        vec![
         format!("runuser -u ec2-user -- git clone --branch {} {}", STATE.netbench_branch, STATE.netbench_repo).as_str(),
         format!("runuser -u ec2-user -- echo clone_netbench > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/{}-step-4", STATE.s3_path(unique_id), host_group).as_str(),
         format!("runuser -u ec2-user -- aws s3 cp s3://{}/{}/request_response.json /home/ec2-user/request_response.json", STATE.s3_log_bucket, STATE.s3_resource_folder).as_str(),

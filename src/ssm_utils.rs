@@ -12,6 +12,7 @@ use aws_sdk_ssm::{
 use core::task::Poll;
 use std::{thread::sleep, time::Duration};
 use tracing::debug;
+use tracing::trace;
 
 pub mod client;
 pub mod common;
@@ -101,7 +102,7 @@ async fn send_command(
         "cd /home/ec2-user".to_string(),
         format!("touch {}_fin___", step.as_str()),
     ]);
-    debug!("{:?}", assemble_command);
+    debug!("{} {:?}", endpoint, assemble_command);
 
     let mut remaining_try_count: u32 = 30;
     loop {
@@ -189,17 +190,17 @@ pub(crate) async fn poll_ssm_results(
     let status = match status_comment {
         Some((status, comment)) => {
             debug!(
-                "endpoint: {} status: {:?} command_id {}, comment {}",
-                endpoint, status, command_id, comment
+                "endpoint: {} status: {:?}  comment {}",
+                endpoint, status, comment
             );
 
             status
         }
         None => {
-            debug!("{} command complete: {}", endpoint, command_id);
             return Ok(Poll::Ready(()));
         }
     };
+    trace!("endpoint: {}  command_id {}", endpoint, command_id);
 
     let status = match status {
         CommandInvocationStatus::Cancelled

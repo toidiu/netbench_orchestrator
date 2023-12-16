@@ -149,6 +149,8 @@ async fn main() -> OrchResult<()> {
         .await;
         build_cmds.extend(client_build_cmds);
         ssm_utils::common::poll_cmds("client_server_config", &ssm_client, build_cmds).await;
+
+        info!("client_server install_deps!: Successful");
     }
 
     // run russula
