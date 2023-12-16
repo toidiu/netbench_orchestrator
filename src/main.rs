@@ -125,57 +125,79 @@ async fn main() -> OrchResult<()> {
     .await?;
 
     // TODO move into ssm_utils
-    // server
+    // server commands
     let server_output =
         execute_ssm_server(&ssm_client, server_instance_id, &client.ip, &unique_id).await;
 
     // TODO move into ssm_utils
     // client
     {
-        let configure_client = ssm_utils::common::configure_hosts(
-            "client",
-            &ssm_client,
-            client_ids.clone(),
-            &unique_id,
-        )
-        .await;
-        let build_russula =
-            ssm_utils::common::build_russula("client", &ssm_client, client_ids.clone()).await;
-        let run_client_russula =
-            ssm_utils::client::run_client_russula(&ssm_client, client_ids.clone()).await;
-        let build_client_netbench = ssm_utils::common::build_netbench(
-            "client",
-            &ssm_client,
-            client_ids.clone(),
-            &unique_id,
-        )
-        .await;
-        let run_client_netbench = ssm_utils::client::run_client_netbench(
-            &ssm_client,
-            client_ids.clone(),
-            &server.ip,
-            &unique_id,
-        )
-        .await;
-
-        // wait complete
-        let configure_client = ssm_utils::wait_for_ssm_results(
-            "client",
-            &ssm_client,
-            configure_client.command().unwrap().command_id().unwrap(),
-        )
-        .await;
-        info!("Client Config!: Successful: {}", configure_client);
-        // wait complete
-        let build_russula = wait_for_ssm_results(
-            "client",
-            &ssm_client,
-            build_russula.command().unwrap().command_id().unwrap(),
-        )
-        .await;
-        info!("Client Russula build!: Successful: {}", build_russula);
-
+        // configure and build
         {
+            let configure_client = ssm_utils::common::configure_hosts(
+                "client",
+                &ssm_client,
+                client_ids.clone(),
+                &unique_id,
+            )
+            .await;
+            let build_russula =
+                ssm_utils::common::build_russula("client", &ssm_client, client_ids.clone()).await;
+            let build_client_netbench = ssm_utils::common::build_netbench(
+                "client",
+                &ssm_client,
+                client_ids.clone(),
+                &unique_id,
+            )
+            .await;
+            // wait complete
+            let configure_client = ssm_utils::wait_for_ssm_results(
+                "client",
+                &ssm_client,
+                configure_client.command().unwrap().command_id().unwrap(),
+            )
+            .await;
+            info!("Client Config!: Successful: {}", configure_client);
+            // wait complete
+            let build_russula = wait_for_ssm_results(
+                "client",
+                &ssm_client,
+                build_russula.command().unwrap().command_id().unwrap(),
+            )
+            .await;
+            info!("Client Russula build!: Successful: {}", build_russula);
+            let build_client_netbench = wait_for_ssm_results(
+                "client",
+                &ssm_client,
+                build_client_netbench
+                    .command()
+                    .unwrap()
+                    .command_id()
+                    .unwrap(),
+            )
+            .await;
+            info!(
+                "Client build netbench!: Successful: {}",
+                build_client_netbench
+            );
+        }
+
+        // client run commands
+        let (run_client_russula, run_client_netbench) = {
+            let run_client_russula =
+                ssm_utils::client::run_client_russula(&ssm_client, client_ids.clone()).await;
+            let run_client_netbench = ssm_utils::client::run_client_netbench(
+                &ssm_client,
+                client_ids.clone(),
+                &server.ip,
+                &unique_id,
+            )
+            .await;
+            (run_client_russula, run_client_netbench)
+        };
+
+        // client coord
+        let mut client_coord = {
             let client_ips = infra
                 .clients
                 .iter()
@@ -188,8 +210,11 @@ async fn main() -> OrchResult<()> {
             let mut client_coord = client_coord.build().await.unwrap();
             client_coord.run_till_ready().await;
             info!("client coord Ready");
+            client_coord
+        };
 
-            // run russula workers
+        {
+            // poll client russula workers/coord
             loop {
                 let poll_worker = poll_ssm_results(
                     "client",
@@ -215,36 +240,28 @@ async fn main() -> OrchResult<()> {
                 tokio::time::sleep(Duration::from_secs(10)).await;
             }
 
-            let wait_worker = wait_for_ssm_results(
-                "client",
-                &ssm_client,
-                run_client_russula.command().unwrap().command_id().unwrap(),
-            )
-            .await;
-            info!("Client Russula!: Successful worker: {}", wait_worker);
+            // client russula worker ssm
+            {
+                let wait_worker = wait_for_ssm_results(
+                    "client",
+                    &ssm_client,
+                    run_client_russula.command().unwrap().command_id().unwrap(),
+                )
+                .await;
+                info!("Client Russula!: Successful worker: {}", wait_worker);
+            }
         }
 
-        let build_client_netbench = wait_for_ssm_results(
-            "client",
-            &ssm_client,
-            build_client_netbench
-                .command()
-                .unwrap()
-                .command_id()
-                .unwrap(),
-        )
-        .await;
-        info!(
-            "Client build netbench!: Successful: {}",
-            build_client_netbench
-        );
-        let run_client_netbench = wait_for_ssm_results(
-            "client",
-            &ssm_client,
-            run_client_netbench.command().unwrap().command_id().unwrap(),
-        )
-        .await;
-        info!("Client Finished!: Successful: {}", run_client_netbench);
+        // client netbench
+        {
+            let run_client_netbench = wait_for_ssm_results(
+                "client",
+                &ssm_client,
+                run_client_netbench.command().unwrap().command_id().unwrap(),
+            )
+            .await;
+            info!("Client Finished!: Successful: {}", run_client_netbench);
+        }
     }
 
     // server

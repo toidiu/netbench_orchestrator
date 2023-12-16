@@ -21,7 +21,7 @@ pub async fn run_client_netbench(
     server_ip: &str,
     unique_id: &str,
 ) -> SendCommandOutput {
-    send_command(vec![Step::BuildNetbench], Step::RunNetbench, "client", "run_client_netbench", ssm_client, instance_ids, vec![
+    send_command(vec![ Step::BuildNetbench, Step::RunRussula], Step::RunNetbench, "client", "run_client_netbench", ssm_client, instance_ids, vec![
         "cd s2n-quic/netbench",
         format!("env SERVER_0={}:4433 COORD_SERVER_0={}:8080 ./scripts/netbench-test-player-as-client.sh", server_ip, server_ip).as_str(),
         "chown ec2-user: -R .",
