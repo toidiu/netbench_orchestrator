@@ -25,7 +25,7 @@ pub async fn config_build(
         install_deps.command().unwrap().command_id().unwrap(),
     )
     .await;
-    info!("Client install_deps!: Successful: {}", install_deps);
+    info!("{} install_deps!: Successful: {}", host_group, install_deps);
 
     loop {
         // wait complete
@@ -36,7 +36,7 @@ pub async fn config_build(
         )
         .await
         .unwrap();
-        info!("Client Russula build!: {:?}", build_russula);
+        info!("{} Russula build!: {:?}", host_group, build_russula);
         let build_netbench = poll_ssm_results(
             host_group,
             ssm_client,
@@ -48,12 +48,12 @@ pub async fn config_build(
         )
         .await
         .unwrap();
-        info!("Client Netbench build!: {:?}", build_netbench);
+        info!("{} Netbench build!: {:?}", host_group, build_netbench);
 
         if build_netbench.is_ready() && build_russula.is_ready() {
             info!(
-                "Client build! Success: netbench: {:?}, russula: {:?}",
-                build_netbench, build_russula
+                "{} build! Success: netbench: {:?}, russula: {:?}",
+                host_group, build_netbench, build_russula
             );
             break;
         }

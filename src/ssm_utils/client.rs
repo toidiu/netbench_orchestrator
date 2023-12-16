@@ -40,7 +40,7 @@ pub async fn poll_russula(
         if poll_coord_done.is_ready() {
             break;
         }
-        tokio::time::sleep(Duration::from_secs(10)).await;
+        tokio::time::sleep(Duration::from_secs(20)).await;
     }
 
     // client russula worker ssm
