@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::{send_command, wait_for_ssm_results, Step};
-use crate::state::STATE;
+use crate::{poll_ssm_results, state::STATE};
 use aws_sdk_ssm::operation::send_command::SendCommandOutput;
+use core::time::Duration;
 use tracing::info;
 
 pub async fn config_build(
@@ -25,28 +26,39 @@ pub async fn config_build(
     )
     .await;
     info!("Client install_deps!: Successful: {}", install_deps);
-    // wait complete
-    let build_russula = wait_for_ssm_results(
-        host_group,
-        ssm_client,
-        build_russula.command().unwrap().command_id().unwrap(),
-    )
-    .await;
-    info!("Client Russula build!: Successful: {}", build_russula);
-    let build_client_netbench = wait_for_ssm_results(
-        host_group,
-        ssm_client,
-        build_client_netbench
-            .command()
-            .unwrap()
-            .command_id()
-            .unwrap(),
-    )
-    .await;
-    info!(
-        "Client Netbench build!: Successful: {}",
-        build_client_netbench
-    );
+
+    loop {
+        // wait complete
+        let build_russula = poll_ssm_results(
+            host_group,
+            ssm_client,
+            build_russula.command().unwrap().command_id().unwrap(),
+        )
+        .await
+        .unwrap();
+        info!("Client Russula build!: {:?}", build_russula);
+        let build_netbench = poll_ssm_results(
+            host_group,
+            ssm_client,
+            build_client_netbench
+                .command()
+                .unwrap()
+                .command_id()
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+        info!("Client Netbench build!: {:?}", build_netbench);
+
+        if build_netbench.is_ready() && build_russula.is_ready() {
+            info!(
+                "Client build! Success: netbench: {:?}, russula: {:?}",
+                build_netbench, build_russula
+            );
+            break;
+        }
+        tokio::time::sleep(Duration::from_secs(10)).await;
+    }
 }
 
 async fn install_deps(
