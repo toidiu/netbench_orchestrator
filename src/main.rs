@@ -26,6 +26,7 @@ use state::*;
 // TODO
 //
 // - make ssm russula runs nicer
+// - get rid of runuser
 //
 // D- russula poll state
 // D- interleave poll russula and ssm

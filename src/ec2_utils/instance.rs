@@ -1,9 +1,11 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::error::{OrchError, OrchResult};
-use crate::state::STATE;
-use crate::LaunchPlan;
+use crate::{
+    error::{OrchError, OrchResult},
+    state::STATE,
+    LaunchPlan,
+};
 use aws_sdk_ec2::types::{
     BlockDeviceMapping, EbsBlockDevice, IamInstanceProfileSpecification, Instance,
     InstanceNetworkInterfaceSpecification, InstanceStateName, InstanceType, ResourceType,
@@ -75,10 +77,9 @@ pub async fn launch_instance(
         .instance_type(instance_type)
         .image_id(&launch_plan.ami_id)
         .instance_initiated_shutdown_behavior(ShutdownBehavior::Terminate)
-        .user_data(general_purpose::STANDARD.encode(format!(
-            "sudo shutdown -P +{}",
-            STATE.shutdown_time_sec.as_secs()
-        )))
+        .user_data(
+            general_purpose::STANDARD.encode(format!("sudo shutdown -P +{}", STATE.shutdown_min)),
+        )
         // give the instances human readable names. name is set via tags
         .tag_specifications(
             TagSpecification::builder()

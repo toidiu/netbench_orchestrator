@@ -27,10 +27,9 @@ async fn launch_cluster(
         .instance_type(aws_sdk_ec2::types::InstanceType::C5n18xlarge)
         .image_id(instance_details.ami_id)
         .instance_initiated_shutdown_behavior(aws_sdk_ec2::types::ShutdownBehavior::Terminate)
-        .user_data(general_purpose::STANDARD.encode(format!(
-            "sudo shutdown -P +{}",
-            STATE.shutdown_time_sec.as_secs()
-        )))
+        .user_data(
+            general_purpose::STANDARD.encode(format!("sudo shutdown -P +{}", STATE.shutdown_min)),
+        )
         .block_device_mappings(
             aws_sdk_ec2::types::BlockDeviceMapping::builder()
                 .device_name("/dev/xvda")

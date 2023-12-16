@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::ec2_utils::EndpointType;
-use core::time::Duration;
 
 pub const STATE: State = State {
     version: "v1.0.29",
@@ -17,7 +16,7 @@ pub const STATE: State = State {
         servers: 1,
     },
     workspace_dir: "./target/netbench",
-    shutdown_time_sec: Duration::from_secs(86400), // 1 day
+    shutdown_min: 60, // 1 hour
 
     // russula
     russula_repo: "https://github.com/toidiu/netbench_orchestrator.git",
@@ -54,7 +53,7 @@ pub struct State {
     // orchestrator
     pub host_count: HostCount,
     pub workspace_dir: &'static str,
-    pub shutdown_time_sec: Duration,
+    pub shutdown_min: u16,
 
     // russula
     pub russula_repo: &'static str,
