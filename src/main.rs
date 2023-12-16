@@ -6,8 +6,8 @@ use crate::report::orch_generate_report;
 use aws_types::region::Region;
 use error::{OrchError, OrchResult};
 use russula::{netbench::client, RussulaBuilder};
-use std::{net::SocketAddr, process::Command, str::FromStr, time::Duration};
-use tracing::{debug, info};
+use std::{net::SocketAddr, process::Command, str::FromStr};
+use tracing::info;
 mod dashboard;
 mod ec2_utils;
 mod error;
@@ -132,22 +132,21 @@ async fn main() -> OrchResult<()> {
     .await?;
 
     // server commands
-    // FIXME need to config_build server and client together so we dont block
-    {
-        ssm_utils::common::config_build("server", &ssm_client, server_ids.clone(), &unique_id)
+    let mut build_cmds =
+        ssm_utils::common::config_build_cmds("server", &ssm_client, server_ids.clone(), &unique_id)
             .await;
-    }
+    let client_build_cmds =
+        ssm_utils::common::config_build_cmds("client", &ssm_client, client_ids.clone(), &unique_id)
+            .await;
+    build_cmds.extend(client_build_cmds);
+    ssm_utils::common::poll_cmds("client_server", &ssm_client, build_cmds).await;
+
     let run_server_netbench =
         ssm_utils::server::run_netbench(&ssm_client, server_ids.clone(), &client.ip, &unique_id)
             .await;
-    // let server_output =
-    //     execute_ssm_server(&ssm_client, server_instance_id, &client.ip, &unique_id).await;
 
     // client
     {
-        ssm_utils::common::config_build("client", &ssm_client, client_ids.clone(), &unique_id)
-            .await;
-
         // client run commands
         let (run_client_russula, run_client_netbench) = {
             let run_client_russula =

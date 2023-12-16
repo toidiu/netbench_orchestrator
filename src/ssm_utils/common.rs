@@ -7,12 +7,40 @@ use aws_sdk_ssm::operation::send_command::SendCommandOutput;
 use core::time::Duration;
 use tracing::info;
 
-pub async fn config_build(
+pub async fn poll_cmds(
+    host_group: &str,
+    ssm_client: &aws_sdk_ssm::Client,
+    cmds: Vec<SendCommandOutput>,
+) {
+    loop {
+        let mut complete = true;
+        for cmd in cmds.iter() {
+            let comment = cmd.command().unwrap().comment().unwrap();
+            let cmd_id = cmd.command().unwrap().command_id().unwrap();
+            let poll_cmd = poll_ssm_results(host_group, ssm_client, cmd_id)
+                .await
+                .unwrap();
+            info!(
+                "{} SSM command. comment: {}, poll: {:?}",
+                host_group, comment, poll_cmd
+            );
+            complete &= poll_cmd.is_ready();
+        }
+
+        if complete {
+            info!("{} SSM poll complete", host_group);
+            break;
+        }
+        tokio::time::sleep(Duration::from_secs(10)).await;
+    }
+}
+
+pub async fn config_build_cmds(
     host_group: &str,
     ssm_client: &aws_sdk_ssm::Client,
     instance_ids: Vec<String>,
     unique_id: &str,
-) {
+) -> Vec<SendCommandOutput> {
     // configure and build
     let install_deps = install_deps(host_group, ssm_client, instance_ids.clone(), unique_id).await;
     let build_russula = build_russula(host_group, ssm_client, instance_ids.clone()).await;
@@ -27,38 +55,7 @@ pub async fn config_build(
     .await;
     info!("{} install_deps!: Successful: {}", host_group, install_deps);
 
-    loop {
-        // wait complete
-        let build_russula = poll_ssm_results(
-            host_group,
-            ssm_client,
-            build_russula.command().unwrap().command_id().unwrap(),
-        )
-        .await
-        .unwrap();
-        info!("{} Russula build!: {:?}", host_group, build_russula);
-        let build_netbench = poll_ssm_results(
-            host_group,
-            ssm_client,
-            build_client_netbench
-                .command()
-                .unwrap()
-                .command_id()
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-        info!("{} Netbench build!: {:?}", host_group, build_netbench);
-
-        if build_netbench.is_ready() && build_russula.is_ready() {
-            info!(
-                "{} build! Success: netbench: {:?}, russula: {:?}",
-                host_group, build_netbench, build_russula
-            );
-            break;
-        }
-        tokio::time::sleep(Duration::from_secs(10)).await;
-    }
+    vec![build_russula, build_client_netbench]
 }
 
 async fn install_deps(
