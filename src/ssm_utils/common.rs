@@ -57,9 +57,9 @@ async fn install_deps_cmd(
         // set instances to shutdown after 1 hour
         format!("shutdown -P +{}", STATE.shutdown_min),
 
-        format!("runuser -u ec2-user -- echo ec2 up > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/{}-step-1", STATE.s3_path(unique_id), host_group),
+        format!("echo ec2 up > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/{}-step-1", STATE.s3_path(unique_id), host_group),
         "yum upgrade -y".to_string(),
-        format!("runuser -u ec2-user -- echo yum upgrade finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/{}-step-2", STATE.s3_path(unique_id), host_group),
+        format!("echo yum upgrade finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/{}-step-2", STATE.s3_path(unique_id), host_group),
         format!("timeout 5m bash -c 'until yum install cmake cargo git perl openssl-devel bpftrace perf tree -y; do sleep 10; done' || (echo yum failed > /home/ec2-user/index.html; aws s3 cp /home/ec2-user/index.html {}/{}-step-3; exit 1)", STATE.s3_path(unique_id), host_group),
         format!("echo yum finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/{}-step-3", STATE.s3_path(unique_id), host_group),
     ]).await.expect("Timed out")
@@ -79,12 +79,12 @@ async fn build_russula_cmd(
         instance_ids,
         vec![
             format!(
-                "runuser -u ec2-user -- git clone --branch {} {}",
+                "git clone --branch {} {}",
                 STATE.russula_branch, STATE.russula_repo
             )
             .as_str(),
             "cd netbench_orchestrator",
-            "runuser -u ec2-user -- cargo build",
+            "cargo build",
         ]
         .into_iter()
         .map(String::from)
@@ -107,14 +107,14 @@ async fn build_netbench_cmd(
         &format!("build_netbench_{}", host_group),
         ssm_client, instance_ids,
         vec![
-        format!("runuser -u ec2-user -- git clone --branch {} {}", STATE.netbench_branch, STATE.netbench_repo),
-        format!("runuser -u ec2-user -- echo clone_netbench > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/{}-step-4", STATE.s3_path(unique_id), host_group),
-        format!("runuser -u ec2-user -- aws s3 cp s3://{}/{}/request_response.json /home/ec2-user/request_response.json", STATE.s3_log_bucket, STATE.s3_resource_folder),
-        format!("runuser -u ec2-user -- echo downloaded_scenario_file > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/{}-step-5", STATE.s3_path(unique_id), host_group),
+        format!("git clone --branch {} {}", STATE.netbench_branch, STATE.netbench_repo),
+        format!("echo clone_netbench > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/{}-step-4", STATE.s3_path(unique_id), host_group),
+        format!("aws s3 cp s3://{}/{}/request_response.json /home/ec2-user/request_response.json", STATE.s3_log_bucket, STATE.s3_resource_folder),
+        format!("echo downloaded_scenario_file > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/{}-step-5", STATE.s3_path(unique_id), host_group),
         "cd s2n-quic/netbench".to_string(),
-        "runuser -u ec2-user -- cargo build --release".to_string(),
-        "runuser -u ec2-user -- mkdir -p target/netbench".to_string(),
-        "runuser -u ec2-user -- cp /home/ec2-user/request_response.json target/netbench/request_response.json".to_string(),
-        format!("runuser -u ec2-user -- echo cargo build finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/{}-step-6", STATE.s3_path(unique_id), host_group),
+        "cargo build --release".to_string(),
+        "mkdir -p target/netbench".to_string(),
+        "cp /home/ec2-user/request_response.json target/netbench/request_response.json".to_string(),
+        format!("echo cargo build finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/{}-step-6", STATE.s3_path(unique_id), host_group),
     ]).await.expect("Timed out")
 }
