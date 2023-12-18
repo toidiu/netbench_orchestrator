@@ -12,8 +12,15 @@ use russula::{
 };
 use std::{collections::BTreeSet, net::SocketAddr, str::FromStr};
 use structopt::{clap::arg_enum, StructOpt};
+use tracing::debug;
+use tracing_subscriber::EnvFilter;
 
-#[derive(StructOpt)]
+/// This utility is a convenient CLI wraper around Russula and can be used to launch
+/// different protocols.
+///
+/// It currently supports launching server/client Netbench protocols.
+
+#[derive(StructOpt, Debug)]
 struct Opt {
     /// specify the protocol
     #[structopt(possible_values = &RussulaProtocol::variants(), case_insensitive = true, long)]
@@ -30,6 +37,7 @@ struct Opt {
 
 arg_enum! {
 #[allow(clippy::enum_variant_names)]
+#[derive(Debug)]
 enum RussulaProtocol {
     NetbenchServerWorker,
     NetbenchServerCoordinator,
@@ -44,7 +52,12 @@ async fn main() -> OrchResult<()> {
 
     let file_appender = tracing_appender::rolling::hourly("./target", "russula.log");
     let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
-    tracing_subscriber::fmt().with_writer(non_blocking).init();
+    tracing_subscriber::fmt()
+        .with_env_filter(EnvFilter::from_default_env())
+        .with_writer(non_blocking)
+        .init();
+
+    debug!("{:?}", opt);
 
     match opt.protocol {
         RussulaProtocol::NetbenchServerWorker => run_server_worker(opt.ip, opt.port).await,
@@ -57,7 +70,7 @@ async fn main() -> OrchResult<()> {
         }
     };
 
-    println!("hi");
+    println!("cli done");
     Ok(())
 }
 

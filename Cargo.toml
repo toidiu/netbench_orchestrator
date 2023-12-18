@@ -10,8 +10,8 @@ name = "orchestrator"
 path = "src/main.rs"
 
 [[bin]]
-name = "russula"
-path = "src/russula_runner.rs"
+name = "russula_cli"
+path = "src/russula_cli.rs"
 
 [dependencies]
 aws-config = "0.55.0"
