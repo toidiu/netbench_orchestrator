@@ -131,9 +131,10 @@ impl<P: Protocol> RussulaBuilder<P> {
                     }
                     Err(err) => {
                         warn!(
-                            "Failed to connect.. retry attempt left {}. addr: {} dbg: {}",
+                            "Failed to connect.. waiting before retrying. Retry attempts left: {}. addr: {} dbg: {}",
                             retry_attempts, addr, err
                         );
+                        warn!("Try disabling VPN and check your network connectivity");
                         tokio::time::sleep(self.poll_delay).await;
                     }
                 }
