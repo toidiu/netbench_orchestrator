@@ -4,7 +4,7 @@
 use crate::ec2_utils::EndpointType;
 
 pub const STATE: State = State {
-    version: "v1.0.29",
+    version: "v1.0.30",
 
     // netbench
     netbench_repo: "https://github.com/aws/s2n-quic.git",
