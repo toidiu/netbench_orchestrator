@@ -26,9 +26,9 @@ pub async fn wait_cmds(
             debug!("{} SSM poll complete", host_group);
             break;
         } else {
-            debug!("tasks not complete. wait to poll  again ...");
+            debug!("tasks not complete. wait to poll again ...");
         }
-        tokio::time::sleep(Duration::from_secs(20)).await;
+        tokio::time::sleep(Duration::from_secs(60)).await;
     }
 }
 
