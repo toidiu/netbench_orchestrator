@@ -18,14 +18,14 @@ use tracing::{debug, info};
 pub async fn wait_russula(
     ssm_client: &aws_sdk_ssm::Client,
     mut client_coord: Russula<CoordProtocol>,
-    run_russula_cmd: SendCommandOutput,
+    client_worker: SendCommandOutput,
 ) {
     // poll client russula workers/coord
     loop {
         let poll_worker = poll_ssm_results(
             "client",
             ssm_client,
-            run_russula_cmd.command().unwrap().command_id().unwrap(),
+            client_worker.command().unwrap().command_id().unwrap(),
         )
         .await
         .unwrap();
@@ -48,7 +48,7 @@ pub async fn wait_russula(
         let wait_worker = wait_for_ssm_results(
             "client",
             ssm_client,
-            run_russula_cmd.command().unwrap().command_id().unwrap(),
+            client_worker.command().unwrap().command_id().unwrap(),
         )
         .await;
         info!("Client Russula!: Successful worker: {}", wait_worker);
