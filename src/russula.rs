@@ -117,19 +117,29 @@ impl<P: Protocol> RussulaBuilder<P> {
         let mut stream_protocol_list = Vec::new();
         for (addr, protocol) in self.peer_list.into_iter() {
             let stream;
+            let mut retry_attempts = 3;
             loop {
+                if retry_attempts == 0 {
+                    return Err(RussulaError::NetworkConnectionRefused {
+                        dbg: "Failed to connect to peer".to_string(),
+                    });
+                }
                 match protocol.connect(&addr).await {
                     Ok(connect) => {
                         stream = connect;
                         break;
                     }
-                    Err(RussulaError::NetworkConnectionRefused { dbg }) => {
-                        warn!("Failed to connect.. retrying. addr: {} dbg: {}", addr, dbg);
+                    Err(err) => {
+                        warn!(
+                            "Failed to connect.. retry attempt left {}. addr: {} dbg: {}",
+                            retry_attempts, addr, err
+                        );
                         tokio::time::sleep(self.poll_delay).await;
                     }
-                    Err(err) => return Err(err),
                 }
+                retry_attempts -= 1
             }
+
             info!("Coordinator: successfully connected to {}", addr);
             stream_protocol_list.push(RussulaPeer {
                 addr,
