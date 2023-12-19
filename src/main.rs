@@ -5,9 +5,9 @@
 use crate::report::orch_generate_report;
 use aws_types::region::Region;
 use error::{OrchError, OrchResult};
-use russula::{netbench::client, RussulaBuilder};
-use std::{net::SocketAddr, process::Command, str::FromStr};
+use std::process::Command;
 use tracing::info;
+mod coordination_utils;
 mod dashboard;
 mod ec2_utils;
 mod error;
@@ -87,7 +87,7 @@ async fn main() -> OrchResult<()> {
         STATE.version
     );
 
-    update_dashboard(Step::UploadIndex, &s3_client, &unique_id).await?;
+    update_dashboard(dashboard::Step::UploadIndex, &s3_client, &unique_id).await?;
 
     // Setup instances
     let infra = LaunchPlan::create(
@@ -122,13 +122,13 @@ async fn main() -> OrchResult<()> {
         .collect();
 
     update_dashboard(
-        Step::ServerHostsRunning(&infra.servers),
+        dashboard::Step::ServerHostsRunning(&infra.servers),
         &s3_client,
         &unique_id,
     )
     .await?;
     update_dashboard(
-        Step::ServerHostsRunning(&infra.clients),
+        dashboard::Step::ServerHostsRunning(&infra.clients),
         &s3_client,
         &unique_id,
     )
@@ -159,24 +159,11 @@ async fn main() -> OrchResult<()> {
     // run russula
     {
         // client run commands
-        let client_worker = ssm_utils::client::run_russula(&ssm_client, client_ids.clone()).await;
+        let client_worker =
+            coordination_utils::client_worker(&ssm_client, client_ids.clone()).await;
 
         // client coord
-        let client_coord = {
-            let client_ips = infra
-                .clients
-                .iter()
-                .map(|instance| {
-                    SocketAddr::from_str(&format!("{}:{}", instance.ip, STATE.russula_port))
-                        .unwrap()
-                })
-                .collect();
-            let client_coord = RussulaBuilder::new(client_ips, client::CoordProtocol::new());
-            let mut client_coord = client_coord.build().await.unwrap();
-            client_coord.run_till_ready().await;
-            info!("client coord Ready");
-            client_coord
-        };
+        let client_coord = coordination_utils::client_coord(&infra).await;
 
         ssm_utils::client::wait_russula(&ssm_client, client_coord, client_worker).await;
     }

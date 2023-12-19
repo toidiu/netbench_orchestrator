@@ -17,7 +17,7 @@ pub mod client;
 pub mod common;
 pub mod server;
 
-enum Step {
+pub enum Step {
     Configure,
     BuildRussula,
     BuildNetbench,
@@ -37,7 +37,7 @@ impl Step {
     }
 }
 
-async fn send_command(
+pub async fn send_command(
     wait_steps: Vec<Step>,
     step: Step,
     endpoint: &str,
