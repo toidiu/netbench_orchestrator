@@ -96,21 +96,6 @@ impl ServerNetbenchRussula {
     }
 }
 
-async fn server_coord(infra: &InfraDetail) -> russula::Russula<server::CoordProtocol> {
-    let server_ips = infra
-        .servers
-        .iter()
-        .map(|instance| {
-            SocketAddr::from_str(&format!("{}:{}", instance.ip, STATE.russula_port)).unwrap()
-        })
-        .collect();
-    let server_coord = RussulaBuilder::new(server_ips, server::CoordProtocol::new());
-    let mut server_coord = server_coord.build().await.unwrap();
-    server_coord.run_till_ready().await.unwrap();
-    info!("server coord Ready");
-    server_coord
-}
-
 pub struct ClientNetbenchRussula {
     worker: SendCommandOutput,
     coord: russula::Russula<client::CoordProtocol>,
@@ -161,6 +146,21 @@ impl ClientNetbenchRussula {
 
         info!("Client Russula!: Successful");
     }
+}
+
+async fn server_coord(infra: &InfraDetail) -> russula::Russula<server::CoordProtocol> {
+    let server_ips = infra
+        .servers
+        .iter()
+        .map(|instance| {
+            SocketAddr::from_str(&format!("{}:{}", instance.ip, STATE.russula_port)).unwrap()
+        })
+        .collect();
+    let server_coord = RussulaBuilder::new(server_ips, server::CoordProtocol::new());
+    let mut server_coord = server_coord.build().await.unwrap();
+    server_coord.run_till_ready().await.unwrap();
+    info!("server coord Ready");
+    server_coord
 }
 
 async fn client_coord(infra: &InfraDetail) -> russula::Russula<client::CoordProtocol> {
