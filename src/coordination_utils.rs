@@ -3,16 +3,77 @@
 
 use crate::{
     ec2_utils::InfraDetail,
-    russula,
+    poll_ssm_results, russula,
     russula::{netbench::client, RussulaBuilder},
     ssm_utils::{send_command, Step},
-    STATE,
+    wait_for_ssm_results, STATE,
 };
 use aws_sdk_ssm::operation::send_command::SendCommandOutput;
+use core::time::Duration;
 use std::{net::SocketAddr, str::FromStr};
-use tracing::info;
+use tracing::{debug, info};
 
-pub async fn client_worker(
+pub struct ClientNetbenchRussula {
+    worker: SendCommandOutput,
+    coord: russula::Russula<client::CoordProtocol>,
+}
+
+impl ClientNetbenchRussula {
+    pub async fn new(
+        ssm_client: &aws_sdk_ssm::Client,
+        infra: &InfraDetail,
+        instance_ids: Vec<String>,
+    ) -> Self {
+        // client run commands
+        let worker = client_worker(ssm_client, instance_ids).await;
+
+        // client coord
+        let coord = client_coord(infra).await;
+        ClientNetbenchRussula { worker, coord }
+    }
+
+    pub async fn wait_complete(&mut self, ssm_client: &aws_sdk_ssm::Client) {
+        // poll client russula workers/coord
+        loop {
+            let poll_worker = poll_ssm_results(
+                "client",
+                ssm_client,
+                self.worker.command().unwrap().command_id().unwrap(),
+            )
+            .await
+            .unwrap();
+
+            let poll_coord_done = self
+                .coord
+                .poll_state(client::CoordState::Done)
+                .await
+                .unwrap();
+
+            debug!(
+                "Client Russula!: Coordinator: {:?} Worker {:?}",
+                poll_coord_done, poll_worker
+            );
+
+            if poll_coord_done.is_ready() {
+                break;
+            }
+            tokio::time::sleep(Duration::from_secs(20)).await;
+        }
+
+        // client russula worker ssm
+        {
+            let wait_worker = wait_for_ssm_results(
+                "client",
+                ssm_client,
+                self.worker.command().unwrap().command_id().unwrap(),
+            )
+            .await;
+            info!("Client Russula!: Successful worker: {}", wait_worker);
+        }
+    }
+}
+
+async fn client_worker(
     ssm_client: &aws_sdk_ssm::Client,
     instance_ids: Vec<String>,
 ) -> SendCommandOutput {
@@ -22,7 +83,7 @@ pub async fn client_worker(
     ].into_iter().map(String::from).collect()).await.expect("Timed out")
 }
 
-pub async fn client_coord(infra: &InfraDetail) -> russula::Russula<client::CoordProtocol> {
+async fn client_coord(infra: &InfraDetail) -> russula::Russula<client::CoordProtocol> {
     let client_ips = infra
         .clients
         .iter()

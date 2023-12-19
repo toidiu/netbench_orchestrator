@@ -158,14 +158,10 @@ async fn main() -> OrchResult<()> {
 
     // run russula
     {
-        // client run commands
-        let client_worker =
-            coordination_utils::client_worker(&ssm_client, client_ids.clone()).await;
-
-        // client coord
-        let client_coord = coordination_utils::client_coord(&infra).await;
-
-        ssm_utils::client::wait_russula(&ssm_client, client_coord, client_worker).await;
+        let mut client_russula =
+            coordination_utils::ClientNetbenchRussula::new(&ssm_client, &infra, client_ids.clone())
+                .await;
+        client_russula.wait_complete(&ssm_client).await;
     }
 
     // run netbench

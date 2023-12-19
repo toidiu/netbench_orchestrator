@@ -53,6 +53,8 @@ pub trait Protocol: Clone {
         // Notify the peer that the protocol has reached a terminal state
         if self.is_done_state() {
             // notify 3 time to account for packet loss
+            // FIXME make this non fatal? this results in a fatal error if the connection
+            // has been closed already
             for _i in 0..3 {
                 self.run_current(stream).await?;
                 tokio::time::sleep(NOTIFY_DONE_TIMEOUT).await;
