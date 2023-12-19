@@ -4,10 +4,9 @@
 use super::{send_command, Step};
 use crate::{poll_ssm_results, state::STATE};
 use aws_sdk_ssm::operation::send_command::SendCommandOutput;
-use core::time::Duration;
 use tracing::debug;
 
-pub async fn wait_cmds(
+pub async fn wait_complete(
     host_group: &str,
     ssm_client: &aws_sdk_ssm::Client,
     cmds: Vec<SendCommandOutput>,

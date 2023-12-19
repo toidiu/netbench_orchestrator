@@ -151,7 +151,7 @@ async fn main() -> OrchResult<()> {
         )
         .await;
         build_cmds.extend(client_build_cmds);
-        ssm_utils::common::wait_cmds("client_server_config", &ssm_client, build_cmds).await;
+        ssm_utils::common::wait_complete("client_server_config", &ssm_client, build_cmds).await;
 
         info!("client_server install_deps!: Successful");
     }
@@ -180,7 +180,7 @@ async fn main() -> OrchResult<()> {
             &unique_id,
         )
         .await;
-        ssm_utils::common::wait_cmds(
+        ssm_utils::common::wait_complete(
             "client_server_netbench",
             &ssm_client,
             vec![run_server_netbench, run_client_netbench],

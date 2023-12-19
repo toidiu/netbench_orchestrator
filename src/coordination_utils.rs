@@ -5,7 +5,8 @@ use crate::{
     ec2_utils::InfraDetail,
     poll_ssm_results, russula,
     russula::{netbench::client, RussulaBuilder},
-    ssm_utils::{send_command, Step}, STATE,
+    ssm_utils::{send_command, Step},
+    STATE,
 };
 use aws_sdk_ssm::operation::send_command::SendCommandOutput;
 use core::time::Duration;
