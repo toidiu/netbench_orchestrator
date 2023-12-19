@@ -55,6 +55,7 @@ async fn install_deps_cmd(
     send_command(vec![], Step::Configure, host_group, &format!("configure_host_{}", host_group) ,ssm_client, instance_ids, vec![
         // set instances to shutdown after 1 hour
         format!("shutdown -P +{}", STATE.shutdown_min),
+        "mkdir -P /home/ec2-user/bin".to_string(),
 
         format!("echo ec2 up > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/{}-step-1", STATE.s3_path(unique_id), host_group),
         "yum upgrade -y".to_string(),
@@ -112,6 +113,9 @@ async fn build_netbench_cmd(
         format!("echo downloaded_scenario_file > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/{}-step-5", STATE.s3_path(unique_id), host_group),
         "cd s2n-quic/netbench".to_string(),
         "cargo build --release".to_string(),
+        // copy netbench executables to ~/bin folder
+        "find target/release -maxdepth 1 -type f -perm /a+x -exec cp {} /home/ec2-user/bin;".to_string(),
+
         "mkdir -p target/netbench".to_string(),
         "cp /home/ec2-user/request_response.json target/netbench/request_response.json".to_string(),
         format!("echo cargo build finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/{}-step-6", STATE.s3_path(unique_id), host_group),

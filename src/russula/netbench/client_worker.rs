@@ -123,13 +123,22 @@ impl StateApi for WorkerState {
                             .spawn()
                             .expect("Failed to start echo process");
                     } else {
+                        // FIXME do this
                         let child = Command::new("sh")
-                            // SCENARIO=./target/netbench/connect.json SERVER_0=localhost:4433 ./target/release/netbench-driver-s2n-quic-client ./target/netbench/connect.json
                             .args(["sim_netbench_client.sh", &name])
                             .spawn()
                             .expect("Failed to start echo process");
                     }
                 };
+                let bla = Command::new("sh")
+                    .env("SCENARIO", "/home/ec2-user/request_response.json")
+                    // FIXME get ip
+                    .env("SERVER_0", "xxx:9000")
+                    // SCENARIO=./target/netbench/connect.json SERVER_0=localhost:4433 ./target/release/netbench-driver-s2n-quic-client ./target/netbench/connect.json
+                    .args(["/home/ec2-user/bin/netbench-driver-s2n-quic-client", &name])
+                    .args(["/home/ec2-user/request_response.json", &name])
+                    .spawn()
+                    .expect("Failed to start echo process");
 
                 let pid = child.id();
                 debug!(
