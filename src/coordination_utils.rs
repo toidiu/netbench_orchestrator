@@ -27,6 +27,9 @@ impl ClientNetbenchRussula {
         debug!("starting client worker");
         let worker = client_worker(ssm_client, instance_ids).await;
 
+        // wait for worker to start
+        tokio::time::sleep(Duration::from_secs(10)).await;
+
         // client coord
         debug!("starting client coordinator");
         let coord = client_coord(infra).await;
@@ -71,7 +74,7 @@ async fn client_worker(
 ) -> SendCommandOutput {
     send_command(vec![Step::BuildRussula], Step::RunRussula, "client", "run_client_russula", ssm_client, instance_ids, vec![
         "cd netbench_orchestrator",
-        format!("env RUST_LOG=debug ./target/debug/russula --protocol NetbenchClientWorker --port {}", STATE.russula_port).as_str(),
+        format!("env RUST_LOG=debug ./target/debug/russula_cli --protocol NetbenchClientWorker --port {}", STATE.russula_port).as_str(),
     ].into_iter().map(String::from).collect()).await.expect("Timed out")
 }
 
