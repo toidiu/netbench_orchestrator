@@ -40,27 +40,18 @@ pub struct Russula<P: Protocol> {
     // TODO rename from peer->worker/coord because 'peer' can be confusing
     peer_list: Vec<RussulaPeer<P>>,
     poll_delay: Duration,
+    protocol: P,
 }
 
 impl<P: Protocol + Send> Russula<P> {
-    pub async fn run_till_ready(&mut self) {
-        for peer in self.peer_list.iter_mut() {
-            loop {
-                match peer.protocol.poll_ready(&peer.stream).await.unwrap() {
-                    Poll::Ready(_) => break,
-                    Poll::Pending => debug!("{} not yet ready", peer.protocol.name()),
-                }
-                tokio::time::sleep(self.poll_delay).await;
-            }
-        }
+    pub async fn run_till_ready(&mut self) -> RussulaResult<()> {
+        let ready_state = self.protocol.ready_state();
+        self.run_till_state(ready_state).await
     }
 
-    pub async fn run_till_state(&mut self, state: P::State) -> RussulaResult<()> {
-        while self.poll_state(state).await?.is_pending() {
-            tokio::time::sleep(self.poll_delay).await;
-        }
-
-        Ok(())
+    pub async fn poll_done(&mut self) -> RussulaResult<Poll<()>> {
+        let done_state = self.protocol.done_state();
+        self.poll_state(done_state).await
     }
 
     pub async fn poll_state(&mut self, state: P::State) -> RussulaResult<Poll<()>> {
@@ -79,7 +70,15 @@ impl<P: Protocol + Send> Russula<P> {
         Ok(poll)
     }
 
-    pub fn self_state_matches(&self, state: P::State) -> bool {
+    pub(crate) async fn run_till_state(&mut self, state: P::State) -> RussulaResult<()> {
+        while self.poll_state(state).await?.is_pending() {
+            tokio::time::sleep(self.poll_delay).await;
+        }
+
+        Ok(())
+    }
+
+    fn self_state_matches(&self, state: P::State) -> bool {
         for peer in self.peer_list.iter() {
             let protocol_state = peer.protocol.state();
             if !state.eq(protocol_state) {
@@ -94,17 +93,19 @@ impl<P: Protocol + Send> Russula<P> {
 pub struct RussulaBuilder<P: Protocol> {
     peer_list: Vec<SockProtocol<P>>,
     poll_delay: Duration,
+    protocol: P,
 }
 
 impl<P: Protocol> RussulaBuilder<P> {
     pub fn new(addr: BTreeSet<SocketAddr>, protocol: P) -> Self {
-        let mut map = Vec::new();
+        let mut addr_list = Vec::new();
         addr.into_iter().for_each(|addr| {
-            map.push((addr, protocol.clone()));
+            addr_list.push((addr, protocol.clone()));
         });
         Self {
-            peer_list: map,
+            peer_list: addr_list,
             poll_delay: POLL_RETRY_DURATION,
+            protocol,
         }
     }
 
@@ -152,6 +153,7 @@ impl<P: Protocol> RussulaBuilder<P> {
         Ok(Russula {
             peer_list: stream_protocol_list,
             poll_delay: self.poll_delay,
+            protocol: self.protocol,
         })
     }
 }
@@ -179,7 +181,7 @@ mod tests {
                 .build()
                 .await
                 .unwrap();
-            coord.run_till_ready().await;
+            coord.run_till_ready().await.unwrap();
             coord
         });
 
@@ -233,12 +235,7 @@ mod tests {
         }
 
         println!("\nSTEP 3 --------------- : wait till done");
-        while coord
-            .poll_state(server::CoordState::Done)
-            .await
-            .unwrap()
-            .is_pending()
-        {
+        while coord.poll_done().await.unwrap().is_pending() {
             println!("\npoll state: Done");
             tokio::time::sleep(Duration::from_secs(1)).await;
         }
@@ -270,7 +267,7 @@ mod tests {
                 .build()
                 .await
                 .unwrap();
-            coord.run_till_ready().await;
+            coord.run_till_ready().await.unwrap();
             coord
         });
 
@@ -324,12 +321,7 @@ mod tests {
         }
 
         println!("\nSTEP 3 --------------- : wait till done");
-        while coord
-            .poll_state(client::CoordState::Done)
-            .await
-            .unwrap()
-            .is_pending()
-        {
+        while coord.poll_done().await.unwrap().is_pending() {
             println!("\npoll state: Done");
             tokio::time::sleep(Duration::from_secs(1)).await;
         }

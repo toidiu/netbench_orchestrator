@@ -84,8 +84,12 @@ impl Protocol for WorkerProtocol {
         &mut self.state
     }
 
-    fn state_ready(&self) -> Self::State {
+    fn ready_state(&self) -> Self::State {
         WorkerState::Ready
+    }
+
+    fn done_state(&self) -> Self::State {
+        WorkerState::Done
     }
 }
 

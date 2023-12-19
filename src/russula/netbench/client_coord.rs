@@ -72,8 +72,12 @@ impl Protocol for CoordProtocol {
         &mut self.state
     }
 
-    fn state_ready(&self) -> Self::State {
+    fn ready_state(&self) -> Self::State {
         CoordState::Ready
+    }
+
+    fn done_state(&self) -> Self::State {
+        CoordState::Done
     }
 }
 

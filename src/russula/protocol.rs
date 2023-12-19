@@ -31,7 +31,7 @@ pub trait Protocol: Clone {
     async fn connect(&self, addr: &SocketAddr) -> RussulaResult<TcpStream>;
 
     async fn poll_ready(&mut self, stream: &TcpStream) -> RussulaResult<Poll<()>> {
-        let ready_state = self.state_ready();
+        let ready_state = self.ready_state();
         self.poll_state(stream, &ready_state).await
     }
 
@@ -89,7 +89,8 @@ pub trait Protocol: Clone {
     fn update_peer_state(&mut self, msg: Msg) -> RussulaResult<()>;
     fn state(&self) -> &Self::State;
     fn state_mut(&mut self) -> &mut Self::State;
-    fn state_ready(&self) -> Self::State;
+    fn ready_state(&self) -> Self::State;
+    fn done_state(&self) -> Self::State;
     fn is_done_state(&self) -> bool {
         matches!(self.state().transition_step(), TransitionStep::Finished)
     }

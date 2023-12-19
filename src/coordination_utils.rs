@@ -68,6 +68,7 @@ impl ServerNetbenchRussula {
         }
     }
 
+    // FIXME de-dupe with other wait_done fn on Client
     pub async fn wait_done(&mut self, ssm_client: &aws_sdk_ssm::Client) {
         // poll server russula workers/coord
         loop {
@@ -79,11 +80,7 @@ impl ServerNetbenchRussula {
             .await
             .unwrap();
 
-            let poll_coord_done = self
-                .coord
-                .poll_state(server::CoordState::Done)
-                .await
-                .unwrap();
+            let poll_coord_done = self.coord.poll_done().await.unwrap();
 
             debug!(
                 "Server Russula!: Coordinator: {:?} Worker {:?}",
@@ -120,7 +117,7 @@ async fn server_coord(infra: &InfraDetail) -> russula::Russula<server::CoordProt
         .collect();
     let server_coord = RussulaBuilder::new(server_ips, server::CoordProtocol::new());
     let mut server_coord = server_coord.build().await.unwrap();
-    server_coord.run_till_ready().await;
+    server_coord.run_till_ready().await.unwrap();
     info!("server coord Ready");
     server_coord
 }
@@ -160,11 +157,7 @@ impl ClientNetbenchRussula {
             .await
             .unwrap();
 
-            let poll_coord_done = self
-                .coord
-                .poll_state(client::CoordState::Done)
-                .await
-                .unwrap();
+            let poll_coord_done = self.coord.poll_done().await.unwrap();
 
             debug!(
                 "Client Russula!: Coordinator: {:?} Worker {:?}",
@@ -201,7 +194,7 @@ async fn client_coord(infra: &InfraDetail) -> russula::Russula<client::CoordProt
         .collect();
     let client_coord = RussulaBuilder::new(client_ips, client::CoordProtocol::new());
     let mut client_coord = client_coord.build().await.unwrap();
-    client_coord.run_till_ready().await;
+    client_coord.run_till_ready().await.unwrap();
     info!("client coord Ready");
     client_coord
 }

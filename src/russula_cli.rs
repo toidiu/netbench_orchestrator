@@ -79,7 +79,7 @@ async fn run_server_worker(ip: String, port: u16) {
     let protocol = server::WorkerProtocol::new(port);
     let worker = RussulaBuilder::new(BTreeSet::from_iter([w1_sock]), protocol);
     let mut worker = worker.build().await.unwrap();
-    worker.run_till_ready().await;
+    worker.run_till_ready().await.unwrap();
 
     worker
         .run_till_state(server::WorkerState::Done)
@@ -112,7 +112,7 @@ async fn run_client_worker(ip: String, port: u16) {
     let protocol = client::WorkerProtocol::new(port);
     let worker = RussulaBuilder::new(BTreeSet::from_iter([w1_sock]), protocol);
     let mut worker = worker.build().await.unwrap();
-    worker.run_till_ready().await;
+    worker.run_till_ready().await.unwrap();
 
     worker
         .run_till_state(client::WorkerState::Done)

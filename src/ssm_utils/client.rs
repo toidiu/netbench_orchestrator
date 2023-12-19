@@ -2,58 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::{send_command, Step};
-use crate::{
-    poll_ssm_results,
-    russula::{
-        netbench::client::{CoordProtocol, CoordState},
-        Russula,
-    },
-    state::STATE,
-    wait_for_ssm_results,
-};
+use crate::state::STATE;
 use aws_sdk_ssm::operation::send_command::SendCommandOutput;
-use core::time::Duration;
-use tracing::{debug, info};
-
-pub async fn wait_russula(
-    ssm_client: &aws_sdk_ssm::Client,
-    mut client_coord: Russula<CoordProtocol>,
-    client_worker: SendCommandOutput,
-) {
-    // poll client russula workers/coord
-    loop {
-        let poll_worker = poll_ssm_results(
-            "client",
-            ssm_client,
-            client_worker.command().unwrap().command_id().unwrap(),
-        )
-        .await
-        .unwrap();
-
-        let poll_coord_done = client_coord.poll_state(CoordState::Done).await.unwrap();
-
-        debug!(
-            "Client Russula!: Coordinator: {:?} Worker {:?}",
-            poll_coord_done, poll_worker
-        );
-
-        if poll_coord_done.is_ready() {
-            break;
-        }
-        tokio::time::sleep(Duration::from_secs(20)).await;
-    }
-
-    // client russula worker ssm
-    {
-        let wait_worker = wait_for_ssm_results(
-            "client",
-            ssm_client,
-            client_worker.command().unwrap().command_id().unwrap(),
-        )
-        .await;
-        info!("Client Russula!: Successful worker: {}", wait_worker);
-    }
-}
 
 pub async fn run_netbench(
     ssm_client: &aws_sdk_ssm::Client,
@@ -69,8 +19,5 @@ pub async fn run_netbench(
         "cd target/netbench",
         format!("aws s3 sync /home/ec2-user/s2n-quic/netbench/target/netbench {}", STATE.s3_path(unique_id)).as_str(),
         format!("echo report upload finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/client-step-8", STATE.s3_path(unique_id)).as_str(),
-
-        // FIXME move to start of ssm commands
-        "shutdown -h +60",
     ].into_iter().map(String::from).collect()).await.expect("Timed out")
 }
