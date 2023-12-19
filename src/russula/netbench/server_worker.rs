@@ -115,6 +115,7 @@ impl StateApi for WorkerState {
                     "{} starting some task sim_netbench_server",
                     self.name(stream)
                 );
+                // sudo SCENARIO=./target/netbench/connect.json ./target/release/netbench-collector ./target/release/netbench-driver-s2n-quic-server
                 let child = Command::new("sh")
                     .args(["sim_netbench_server.sh", &name])
                     .spawn()

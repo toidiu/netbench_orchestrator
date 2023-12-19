@@ -1035,6 +1035,7 @@ dependencies = [
  "aws-types",
  "base64",
  "bytes",
+ "cfg-if",
  "env_logger",
  "humantime",
  "serde",

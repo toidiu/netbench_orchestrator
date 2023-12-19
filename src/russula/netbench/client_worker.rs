@@ -115,10 +115,21 @@ impl StateApi for WorkerState {
                     "{} starting some task sim_netbench_client",
                     self.name(stream)
                 );
-                let child = Command::new("sh")
-                    .args(["sim_netbench_client.sh", &name])
-                    .spawn()
-                    .expect("Failed to start echo process");
+                cfg_if::cfg_if! {
+                    // simulate the netbench process for testing
+                    if #[cfg(test)] {
+                        let child = Command::new("sh")
+                            .args(["sim_netbench_client.sh", &name])
+                            .spawn()
+                            .expect("Failed to start echo process");
+                    } else {
+                        let child = Command::new("sh")
+                            // SCENARIO=./target/netbench/connect.json SERVER_0=localhost:4433 ./target/release/netbench-driver-s2n-quic-client ./target/netbench/connect.json
+                            .args(["sim_netbench_client.sh", &name])
+                            .spawn()
+                            .expect("Failed to start echo process");
+                    }
+                };
 
                 let pid = child.id();
                 debug!(
