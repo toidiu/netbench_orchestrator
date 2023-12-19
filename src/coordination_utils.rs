@@ -54,22 +54,24 @@ impl ClientNetbenchRussula {
                 poll_coord_done, poll_worker
             );
 
-            if poll_coord_done.is_ready() {
+            if poll_coord_done.is_ready() && poll_worker.is_ready() {
                 break;
             }
             tokio::time::sleep(Duration::from_secs(20)).await;
         }
 
-        // client russula worker ssm
-        {
-            let wait_worker = wait_for_ssm_results(
-                "client",
-                ssm_client,
-                self.worker.command().unwrap().command_id().unwrap(),
-            )
-            .await;
-            info!("Client Russula!: Successful worker: {}", wait_worker);
-        }
+        // // client russula worker ssm
+        // FIXME with the Done fix in Russula, it should be possible to remove this and simply pool
+        // // till completion
+        // {
+        //     let wait_worker = wait_for_ssm_results(
+        //         "client",
+        //         ssm_client,
+        //         self.worker.command().unwrap().command_id().unwrap(),
+        //     )
+        //     .await;
+        info!("Client Russula!: Successful");
+        // }
     }
 }
 
