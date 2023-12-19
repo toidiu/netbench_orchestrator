@@ -25,7 +25,7 @@ use state::*;
 
 // TODO
 //
-// - russula server
+// D- russula server
 // - run netbench via russula
 //
 // D- make ssm russula runs nicer
