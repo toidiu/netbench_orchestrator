@@ -40,7 +40,7 @@ impl ServerNetbenchRussula {
         ServerNetbenchRussula { worker, coord }
     }
 
-    pub async fn wait_run_workers(&mut self, ssm_client: &aws_sdk_ssm::Client) {
+    pub async fn wait_workers_running(&mut self, ssm_client: &aws_sdk_ssm::Client) {
         loop {
             let poll_worker = poll_ssm_results(
                 "server",
@@ -68,7 +68,7 @@ impl ServerNetbenchRussula {
         }
     }
 
-    pub async fn wait_complete(&mut self, ssm_client: &aws_sdk_ssm::Client) {
+    pub async fn wait_done(&mut self, ssm_client: &aws_sdk_ssm::Client) {
         // poll server russula workers/coord
         loop {
             let poll_worker = poll_ssm_results(
@@ -149,7 +149,7 @@ impl ClientNetbenchRussula {
         ClientNetbenchRussula { worker, coord }
     }
 
-    pub async fn wait_complete(&mut self, ssm_client: &aws_sdk_ssm::Client) {
+    pub async fn wait_done(&mut self, ssm_client: &aws_sdk_ssm::Client) {
         // poll client russula workers/coord
         loop {
             let poll_worker = poll_ssm_results(

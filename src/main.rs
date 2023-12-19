@@ -169,9 +169,9 @@ async fn main() -> OrchResult<()> {
                 .await;
 
         // run client/server
-        server_russula.wait_run_workers(&ssm_client).await;
-        client_russula.wait_complete(&ssm_client).await;
-        server_russula.wait_complete(&ssm_client).await;
+        server_russula.wait_workers_running(&ssm_client).await;
+        client_russula.wait_done(&ssm_client).await;
+        server_russula.wait_done(&ssm_client).await;
     }
 
     // run netbench
