@@ -52,11 +52,20 @@ pub trait Protocol: Clone {
         }
         // Notify the peer that the protocol has reached a terminal state
         if self.is_done_state() {
-            // notify 3 time to account for packet loss
-            // FIXME make this non fatal? this results in a fatal error if the connection
-            // has been closed already
+            // Notify 3 time in case of packet loss.. this is best effort
             for _i in 0..3 {
-                self.run_current(stream).await?;
+                match self.run_current(stream).await {
+                    Ok(_) => (),
+                    // We notify the peer of the Done state multiple times. Since the peer could
+                    // have killed the connection in the meantime, its better to ignore network
+                    // failures
+                    Err(RussulaError::NetworkConnectionRefused { dbg })
+                    | Err(RussulaError::NetworkBlocked { dbg })
+                    | Err(RussulaError::NetworkFail { dbg }) => {
+                        debug!("Ignore network failure since coordination is Done.")
+                    }
+                    Err(err) => return Err(err),
+                }
                 tokio::time::sleep(NOTIFY_DONE_TIMEOUT).await;
             }
         }
