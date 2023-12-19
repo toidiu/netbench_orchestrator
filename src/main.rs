@@ -25,7 +25,10 @@ use state::*;
 
 // TODO
 //
-// - make ssm russula runs nicer
+// - russula server
+// - run netbench via russula
+//
+// D- make ssm russula runs nicer
 // D- get rid of runuser
 //
 // D- russula poll state
@@ -158,10 +161,17 @@ async fn main() -> OrchResult<()> {
 
     // run russula
     {
+        let mut server_russula =
+            coordination_utils::ServerNetbenchRussula::new(&ssm_client, &infra, server_ids.clone())
+                .await;
         let mut client_russula =
             coordination_utils::ClientNetbenchRussula::new(&ssm_client, &infra, client_ids.clone())
                 .await;
+
+        // run client/server
+        server_russula.wait_run_workers(&ssm_client).await;
         client_russula.wait_complete(&ssm_client).await;
+        server_russula.wait_complete(&ssm_client).await;
     }
 
     // run netbench
