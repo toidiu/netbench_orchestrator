@@ -5,8 +5,7 @@ use crate::{
     ec2_utils::InfraDetail,
     poll_ssm_results, russula,
     russula::{netbench::client, RussulaBuilder},
-    ssm_utils::{send_command, Step},
-    wait_for_ssm_results, STATE,
+    ssm_utils::{send_command, Step}, STATE,
 };
 use aws_sdk_ssm::operation::send_command::SendCommandOutput;
 use core::time::Duration;
@@ -25,9 +24,11 @@ impl ClientNetbenchRussula {
         instance_ids: Vec<String>,
     ) -> Self {
         // client run commands
+        debug!("starting client worker");
         let worker = client_worker(ssm_client, instance_ids).await;
 
         // client coord
+        debug!("starting client coordinator");
         let coord = client_coord(infra).await;
         ClientNetbenchRussula { worker, coord }
     }
@@ -60,18 +61,7 @@ impl ClientNetbenchRussula {
             tokio::time::sleep(Duration::from_secs(20)).await;
         }
 
-        // // client russula worker ssm
-        // FIXME with the Done fix in Russula, it should be possible to remove this and simply pool
-        // // till completion
-        // {
-        //     let wait_worker = wait_for_ssm_results(
-        //         "client",
-        //         ssm_client,
-        //         self.worker.command().unwrap().command_id().unwrap(),
-        //     )
-        //     .await;
         info!("Client Russula!: Successful");
-        // }
     }
 }
 
