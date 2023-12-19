@@ -28,7 +28,7 @@ pub async fn wait_cmds(
         } else {
             debug!("tasks not complete. wait to poll again ...");
         }
-        tokio::time::sleep(Duration::from_secs(60)).await;
+        tokio::time::sleep(STATE.poll_cmds_duration).await;
     }
 }
 

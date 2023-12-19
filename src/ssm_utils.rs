@@ -67,12 +67,9 @@ pub async fn send_command(
     ]);
     debug!("{} {:?}", endpoint, assemble_command);
 
+    // TODO is this necessary?
     let mut remaining_try_count: u32 = 30;
     loop {
-        debug!(
-            "send_command... endpoint: {} remaining_try_count: {} comment: {}",
-            endpoint, remaining_try_count, comment
-        );
         match ssm_client
             .send_command()
             .comment(comment)
@@ -95,7 +92,6 @@ pub async fn send_command(
                 break Some(sent_command);
             }
             Err(err) => {
-                // TODO is this necessary?
                 if remaining_try_count > 0 {
                     debug!(
                         "Send command failed: remaining: {} err: {}",
