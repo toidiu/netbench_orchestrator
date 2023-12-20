@@ -4,6 +4,7 @@
 mod error;
 mod russula;
 
+use crate::russula::netbench::PeerList;
 use core::time::Duration;
 use error::OrchResult;
 use russula::{
@@ -33,6 +34,9 @@ struct Opt {
     /// specify the port
     #[structopt(long, default_value = "9000")]
     port: u16,
+
+    #[structopt(long)]
+    peer_list: Option<PeerList>,
 }
 
 arg_enum! {
@@ -50,7 +54,7 @@ enum RussulaProtocol {
 async fn main() -> OrchResult<()> {
     let opt = Opt::from_args();
 
-    let file_appender = tracing_appender::rolling::hourly("./target", "russula.log");
+    let file_appender = tracing_appender::rolling::daily("./target", "russula.log");
     let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
     tracing_subscriber::fmt()
         .with_env_filter(EnvFilter::from_default_env())
@@ -59,8 +63,11 @@ async fn main() -> OrchResult<()> {
 
     debug!("{:?}", opt);
 
+    println!("{:?}", opt.peer_list);
     match opt.protocol {
-        RussulaProtocol::NetbenchServerWorker => run_server_worker(opt.ip, opt.port).await,
+        RussulaProtocol::NetbenchServerWorker => {
+            run_server_worker(opt.ip, opt.port, opt.peer_list).await
+        }
         RussulaProtocol::NetbenchServerCoordinator => {
             run_server_coordinator(opt.ip, opt.port).await
         }
@@ -74,9 +81,9 @@ async fn main() -> OrchResult<()> {
     Ok(())
 }
 
-async fn run_server_worker(ip: String, port: u16) {
+async fn run_server_worker(ip: String, port: u16, netbench_ctx: Option<PeerList>) {
     let w1_sock = SocketAddr::from_str(&format!("{}:{}", ip, port)).unwrap();
-    let protocol = server::WorkerProtocol::new(port);
+    let protocol = server::WorkerProtocol::new(port, netbench_ctx);
     let worker = RussulaBuilder::new(BTreeSet::from_iter([w1_sock]), protocol);
     let mut worker = worker.build().await.unwrap();
     worker.run_till_ready().await.unwrap();

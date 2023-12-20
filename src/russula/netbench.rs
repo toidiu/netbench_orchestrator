@@ -1,10 +1,31 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+use std::net::SocketAddr;
+use structopt::{clap::arg_enum, StructOpt};
+
 mod client_coord;
 mod client_worker;
 mod server_coord;
 mod server_worker;
+
+#[derive(Debug, Clone)]
+pub struct PeerList(Vec<SocketAddr>);
+
+impl std::str::FromStr for PeerList {
+    type Err = Box<dyn std::error::Error>;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(PeerList(
+            s.split(',')
+                .map(|x| {
+                    let str_value = x.trim();
+                    SocketAddr::from_str(str_value).unwrap()
+                })
+                .collect(),
+        ))
+    }
+}
 
 // CheckWorker   --------->  WaitCoordInit
 //                              |

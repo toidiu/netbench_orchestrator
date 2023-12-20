@@ -1,6 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+use super::PeerList;
 use crate::russula::{
     error::{RussulaError, RussulaResult},
     netbench::server_coord::CoordState,
@@ -30,19 +31,21 @@ pub enum WorkerState {
     Done,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Debug)]
 pub struct WorkerProtocol {
     id: u16,
     state: WorkerState,
     coord_state: CoordState,
+    netbench_ctx: Option<PeerList>,
 }
 
 impl WorkerProtocol {
-    pub fn new(id: u16) -> Self {
+    pub fn new(id: u16, netbench_ctx: Option<PeerList>) -> Self {
         WorkerProtocol {
             id,
             state: WorkerState::WaitCoordInit,
             coord_state: CoordState::CheckWorker,
+            netbench_ctx,
         }
     }
 }
@@ -104,6 +107,11 @@ impl Protocol for WorkerProtocol {
                     "{} starting some task sim_netbench_server",
                     self.state().name(stream)
                 );
+                if let Some(ctx) = &self.netbench_ctx {
+                    println!(" ------------------------ {:?}", 3)
+                } else {
+                    println!(" nope ------------------------ {:?}", 3)
+                }
                 // sudo SCENARIO=./target/netbench/connect.json ./target/release/netbench-collector ./target/release/netbench-driver-s2n-quic-server
                 let child = Command::new("sh")
                     .args(["sim_netbench_server.sh", &self.name()])

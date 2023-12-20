@@ -189,7 +189,7 @@ mod tests {
         let w1 = tokio::spawn(async move {
             let worker = RussulaBuilder::new(
                 BTreeSet::from_iter([w1_sock]),
-                server::WorkerProtocol::new(w1_sock.port()),
+                server::WorkerProtocol::new(w1_sock.port(), None),
             );
             let mut worker = worker
                 .poll_delay(Duration::from_secs(1))
@@ -205,7 +205,7 @@ mod tests {
         let w2 = tokio::spawn(async move {
             let worker = RussulaBuilder::new(
                 BTreeSet::from_iter([w2_sock]),
-                server::WorkerProtocol::new(w2_sock.port()),
+                server::WorkerProtocol::new(w2_sock.port(), None),
             );
             let mut worker = worker
                 .poll_delay(Duration::from_secs(1))
