@@ -111,16 +111,18 @@ impl Protocol for WorkerProtocol {
 
                         // FIXME figure out different way for local and remote
                         // remote runs
+                        let collector = "/home/ec2-user/bin/netbench-collector";
                         let driver = "/home/ec2-user/bin/netbench-driver-s2n-quic-client";
                         let scenario = "/home/ec2-user/request_response.json";
                         // local testing
+                        let collector = "netbench-collector";
                         let driver = "netbench-driver-s2n-quic-client";
                         let scenario = "request_response.json";
 
                         Command::new(driver)
                             .env("SCENARIO", scenario)
                             .env("SERVER_0", peer_sock_addr.to_string())
-                            .args(["/home/ec2-user/request_response.json"])
+                            .args([scenario])
                             .spawn()
                             .expect("Failed to start netbench-driver-s2n-quic-client process")
                     }
@@ -132,6 +134,8 @@ impl Protocol for WorkerProtocol {
                             .expect("Failed to start sim_netbench_client process")
                     }
                 };
+
+                println!("-----------{:?}", child);
 
                 let pid = child.id();
                 debug!(

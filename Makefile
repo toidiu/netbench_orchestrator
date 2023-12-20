@@ -7,7 +7,6 @@ net_server_coord:
 	RUST_LOG=none,orchestrator=debug,russula_cli=debug cargo run --bin russula_cli -- --protocol NetbenchServerCoordinator
 net_server_worker:
 	RUST_LOG=none,orchestrator=debug,russula_cli=debug cargo run --bin russula_cli -- --protocol NetbenchServerWorker --peer-list 127.0.0.1:4433
-	# ./target/debug/russula_cli --protocol NetbenchServerWorker --peer-list 127.0.0.1:4433
 
 net_client_coord:
 	RUST_LOG=none,orchestrator=debug,russula_cli=debug cargo run --bin russula_cli -- --protocol NetbenchClientCoordinator --ip 127.0.0.1

@@ -127,9 +127,9 @@ impl Protocol for WorkerProtocol {
                             .env("SCENARIO", scenario)
                             // FIXME get ip
                             .args([driver])
-                            // .stdout(output_json)
-                            .stdout(Stdio::piped())
-                            .stderr(output_json)
+                            .stdout(output_json)
+                            // .stdout(Stdio::piped())
+                            // .stderr(Stdio::piped())
                             .spawn()
                             .expect("Failed to start netbench-driver-s2n-quic-server process")
                     }
@@ -143,6 +143,7 @@ impl Protocol for WorkerProtocol {
                     }
                 };
 
+                println!("-----------{:?}", child);
                 let pid = child.id();
                 debug!(
                     "{}----------------------------child id {}",

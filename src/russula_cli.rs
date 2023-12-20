@@ -106,7 +106,8 @@ async fn run_server_coordinator(ip: String, port: u16) {
         .unwrap();
 
     println!("[server-coord-1] sleeping --------- to allow worker to run");
-    tokio::time::sleep(Duration::from_secs(5)).await;
+    tokio::time::sleep(Duration::from_secs(15)).await;
+    println!("[server-coord-1] done sleeping --------- killing server");
 
     coord
         .run_till_state(server::CoordState::Done)
