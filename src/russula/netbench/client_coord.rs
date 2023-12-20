@@ -55,11 +55,7 @@ impl Protocol for CoordProtocol {
 
     fn update_peer_state(&mut self, msg: Msg) -> RussulaResult<()> {
         self.worker_state = WorkerState::from_msg(msg)?;
-        debug!(
-            "{} ................................................................. {:?}",
-            self.name(),
-            self.worker_state
-        );
+        debug!("{} ... peer_state {:?}", self.name(), self.worker_state);
 
         Ok(())
     }

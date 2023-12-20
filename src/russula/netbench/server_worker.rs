@@ -67,11 +67,7 @@ impl Protocol for WorkerProtocol {
 
     fn update_peer_state(&mut self, msg: Msg) -> RussulaResult<()> {
         self.coord_state = CoordState::from_msg(msg)?;
-        debug!(
-            "{} ................................................................. {:?}",
-            self.name(),
-            self.coord_state
-        );
+        debug!("{} ... peer_state {:?}", self.name(), self.coord_state);
 
         Ok(())
     }

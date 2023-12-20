@@ -46,7 +46,7 @@ pub trait StateApi: Sized + Send + Sync + Debug + Serialize + for<'a> Deserializ
 
     async fn transition_self_or_user_driven(&mut self, stream: &TcpStream) -> RussulaResult<()> {
         info!(
-            "{}------------- moving to next state current: {:?}, next: {:?}",
+            "{} MOVING TO NEXT STATE. {:?} ===> {:?}",
             self.name(stream),
             self,
             self.next_state()
@@ -58,7 +58,7 @@ pub trait StateApi: Sized + Send + Sync + Debug + Serialize + for<'a> Deserializ
 
     async fn transition_next(&mut self, stream: &TcpStream) -> RussulaResult<()> {
         info!(
-            "{}------------- moving to next state current: {:?}, next: {:?}",
+            "{} MOVING TO NEXT STATE. {:?} ===> {:?}",
             self.name(stream),
             self,
             self.next_state()
@@ -75,23 +75,13 @@ pub trait StateApi: Sized + Send + Sync + Debug + Serialize + for<'a> Deserializ
     ) -> RussulaResult<bool> {
         if let TransitionStep::AwaitNext(expected_msg) = self.transition_step() {
             let should_transition_to_next = expected_msg == recv_msg.as_bytes();
-            if should_transition_to_next {
-                info!(
-                    "{} transition: {}, expect_msg: {:?} recv_msg: {:?}",
-                    self.name(stream),
-                    should_transition_to_next,
-                    std::str::from_utf8(&expected_msg),
-                    recv_msg,
-                );
-            } else {
-                debug!(
-                    "{} transition: {}, expect_msg: {:?} recv_msg: {:?}",
-                    self.name(stream),
-                    should_transition_to_next,
-                    std::str::from_utf8(&expected_msg),
-                    recv_msg,
-                );
-            }
+            debug!(
+                "{} transition: {}, expect_msg: {:?} recv_msg: {:?}",
+                self.name(stream),
+                should_transition_to_next,
+                std::str::from_utf8(&expected_msg),
+                recv_msg,
+            );
             Ok(should_transition_to_next)
         } else {
             Ok(false)

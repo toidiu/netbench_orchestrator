@@ -28,16 +28,6 @@ use state::*;
 // D- russula server
 // - run netbench via russula
 //
-// D- make ssm russula runs nicer
-// D- get rid of runuser
-//
-// D- russula poll state
-// D- interleave poll russula and ssm
-// D- cleanup ssm
-// D- breakup server ssm
-// D- ssm take list of ids
-// D- parallize netbench and russula build
-//
 // - server russula
 // - enable cleanup
 
