@@ -95,9 +95,7 @@ pub trait Protocol: Clone {
         matches!(self.state().transition_step(), TransitionStep::Finished)
     }
 
-    async fn run(&mut self, stream: &TcpStream) -> RussulaResult<Option<Msg>> {
-        todo!()
-    }
+    async fn run(&mut self, stream: &TcpStream) -> RussulaResult<Option<Msg>>;
 
     async fn await_next_msg(&mut self, stream: &TcpStream) -> RussulaResult<Msg> {
         if !matches!(self.state().transition_step(), TransitionStep::AwaitNext(_)) {
