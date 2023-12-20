@@ -9,8 +9,7 @@ use aws_sdk_ssm::{
     operation::send_command::SendCommandOutput,
     types::{CloudWatchOutputConfig, CommandInvocationStatus},
 };
-use core::task::Poll;
-use std::{thread::sleep, time::Duration};
+use core::{task::Poll, time::Duration};
 use tracing::{debug, trace};
 
 pub mod client;
@@ -65,10 +64,9 @@ pub async fn send_command(
         "cd /home/ec2-user".to_string(),
         format!("touch {}_fin___", step.as_str()),
     ]);
-    debug!("{} {:?}", endpoint, assemble_command);
+    trace!("{} {:?}", endpoint, assemble_command);
 
-    // TODO is this necessary?
-    let mut remaining_try_count: u32 = 30;
+    let mut remaining_try_count: u32 = 10;
     loop {
         match ssm_client
             .send_command()
@@ -97,7 +95,7 @@ pub async fn send_command(
                         "Send command failed: remaining: {} err: {}",
                         remaining_try_count, err
                     );
-                    sleep(Duration::from_secs(2));
+                    tokio::time::sleep(Duration::from_secs(2)).await;
                     remaining_try_count -= 1;
                     continue;
                 } else {
@@ -117,9 +115,7 @@ pub(crate) async fn wait_for_ssm_results(
         match poll_ssm_results(endpoint, ssm_client, command_id).await {
             Ok(Poll::Ready(_)) => break true,
             Ok(Poll::Pending) => {
-                // FIXME can we use tokio sleep here?
-                sleep(Duration::from_secs(10));
-                // tokio::time::sleep(Duration::from_secs(10)).await;
+                tokio::time::sleep(Duration::from_secs(10)).await;
                 continue;
             }
             Err(_err) => break false,

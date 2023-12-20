@@ -111,7 +111,8 @@ pub trait Protocol: Clone {
             last_msg = network_utils::recv_msg(stream).await?;
             debug!("{} <---- recv msg {:?}", self.name(), last_msg);
 
-            if self.matches_transition_msg(stream, &mut last_msg).await? {
+            let state = self.state();
+            if state.matches_transition_msg(stream, &mut last_msg).await? {
                 self.state_mut().transition_next(stream).await?;
                 break;
             } else {
@@ -121,36 +122,6 @@ pub trait Protocol: Clone {
         }
 
         Ok(last_msg)
-    }
-
-    async fn matches_transition_msg(
-        &mut self,
-        stream: &TcpStream,
-        recv_msg: &mut Msg,
-    ) -> RussulaResult<bool> {
-        if let TransitionStep::AwaitNext(expected_msg) = self.state().transition_step() {
-            let should_transition_to_next = expected_msg == recv_msg.as_bytes();
-            if should_transition_to_next {
-                info!(
-                    "{} transition: {}, expect_msg: {:?} recv_msg: {:?}",
-                    self.name(),
-                    should_transition_to_next,
-                    std::str::from_utf8(&expected_msg),
-                    recv_msg,
-                );
-            } else {
-                debug!(
-                    "{} transition: {}, expect_msg: {:?} recv_msg: {:?}",
-                    self.name(),
-                    should_transition_to_next,
-                    std::str::from_utf8(&expected_msg),
-                    recv_msg,
-                );
-            }
-            Ok(should_transition_to_next)
-        } else {
-            Ok(false)
-        }
     }
 }
 
@@ -213,30 +184,8 @@ pub trait StateApi: Sized + Send + Sync + Debug + Serialize + for<'a> Deserializ
         self.notify_peer(stream).await.map(|_| ())
     }
 
-    async fn await_next_msg(&mut self, stream: &TcpStream) -> RussulaResult<Msg> {
-        if !matches!(self.transition_step(), TransitionStep::AwaitNext(_)) {
-            panic!("expected AwaitNext but found: {:?}", self.transition_step());
-        }
-        // loop until we receive a transition msg from peer or drain all msg from queue.
-        // recv_msg aborts if the read queue is empty
-        let mut last_msg;
-        loop {
-            last_msg = network_utils::recv_msg(stream).await?;
-            debug!("{} <---- recv msg {:?}", self.name(stream), last_msg);
-
-            if self.matches_transition_msg(stream, &mut last_msg).await? {
-                self.transition_next(stream).await?;
-                break;
-            } else {
-                self.notify_peer(stream).await?;
-            }
-        }
-
-        Ok(last_msg)
-    }
-
     async fn matches_transition_msg(
-        &mut self,
+        &self,
         stream: &TcpStream,
         recv_msg: &mut Msg,
     ) -> RussulaResult<bool> {
