@@ -39,7 +39,6 @@ use states::{StateApi, TransitionStep};
 const POLL_RETRY_DURATION: Duration = Duration::from_secs(10);
 
 pub struct Russula<P: Protocol> {
-    // TODO rename from peer->worker/coord because 'peer' can be confusing
     peer_list: Vec<RussulaPeer<P>>,
     poll_delay: Duration,
     protocol: P,
