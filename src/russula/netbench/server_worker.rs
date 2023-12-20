@@ -103,20 +103,34 @@ impl Protocol for WorkerProtocol {
             }
             WorkerState::Run => {
                 // some long task
-                debug!(
-                    "{} starting some task sim_netbench_server",
-                    self.state().name(stream)
-                );
                 if let Some(ctx) = &self.netbench_ctx {
                     println!(" ------------------------ {:?}", 3)
                 } else {
                     println!(" nope ------------------------ {:?}", 3)
                 }
-                // sudo SCENARIO=./target/netbench/connect.json ./target/release/netbench-collector ./target/release/netbench-driver-s2n-quic-server
-                let child = Command::new("sh")
-                    .args(["sim_netbench_server.sh", &self.name()])
-                    .spawn()
-                    .expect("Failed to start echo process");
+                let child = match &self.netbench_ctx {
+                    Some(ctx) => {
+                        // sudo SCENARIO=./target/netbench/connect.json ./target/release/netbench-collector
+                        //   ./target/release/netbench-driver-s2n-quic-server
+                        info!("{} run task netbench", self.state().name(stream));
+                        let peer_sock_addr = ctx.0.get(0).expect("get the first peer sock_addr");
+                        Command::new("/home/ec2-user/bin/netbench-collector")
+                            .env("SCENARIO", "/home/ec2-user/request_response.json")
+                            // FIXME get ip
+                            .env("SERVER_0", peer_sock_addr.to_string())
+                            .args(["/home/ec2-user/bin/netbench-driver-s2n-quic-server"])
+                            .spawn()
+                            .expect("Failed to start netbench-driver-s2n-quic-server process")
+                    }
+                    None => {
+                        info!("{} run task sim_netbench_server", self.state().name(stream));
+
+                        Command::new("sh")
+                            .args(["sim_netbench_server.sh", &self.name()])
+                            .spawn()
+                            .expect("Failed to start echo process")
+                    }
+                };
 
                 let pid = child.id();
                 debug!(

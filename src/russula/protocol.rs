@@ -112,7 +112,11 @@ pub trait Protocol: Clone {
         let mut last_msg;
         loop {
             last_msg = network_utils::recv_msg(stream).await?;
-            debug!("{} <---- recv msg {:?}", self.name(), last_msg);
+            debug!(
+                "{} <---- recv msg {}",
+                self.name(),
+                std::str::from_utf8(&last_msg.data).unwrap()
+            );
 
             let state = self.state();
             if state.matches_transition_msg(stream, &mut last_msg).await? {

@@ -62,8 +62,6 @@ async fn main() -> OrchResult<()> {
         .init();
 
     debug!("{:?}", opt);
-
-    println!("{:?}", opt.peer_list);
     match opt.protocol {
         RussulaProtocol::NetbenchServerWorker => {
             run_server_worker(opt.ip, opt.port, opt.peer_list).await
@@ -71,7 +69,9 @@ async fn main() -> OrchResult<()> {
         RussulaProtocol::NetbenchServerCoordinator => {
             run_server_coordinator(opt.ip, opt.port).await
         }
-        RussulaProtocol::NetbenchClientWorker => run_client_worker(opt.ip, opt.port).await,
+        RussulaProtocol::NetbenchClientWorker => {
+            run_client_worker(opt.ip, opt.port, opt.peer_list).await
+        }
         RussulaProtocol::NetbenchClientCoordinator => {
             run_client_coordinator(opt.ip, opt.port).await
         }
@@ -114,9 +114,9 @@ async fn run_server_coordinator(ip: String, port: u16) {
         .unwrap();
 }
 
-async fn run_client_worker(ip: String, port: u16) {
+async fn run_client_worker(ip: String, port: u16, netbench_ctx: Option<PeerList>) {
     let w1_sock = SocketAddr::from_str(&format!("{}:{}", ip, port)).unwrap();
-    let protocol = client::WorkerProtocol::new(port);
+    let protocol = client::WorkerProtocol::new(port, netbench_ctx);
     let worker = RussulaBuilder::new(BTreeSet::from_iter([w1_sock]), protocol);
     let mut worker = worker.build().await.unwrap();
     worker.run_till_ready().await.unwrap();

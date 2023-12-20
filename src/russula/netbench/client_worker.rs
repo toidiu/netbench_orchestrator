@@ -1,6 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+use super::PeerList;
 use crate::russula::{
     error::{RussulaError, RussulaResult},
     netbench::client::CoordState,
@@ -30,19 +31,21 @@ pub enum WorkerState {
     Done,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct WorkerProtocol {
     id: u16,
     state: WorkerState,
     coord_state: CoordState,
+    netbench_ctx: Option<PeerList>,
 }
 
 impl WorkerProtocol {
-    pub fn new(id: u16) -> Self {
+    pub fn new(id: u16, netbench_ctx: Option<PeerList>) -> Self {
         WorkerProtocol {
             id,
             state: WorkerState::WaitCoordInit,
             coord_state: CoordState::CheckWorker,
+            netbench_ctx,
         }
     }
 }
@@ -101,29 +104,29 @@ impl Protocol for WorkerProtocol {
             WorkerState::Run => {
                 // some long task
                 debug!("{} starting some task sim_netbench_client", self.name());
-                cfg_if::cfg_if! {
-                    // simulate the netbench process for testing
-                    if #[cfg(test)] {
-                        let child = Command::new("sh")
+
+                let child = match &self.netbench_ctx {
+                    Some(ctx) => {
+                        // SCENARIO=./target/netbench/connect.json SERVER_0=localhost:4433
+                        //   ./target/release/netbench-driver-s2n-quic-client ./target/netbench/connect.json
+                        //
+                        info!("run netbench process");
+                        let peer_sock_addr = ctx.0.get(0).expect("get the first peer sock_addr");
+                        Command::new("/home/ec2-user/bin/netbench-driver-s2n-quic-client")
+                            .env("SCENARIO", "/home/ec2-user/request_response.json")
+                            .env("SERVER_0", peer_sock_addr.to_string())
+                            .args(["/home/ec2-user/request_response.json"])
+                            .spawn()
+                            .expect("Failed to start netbench-driver-s2n-quic-client process")
+                    }
+                    None => {
+                        info!("run sim_netbench_client process for testing");
+                        Command::new("sh")
                             .args(["sim_netbench_client.sh", &self.name()])
                             .spawn()
-                            .expect("Failed to start sim_netbench_client process");
-                    } else {
-                        // FIXME do this
-                        let child = Command::new("sh")
-                            .args(["sim_netbench_client.sh", &self.name()])
-                            .spawn()
-                            .expect("Failed to start blaaa process");
+                            .expect("Failed to start sim_netbench_client process")
                     }
                 };
-                // SCENARIO=./target/netbench/connect.json SERVER_0=localhost:4433 ./target/release/netbench-driver-s2n-quic-client ./target/netbench/connect.json
-                // let bla = Command::new("/home/ec2-user/bin/netbench-driver-s2n-quic-client")
-                //     .env("SCENARIO", "/home/ec2-user/request_response.json")
-                //     // FIXME get ip
-                //     .env("SERVER_0", "xxx:9000")
-                //     .args(["/home/ec2-user/request_response.json"])
-                //     .spawn()
-                //     .expect("Failed to start netbench-driver-s2n-quic-client process");
 
                 let pid = child.id();
                 debug!(
