@@ -12,7 +12,11 @@ use crate::russula::{
 use async_trait::async_trait;
 use core::fmt::Debug;
 use serde::{Deserialize, Serialize};
-use std::{net::SocketAddr, process::Command};
+use std::{
+    fs::File,
+    net::SocketAddr,
+    process::{Command, Stdio},
+};
 use sysinfo::{Pid, PidExt, ProcessExt, SystemExt};
 use tokio::net::{TcpListener, TcpStream};
 use tracing::{debug, info};
@@ -36,6 +40,7 @@ pub struct WorkerProtocol {
     id: u16,
     state: WorkerState,
     coord_state: CoordState,
+    // FIXME replace with different ctx info since peer_list is not used
     netbench_ctx: Option<PeerList>,
 }
 
@@ -102,23 +107,29 @@ impl Protocol for WorkerProtocol {
                 self.await_next_msg(stream).await.map(Some)
             }
             WorkerState::Run => {
-                // some long task
-                if let Some(ctx) = &self.netbench_ctx {
-                    println!(" ------------------------ {:?}", 3)
-                } else {
-                    println!(" nope ------------------------ {:?}", 3)
-                }
                 let child = match &self.netbench_ctx {
                     Some(ctx) => {
                         // sudo SCENARIO=./target/netbench/connect.json ./target/release/netbench-collector
                         //   ./target/release/netbench-driver-s2n-quic-server
                         info!("{} run task netbench", self.state().name(stream));
-                        let peer_sock_addr = ctx.0.get(0).expect("get the first peer sock_addr");
-                        Command::new("/home/ec2-user/bin/netbench-collector")
-                            .env("SCENARIO", "/home/ec2-user/request_response.json")
+                        println!("{} run task netbench", self.state().name(stream));
+
+                        let collector = "/home/ec2-user/bin/netbench-collector";
+                        let driver = "/home/ec2-user/bin/netbench-driver-s2n-quic-server";
+                        let scenario = "/home/ec2-user/request_response.json";
+                        // local testing
+                        let collector = "netbench-collector";
+                        let driver = "netbench-driver-s2n-quic-server";
+                        let scenario = "request_response.json";
+
+                        let output_json = File::create("server.json").expect("failed to open log");
+                        Command::new(collector)
+                            .env("SCENARIO", scenario)
                             // FIXME get ip
-                            .env("SERVER_0", peer_sock_addr.to_string())
-                            .args(["/home/ec2-user/bin/netbench-driver-s2n-quic-server"])
+                            .args([driver])
+                            // .stdout(output_json)
+                            .stdout(Stdio::piped())
+                            .stderr(output_json)
                             .spawn()
                             .expect("Failed to start netbench-driver-s2n-quic-server process")
                     }

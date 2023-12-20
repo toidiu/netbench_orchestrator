@@ -102,25 +102,30 @@ impl Protocol for WorkerProtocol {
                 self.await_next_msg(stream).await.map(Some)
             }
             WorkerState::Run => {
-                // some long task
-                debug!("{} starting some task sim_netbench_client", self.name());
-
                 let child = match &self.netbench_ctx {
                     Some(ctx) => {
                         // SCENARIO=./target/netbench/connect.json SERVER_0=localhost:4433
                         //   ./target/release/netbench-driver-s2n-quic-client ./target/netbench/connect.json
-                        //
-                        info!("run netbench process");
+                        info!("{} RUN NETBENCH PROCESS", self.name());
                         let peer_sock_addr = ctx.0.get(0).expect("get the first peer sock_addr");
-                        Command::new("/home/ec2-user/bin/netbench-driver-s2n-quic-client")
-                            .env("SCENARIO", "/home/ec2-user/request_response.json")
+
+                        // FIXME figure out different way for local and remote
+                        // remote runs
+                        let driver = "/home/ec2-user/bin/netbench-driver-s2n-quic-client";
+                        let scenario = "/home/ec2-user/request_response.json";
+                        // local testing
+                        let driver = "netbench-driver-s2n-quic-client";
+                        let scenario = "request_response.json";
+
+                        Command::new(driver)
+                            .env("SCENARIO", scenario)
                             .env("SERVER_0", peer_sock_addr.to_string())
                             .args(["/home/ec2-user/request_response.json"])
                             .spawn()
                             .expect("Failed to start netbench-driver-s2n-quic-client process")
                     }
                     None => {
-                        info!("run sim_netbench_client process for testing");
+                        info!("{} RUN SIM_NETBENCH_CLIENT", self.name());
                         Command::new("sh")
                             .args(["sim_netbench_client.sh", &self.name()])
                             .spawn()
