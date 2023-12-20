@@ -11,9 +11,11 @@ mod error;
 pub mod netbench;
 mod network_utils;
 mod protocol;
+mod states;
 
 use error::{RussulaError, RussulaResult};
-use protocol::{Protocol, StateApi, TransitionStep};
+use protocol::Protocol;
+use states::{StateApi, TransitionStep};
 
 // TODO
 // - make state transitions nicer
