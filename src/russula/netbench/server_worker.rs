@@ -91,48 +91,41 @@ impl Protocol for WorkerProtocol {
     fn done_state(&self) -> Self::State {
         WorkerState::Done
     }
-}
 
-#[async_trait]
-impl StateApi for WorkerState {
-    fn name_prefix(&self) -> String {
-        "worker".to_string()
-    }
-
-    async fn run(&mut self, stream: &TcpStream, name: String) -> RussulaResult<Option<Msg>> {
-        match self {
+    async fn run(&mut self, stream: &TcpStream) -> RussulaResult<Option<Msg>> {
+        match self.state_mut() {
             WorkerState::WaitCoordInit => {
                 // self.notify_peer(stream).await?;
                 self.await_next_msg(stream).await.map(Some)
             }
             WorkerState::Ready => {
-                self.notify_peer(stream).await?;
+                self.state().notify_peer(stream).await?;
                 self.await_next_msg(stream).await.map(Some)
             }
             WorkerState::Run => {
                 // some long task
                 debug!(
                     "{} starting some task sim_netbench_server",
-                    self.name(stream)
+                    self.state().name(stream)
                 );
                 // sudo SCENARIO=./target/netbench/connect.json ./target/release/netbench-collector ./target/release/netbench-driver-s2n-quic-server
                 let child = Command::new("sh")
-                    .args(["sim_netbench_server.sh", &name])
+                    .args(["sim_netbench_server.sh", &self.name()])
                     .spawn()
                     .expect("Failed to start echo process");
 
                 let pid = child.id();
                 debug!(
                     "{}----------------------------child id {}",
-                    self.name(stream),
+                    self.state().name(stream),
                     pid
                 );
 
-                *self = WorkerState::RunningAwaitKill(pid);
+                *self.state_mut() = WorkerState::RunningAwaitKill(pid);
                 Ok(None)
             }
             WorkerState::RunningAwaitKill(_pid) => {
-                self.notify_peer(stream).await?;
+                self.state().notify_peer(stream).await?;
                 self.await_next_msg(stream).await.map(Some)
             }
             WorkerState::Killing(pid) => {
@@ -145,18 +138,27 @@ impl StateApi for WorkerState {
                 }
 
                 // FIXME fix this
-                self.transition_self_or_user_driven(stream).await?;
+                self.state_mut()
+                    .transition_self_or_user_driven(stream)
+                    .await?;
                 Ok(None)
             }
             WorkerState::Stopped => {
-                self.notify_peer(stream).await?;
+                self.state().notify_peer(stream).await?;
                 self.await_next_msg(stream).await.map(Some)
             }
             WorkerState::Done => {
-                self.notify_peer(stream).await?;
+                self.state().notify_peer(stream).await?;
                 Ok(None)
             }
         }
+    }
+}
+
+#[async_trait]
+impl StateApi for WorkerState {
+    fn name_prefix(&self) -> String {
+        "worker".to_string()
     }
 
     fn transition_step(&self) -> TransitionStep {

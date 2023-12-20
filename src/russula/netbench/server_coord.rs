@@ -81,46 +81,52 @@ impl Protocol for CoordProtocol {
     fn done_state(&self) -> Self::State {
         CoordState::Done
     }
+
+    async fn run(&mut self, stream: &TcpStream) -> RussulaResult<Option<Msg>> {
+        match self.state_mut() {
+            CoordState::CheckWorker => {
+                self.state().notify_peer(stream).await?;
+                self.await_next_msg(stream).await.map(Some)
+            }
+            CoordState::Ready => {
+                self.state_mut()
+                    .transition_self_or_user_driven(stream)
+                    .await?;
+                Ok(None)
+            }
+            CoordState::RunWorker => {
+                self.state().notify_peer(stream).await?;
+                self.await_next_msg(stream).await.map(Some)
+            }
+            CoordState::WorkersRunning => {
+                self.state_mut()
+                    .transition_self_or_user_driven(stream)
+                    .await?;
+                Ok(None)
+            }
+            CoordState::KillWorker => {
+                self.state().notify_peer(stream).await?;
+                self.await_next_msg(stream).await.map(Some)
+            }
+            CoordState::WorkerKilled => {
+                self.state_mut()
+                    .transition_self_or_user_driven(stream)
+                    .await?;
+                Ok(None)
+            }
+            CoordState::Done => {
+                // panic!("stopped---------------------------------");
+                self.state().notify_peer(stream).await?;
+                Ok(None)
+            }
+        }
+    }
 }
 
 #[async_trait]
 impl StateApi for CoordState {
     fn name_prefix(&self) -> String {
         "coord".to_string()
-    }
-
-    async fn run(&mut self, stream: &TcpStream, _name: String) -> RussulaResult<Option<Msg>> {
-        match self {
-            CoordState::CheckWorker => {
-                self.notify_peer(stream).await?;
-                self.await_next_msg(stream).await.map(Some)
-            }
-            CoordState::Ready => {
-                self.transition_self_or_user_driven(stream).await?;
-                Ok(None)
-            }
-            CoordState::RunWorker => {
-                self.notify_peer(stream).await?;
-                self.await_next_msg(stream).await.map(Some)
-            }
-            CoordState::WorkersRunning => {
-                self.transition_self_or_user_driven(stream).await?;
-                Ok(None)
-            }
-            CoordState::KillWorker => {
-                self.notify_peer(stream).await?;
-                self.await_next_msg(stream).await.map(Some)
-            }
-            CoordState::WorkerKilled => {
-                self.transition_self_or_user_driven(stream).await?;
-                Ok(None)
-            }
-            CoordState::Done => {
-                // panic!("stopped---------------------------------");
-                self.notify_peer(stream).await?;
-                Ok(None)
-            }
-        }
     }
 
     fn transition_step(&self) -> TransitionStep {
