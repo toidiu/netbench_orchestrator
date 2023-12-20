@@ -121,24 +121,23 @@ impl StateApi for WorkerState {
                         let child = Command::new("sh")
                             .args(["sim_netbench_client.sh", &name])
                             .spawn()
-                            .expect("Failed to start echo process");
+                            .expect("Failed to start sim_netbench_client process");
                     } else {
                         // FIXME do this
                         let child = Command::new("sh")
                             .args(["sim_netbench_client.sh", &name])
                             .spawn()
-                            .expect("Failed to start echo process");
+                            .expect("Failed to start blaaa process");
                     }
                 };
-                let bla = Command::new("sh")
+                // SCENARIO=./target/netbench/connect.json SERVER_0=localhost:4433 ./target/release/netbench-driver-s2n-quic-client ./target/netbench/connect.json
+                let bla = Command::new("/home/ec2-user/bin/netbench-driver-s2n-quic-client")
                     .env("SCENARIO", "/home/ec2-user/request_response.json")
                     // FIXME get ip
                     .env("SERVER_0", "xxx:9000")
-                    // SCENARIO=./target/netbench/connect.json SERVER_0=localhost:4433 ./target/release/netbench-driver-s2n-quic-client ./target/netbench/connect.json
-                    .args(["/home/ec2-user/bin/netbench-driver-s2n-quic-client", &name])
-                    .args(["/home/ec2-user/request_response.json", &name])
+                    .args(["/home/ec2-user/request_response.json"])
                     .spawn()
-                    .expect("Failed to start echo process");
+                    .expect("Failed to start netbench-driver-s2n-quic-client process");
 
                 let pid = child.id();
                 debug!(
