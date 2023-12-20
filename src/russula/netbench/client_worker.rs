@@ -91,6 +91,95 @@ impl Protocol for WorkerProtocol {
     fn done_state(&self) -> Self::State {
         WorkerState::Done
     }
+
+    async fn run(&mut self, stream: &TcpStream) -> RussulaResult<Option<Msg>> {
+        match self.state_mut() {
+            WorkerState::WaitCoordInit => {
+                // self.notify_peer(stream).await?;
+                self.await_next_msg(stream).await.map(Some)
+            }
+            WorkerState::Ready => {
+                self.state().notify_peer(stream).await?;
+                self.await_next_msg(stream).await.map(Some)
+            }
+            WorkerState::Run => {
+                // some long task
+                debug!("{} starting some task sim_netbench_client", self.name());
+                cfg_if::cfg_if! {
+                    // simulate the netbench process for testing
+                    if #[cfg(test)] {
+                        let child = Command::new("sh")
+                            .args(["sim_netbench_client.sh", "bla"])
+                            .spawn()
+                            .expect("Failed to start sim_netbench_client process");
+                    } else {
+                        // FIXME do this
+                        let child = Command::new("sh")
+                            .args(["sim_netbench_client.sh", "bla"])
+                            .spawn()
+                            .expect("Failed to start blaaa process");
+                    }
+                };
+                // SCENARIO=./target/netbench/connect.json SERVER_0=localhost:4433 ./target/release/netbench-driver-s2n-quic-client ./target/netbench/connect.json
+                // let bla = Command::new("/home/ec2-user/bin/netbench-driver-s2n-quic-client")
+                //     .env("SCENARIO", "/home/ec2-user/request_response.json")
+                //     // FIXME get ip
+                //     .env("SERVER_0", "xxx:9000")
+                //     .args(["/home/ec2-user/request_response.json"])
+                //     .spawn()
+                //     .expect("Failed to start netbench-driver-s2n-quic-client process");
+
+                let pid = child.id();
+                debug!(
+                    "{}----------------------------child id {}",
+                    self.name(),
+                    pid
+                );
+
+                *self.state_mut() = WorkerState::Running(pid);
+                Ok(None)
+            }
+            WorkerState::Running(_pid) => {
+                self.state().notify_peer(stream).await?;
+                self.await_next_msg(stream).await.map(Some)
+            }
+            WorkerState::RunningAwaitComplete(pid) => {
+                let pid = *pid;
+                self.state().notify_peer(stream).await?;
+
+                let pid = Pid::from_u32(pid);
+                let mut system = sysinfo::System::new();
+
+                let is_process_complete = !system.refresh_process(pid);
+
+                if is_process_complete {
+                    debug!(
+                        "process COMPLETED! pid: {} ----------------------------",
+                        pid
+                    );
+                } else {
+                    debug!(
+                        "process still RUNNING! pid: {} ----------------------------",
+                        pid
+                    );
+                }
+
+                // FIXME fix this
+                self.state_mut()
+                    .transition_self_or_user_driven(stream)
+                    .await?;
+                Ok(None)
+            }
+            WorkerState::Stopped => {
+                self.state().notify_peer(stream).await?;
+                self.await_next_msg(stream).await.map(Some)
+            }
+            WorkerState::Done => {
+                self.state().notify_peer(stream).await?;
+                Ok(None)
+            }
+        }
+    }
 }
 
 #[async_trait]
@@ -130,14 +219,14 @@ impl StateApi for WorkerState {
                             .expect("Failed to start blaaa process");
                     }
                 };
-                // SCENARIO=./target/netbench/connect.json SERVER_0=localhost:4433 ./target/release/netbench-driver-s2n-quic-client ./target/netbench/connect.json
-                let bla = Command::new("/home/ec2-user/bin/netbench-driver-s2n-quic-client")
-                    .env("SCENARIO", "/home/ec2-user/request_response.json")
-                    // FIXME get ip
-                    .env("SERVER_0", "xxx:9000")
-                    .args(["/home/ec2-user/request_response.json"])
-                    .spawn()
-                    .expect("Failed to start netbench-driver-s2n-quic-client process");
+                // // SCENARIO=./target/netbench/connect.json SERVER_0=localhost:4433 ./target/release/netbench-driver-s2n-quic-client ./target/netbench/connect.json
+                // let bla = Command::new("/home/ec2-user/bin/netbench-driver-s2n-quic-client")
+                //     .env("SCENARIO", "/home/ec2-user/request_response.json")
+                //     // FIXME get ip
+                //     .env("SERVER_0", "xxx:9000")
+                //     .args(["/home/ec2-user/request_response.json"])
+                //     .spawn()
+                //     .expect("Failed to start netbench-driver-s2n-quic-client process");
 
                 let pid = child.id();
                 debug!(

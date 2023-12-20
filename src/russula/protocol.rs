@@ -94,6 +94,66 @@ pub trait Protocol: Clone {
     fn is_done_state(&self) -> bool {
         matches!(self.state().transition_step(), TransitionStep::Finished)
     }
+
+    async fn run(&mut self, stream: &TcpStream) -> RussulaResult<Option<Msg>> {
+        todo!()
+    }
+
+    async fn await_next_msg(&mut self, stream: &TcpStream) -> RussulaResult<Msg> {
+        if !matches!(self.state().transition_step(), TransitionStep::AwaitNext(_)) {
+            panic!(
+                "expected AwaitNext but found: {:?}",
+                self.state().transition_step()
+            );
+        }
+        // loop until we receive a transition msg from peer or drain all msg from queue.
+        // recv_msg aborts if the read queue is empty
+        let mut last_msg;
+        loop {
+            last_msg = network_utils::recv_msg(stream).await?;
+            debug!("{} <---- recv msg {:?}", self.name(), last_msg);
+
+            if self.matches_transition_msg(stream, &mut last_msg).await? {
+                self.state_mut().transition_next(stream).await?;
+                break;
+            } else {
+                let fut = self.state().notify_peer(stream);
+                fut.await?;
+            }
+        }
+
+        Ok(last_msg)
+    }
+
+    async fn matches_transition_msg(
+        &mut self,
+        stream: &TcpStream,
+        recv_msg: &mut Msg,
+    ) -> RussulaResult<bool> {
+        if let TransitionStep::AwaitNext(expected_msg) = self.state().transition_step() {
+            let should_transition_to_next = expected_msg == recv_msg.as_bytes();
+            if should_transition_to_next {
+                info!(
+                    "{} transition: {}, expect_msg: {:?} recv_msg: {:?}",
+                    self.name(),
+                    should_transition_to_next,
+                    std::str::from_utf8(&expected_msg),
+                    recv_msg,
+                );
+            } else {
+                debug!(
+                    "{} transition: {}, expect_msg: {:?} recv_msg: {:?}",
+                    self.name(),
+                    should_transition_to_next,
+                    std::str::from_utf8(&expected_msg),
+                    recv_msg,
+                );
+            }
+            Ok(should_transition_to_next)
+        } else {
+            Ok(false)
+        }
+    }
 }
 
 pub type SockProtocol<P> = (SocketAddr, P);
@@ -232,3 +292,127 @@ pub trait StateApi: Sized + Send + Sync + Debug + Serialize + for<'a> Deserializ
         })
     }
 }
+
+// bla
+// #[async_trait]
+// pub trait MyStateApi {
+//     fn name_prefix(&self) -> String;
+
+//     fn name(&self, stream: &TcpStream) -> String {
+//         format!(
+//             "[{}-{}]",
+//             self.name_prefix(),
+//             stream.local_addr().unwrap().port()
+//         )
+//     }
+
+//     async fn run(&mut self, stream: &TcpStream, _name: String) -> RussulaResult<Option<Msg>>;
+//     fn transition_step(&self) -> TransitionStep;
+//     fn next_state(&self) -> Self;
+
+//     async fn notify_peer(&self, stream: &TcpStream) -> RussulaResult<usize> {
+//         let msg = Msg::new(self.as_bytes());
+//         debug!("{} ----> send msg {:?}", self.name(stream), msg);
+//         network_utils::send_msg(stream, msg).await
+//     }
+
+//     async fn transition_self_or_user_driven(&mut self, stream: &TcpStream) -> RussulaResult<()> {
+//         info!(
+//             "{}------------- moving to next state current: {:?}, next: {:?}",
+//             self.name(stream),
+//             self,
+//             self.next_state()
+//         );
+
+//         *self = self.next_state();
+//         self.notify_peer(stream).await.map(|_| ())
+//     }
+
+//     async fn transition_next(&mut self, stream: &TcpStream) -> RussulaResult<()> {
+//         info!(
+//             "{}------------- moving to next state current: {:?}, next: {:?}",
+//             self.name(stream),
+//             self,
+//             self.next_state()
+//         );
+
+//         *self = self.next_state();
+//         self.notify_peer(stream).await.map(|_| ())
+//     }
+
+//     async fn await_next_msg(&mut self, stream: &TcpStream) -> RussulaResult<Msg> {
+//         if !matches!(self.transition_step(), TransitionStep::AwaitNext(_)) {
+//             panic!("expected AwaitNext but found: {:?}", self.transition_step());
+//         }
+//         // loop until we receive a transition msg from peer or drain all msg from queue.
+//         // recv_msg aborts if the read queue is empty
+//         let mut last_msg;
+//         loop {
+//             last_msg = network_utils::recv_msg(stream).await?;
+//             debug!("{} <---- recv msg {:?}", self.name(stream), last_msg);
+
+//             if self.matches_transition_msg(stream, &mut last_msg).await? {
+//                 self.transition_next(stream).await?;
+//                 break;
+//             } else {
+//                 self.notify_peer(stream).await?;
+//             }
+//         }
+
+//         Ok(last_msg)
+//     }
+
+//     async fn matches_transition_msg(
+//         &mut self,
+//         stream: &TcpStream,
+//         recv_msg: &mut Msg,
+//     ) -> RussulaResult<bool> {
+//         if let TransitionStep::AwaitNext(expected_msg) = self.transition_step() {
+//             let should_transition_to_next = expected_msg == recv_msg.as_bytes();
+//             if should_transition_to_next {
+//                 info!(
+//                     "{} transition: {}, expect_msg: {:?} recv_msg: {:?}",
+//                     self.name(stream),
+//                     should_transition_to_next,
+//                     std::str::from_utf8(&expected_msg),
+//                     recv_msg,
+//                 );
+//             } else {
+//                 debug!(
+//                     "{} transition: {}, expect_msg: {:?} recv_msg: {:?}",
+//                     self.name(stream),
+//                     should_transition_to_next,
+//                     std::str::from_utf8(&expected_msg),
+//                     recv_msg,
+//                 );
+//             }
+//             Ok(should_transition_to_next)
+//         } else {
+//             Ok(false)
+//         }
+//     }
+
+//     fn eq(&self, other: &Self) -> bool {
+//         self.as_bytes() == other.as_bytes()
+//     }
+
+//     fn as_bytes(&self) -> Bytes {
+//         serde_json::to_string(self).unwrap().into()
+//     }
+
+//     fn from_msg(msg: Msg) -> RussulaResult<Self> {
+//         let msg_str = std::str::from_utf8(&msg.data).map_err(|_err| RussulaError::BadMsg {
+//             dbg: format!(
+//                 "received a malformed msg. len: {} data: {:?}",
+//                 msg.len, msg.data
+//             ),
+//         })?;
+
+//         serde_json::from_str(msg_str).map_err(|_err| RussulaError::BadMsg {
+//             dbg: format!(
+//                 "received a malformed msg. len: {} data: {:?}",
+//                 msg.len, msg.data
+//             ),
+//         })
+//     }
+// }
