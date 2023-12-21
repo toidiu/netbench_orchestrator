@@ -119,8 +119,7 @@ impl Protocol for WorkerProtocol {
                         // let driver = "netbench-driver-s2n-quic-client";
                         // let scenario = "request_response.json";
 
-                        let out_json =
-                            format!("netbench-client-{}.json", self.state().name(stream));
+                        let out_json = "russula_netbench-client.json";
                         let output_json = File::create(out_json).expect("failed to open log");
                         let mut cmd = Command::new(collector);
                         cmd.env("SERVER_0", peer_sock_addr.to_string())
