@@ -115,9 +115,9 @@ impl Protocol for WorkerProtocol {
                         let driver = "/home/ec2-user/bin/netbench-driver-s2n-quic-client";
                         let scenario = "/home/ec2-user/request_response.json";
                         // local testing
-                        let collector = "netbench-collector";
-                        let driver = "netbench-driver-s2n-quic-client";
-                        let scenario = "request_response.json";
+                        // let collector = "netbench-collector";
+                        // let driver = "netbench-driver-s2n-quic-client";
+                        // let scenario = "request_response.json";
 
                         let out_json =
                             format!("netbench-client-{}.json", self.state().name(stream));
