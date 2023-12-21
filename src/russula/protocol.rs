@@ -16,7 +16,7 @@ use std::net::SocketAddr;
 use tokio::net::TcpStream;
 use tracing::{debug, info};
 
-const NOTIFY_DONE_TIMEOUT: Duration = Duration::from_secs(2);
+const NOTIFY_DONE_TIMEOUT: Duration = Duration::from_secs(10);
 
 pub type SockProtocol<P> = (SocketAddr, P);
 

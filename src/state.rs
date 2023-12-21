@@ -17,7 +17,7 @@ pub const STATE: State = State {
         servers: 1,
     },
     workspace_dir: "./target/netbench",
-    shutdown_min: 30, // 1 hour
+    shutdown_min: 120, // 1 hour
     poll_cmds_duration: Duration::from_secs(60),
 
     // russula

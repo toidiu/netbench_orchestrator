@@ -36,7 +36,7 @@ use states::{StateApi, TransitionStep};
 // https://statecharts.dev/
 // halting problem https://en.wikipedia.org/wiki/Halting_problem
 
-const POLL_RETRY_DURATION: Duration = Duration::from_secs(5);
+const POLL_RETRY_DURATION: Duration = Duration::from_secs(20);
 
 pub struct Russula<P: Protocol> {
     peer_list: Vec<RussulaPeer<P>>,
