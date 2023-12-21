@@ -93,7 +93,7 @@ impl ServerNetbenchRussula {
             if poll_coord_done.is_ready() && poll_worker.is_ready() {
                 break;
             }
-            tokio::time::sleep(Duration::from_secs(10)).await;
+            tokio::time::sleep(Duration::from_secs(5)).await;
         }
 
         info!("Server Russula!: Successful");
@@ -149,7 +149,7 @@ impl ClientNetbenchRussula {
             if poll_coord_done.is_ready() && poll_worker.is_ready() {
                 break;
             }
-            tokio::time::sleep(Duration::from_secs(10)).await;
+            tokio::time::sleep(Duration::from_secs(5)).await;
         }
 
         info!("Client Russula!: Successful");
