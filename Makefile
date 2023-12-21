@@ -13,6 +13,9 @@ net_client_coord:
 net_client_worker:
 	RUST_LOG=none,orchestrator=debug,russula_cli=debug cargo run --bin russula_cli -- --protocol NetbenchClientWorker --ip 127.0.0.1 --peer-list 127.0.0.1:4433
 
+report:
+	netbench-cli report server-[worker* -o report.json; xclip -sel c < report.json
+
 # -------------------- lib russula
 test_server:
 	RUST_LOG=none,orchestrator=debug cargo test --bin orchestrator -- server --nocapture

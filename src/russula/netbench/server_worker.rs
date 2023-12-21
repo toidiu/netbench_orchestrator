@@ -122,7 +122,8 @@ impl Protocol for WorkerProtocol {
                         let driver = "netbench-driver-s2n-quic-server";
                         let scenario = "request_response.json";
 
-                        let output_json = File::create("server.json").expect("failed to open log");
+                        let out_json = format!("server-{}.json", self.state().name(stream));
+                        let output_json = File::create(out_json).expect("failed to open log");
                         let mut cmd = Command::new(collector);
                         cmd.args([driver, "--scenario", scenario])
                             .stdout(output_json);

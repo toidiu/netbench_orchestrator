@@ -105,9 +105,10 @@ async fn run_server_coordinator(ip: String, port: u16) {
         .await
         .unwrap();
 
-    println!("[server-coord-1] sleeping --------- to allow worker to run");
-    tokio::time::sleep(Duration::from_secs(15)).await;
-    println!("[server-coord-1] done sleeping --------- killing server");
+    println!("[server-coord-1] --------- allow worker to run. wait for user input to continue...");
+    let mut s = String::new();
+    let _ = std::io::stdin().read_line(&mut s);
+    println!("[server-coord-1] continue --------- killing server");
 
     coord
         .run_till_state(server::CoordState::Done)
