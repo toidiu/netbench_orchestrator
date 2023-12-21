@@ -25,9 +25,10 @@ pub async fn run_netbench(
 pub async fn run_russula_worker(
     ssm_client: &aws_sdk_ssm::Client,
     instance_ids: Vec<String>,
+    peer_sock_addr: &str,
 ) -> SendCommandOutput {
     send_command(vec![Step::BuildRussula], Step::RunRussula, "client", "run_client_russula", ssm_client, instance_ids, vec![
         "cd netbench_orchestrator",
-        format!("env RUST_LOG=debug ./target/debug/russula_cli --protocol NetbenchClientWorker --port {}", STATE.russula_port).as_str(),
+        format!("env RUST_LOG=debug ./target/debug/russula_cli --protocol NetbenchClientWorker --port {} --peer-list {}", STATE.russula_port, peer_sock_addr).as_str(),
     ].into_iter().map(String::from).collect()).await.expect("Timed out")
 }

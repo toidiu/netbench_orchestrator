@@ -25,10 +25,14 @@ impl ServerNetbenchRussula {
         ssm_client: &aws_sdk_ssm::Client,
         infra: &InfraDetail,
         instance_ids: Vec<String>,
+        client_ips: &str,
     ) -> Self {
         // server run commands
         debug!("starting server worker");
-        let worker = ssm_utils::server::run_russula_worker(ssm_client, instance_ids).await;
+
+        let peer_sock_addr = format!("{}:4433", client_ips);
+        let worker =
+            ssm_utils::server::run_russula_worker(ssm_client, instance_ids, &peer_sock_addr).await;
 
         // wait for worker to start
         tokio::time::sleep(Duration::from_secs(10)).await;
@@ -106,10 +110,14 @@ impl ClientNetbenchRussula {
         ssm_client: &aws_sdk_ssm::Client,
         infra: &InfraDetail,
         instance_ids: Vec<String>,
+        server_ips: &str,
     ) -> Self {
         // client run commands
         debug!("starting client worker");
-        let worker = ssm_utils::client::run_russula_worker(ssm_client, instance_ids).await;
+
+        let peer_sock_addr = format!("{}:4433", server_ips);
+        let worker =
+            ssm_utils::client::run_russula_worker(ssm_client, instance_ids, &peer_sock_addr).await;
 
         // wait for worker to start
         tokio::time::sleep(Duration::from_secs(10)).await;
