@@ -123,14 +123,12 @@ impl Protocol for WorkerProtocol {
                         let scenario = "request_response.json";
 
                         let output_json = File::create("server.json").expect("failed to open log");
-                        Command::new(collector)
-                            .env("SCENARIO", scenario)
-                            // FIXME get ip
-                            .args([driver])
-                            .stdout(output_json)
-                            // .stdout(Stdio::piped())
-                            // .stderr(Stdio::piped())
-                            .spawn()
+                        let mut cmd = Command::new(collector);
+                        cmd.args([driver, "--scenario", scenario])
+                            .stdout(output_json);
+
+                        println!("{:?}", cmd);
+                        cmd.spawn()
                             .expect("Failed to start netbench-driver-s2n-quic-server process")
                     }
                     None => {
