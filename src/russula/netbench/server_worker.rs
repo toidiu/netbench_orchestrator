@@ -60,7 +60,7 @@ impl Protocol for WorkerProtocol {
     type State = WorkerState;
 
     fn name(&self) -> String {
-        format!("[worker-{}]", self.id)
+        format!("server-worker-{}", self.id)
     }
 
     async fn connect(&self, addr: &SocketAddr) -> RussulaResult<TcpStream> {
@@ -187,7 +187,7 @@ impl Protocol for WorkerProtocol {
 #[async_trait]
 impl StateApi for WorkerState {
     fn name_prefix(&self) -> String {
-        "worker".to_string()
+        "server-worker".to_string()
     }
 
     fn transition_step(&self) -> TransitionStep {

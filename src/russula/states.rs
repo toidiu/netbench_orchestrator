@@ -29,9 +29,9 @@ pub trait StateApi: Sized + Send + Sync + Debug + Serialize + for<'a> Deserializ
 
     fn name(&self, stream: &TcpStream) -> String {
         format!(
-            "[{}-{}]",
+            "{}-{}",
             self.name_prefix(),
-            stream.local_addr().unwrap().port()
+            stream.local_addr().unwrap().ip()
         )
     }
 
