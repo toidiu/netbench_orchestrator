@@ -12,7 +12,7 @@ use crate::russula::{
 use async_trait::async_trait;
 use core::fmt::Debug;
 use serde::{Deserialize, Serialize};
-use std::{net::SocketAddr, process::Command};
+use std::{fs::File, net::SocketAddr, process::Command};
 use sysinfo::{Pid, PidExt, SystemExt};
 use tokio::net::{TcpListener, TcpStream};
 use tracing::{debug, info};
@@ -119,11 +119,16 @@ impl Protocol for WorkerProtocol {
                         let driver = "netbench-driver-s2n-quic-client";
                         let scenario = "request_response.json";
 
-                        Command::new(driver)
-                            .env("SCENARIO", scenario)
-                            .env("SERVER_0", peer_sock_addr.to_string())
-                            .args([scenario])
-                            .spawn()
+                        let out_json =
+                            format!("netbench-client-{}.json", self.state().name(stream));
+                        let output_json = File::create(out_json).expect("failed to open log");
+                        let mut cmd = Command::new(collector);
+                        cmd.env("SERVER_0", peer_sock_addr.to_string())
+                            .args([driver, "--scenario", scenario])
+                            .stdout(output_json);
+
+                        println!("{:?}", cmd);
+                        cmd.spawn()
                             .expect("Failed to start netbench-driver-s2n-quic-client process")
                     }
                     None => {
