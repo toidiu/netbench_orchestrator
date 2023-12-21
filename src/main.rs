@@ -29,7 +29,9 @@ use state::*;
 // D- run netbench via russula
 //
 // - experiment with uploading and downloading netbench exec
+//
 // - rm netbench run
+// - upload data from russula netbench run
 // - experiment with uploading and downloading russula exec
 //
 // - enable cleanup
