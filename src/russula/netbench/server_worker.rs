@@ -117,6 +117,7 @@ impl Protocol for WorkerProtocol {
                         let collector = "/home/ec2-user/bin/netbench-collector";
                         let driver = "/home/ec2-user/bin/netbench-driver-s2n-quic-server";
                         let scenario = "/home/ec2-user/request_response.json";
+                        // TODO expose a param to enable this path local testing
                         // local testing
                         // let collector = "netbench-collector";
                         // let driver = "netbench-driver-s2n-quic-server";
@@ -165,6 +166,13 @@ impl Protocol for WorkerProtocol {
                     let kill = process.kill();
                     debug!("did KILL pid: {} {}----------------------------", pid, kill);
                 }
+
+                // let cmd = "aws s3 cp "
+                //         Command::new("sh")
+                //             .args([])
+                //             .spawn()
+                //             .expect("Failed to start echo process");
+
 
                 // FIXME fix this
                 self.state_mut()

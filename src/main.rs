@@ -28,10 +28,10 @@ use state::*;
 // D- russula server
 // D- run netbench via russula
 //
-// - experiment with uploading and downloading netbench exec
-//
+// - upload data from russula_netbench run
 // - rm netbench run
-// - upload data from russula netbench run
+//
+// - experiment with uploading and downloading netbench exec
 // - experiment with uploading and downloading russula exec
 //
 // - enable cleanup

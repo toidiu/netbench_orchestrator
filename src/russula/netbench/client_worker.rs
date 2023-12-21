@@ -114,7 +114,7 @@ impl Protocol for WorkerProtocol {
                         let collector = "/home/ec2-user/bin/netbench-collector";
                         let driver = "/home/ec2-user/bin/netbench-driver-s2n-quic-client";
                         let scenario = "/home/ec2-user/request_response.json";
-                        // local testing
+                        // TODO expose a param to enable this path local testing
                         // let collector = "netbench-collector";
                         // let driver = "netbench-driver-s2n-quic-client";
                         // let scenario = "request_response.json";
