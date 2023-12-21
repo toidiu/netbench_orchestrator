@@ -71,7 +71,6 @@ impl ServerNetbenchRussula {
         }
     }
 
-    // FIXME de-dupe with other wait_done fn on Client
     pub async fn wait_done(&mut self, ssm_client: &aws_sdk_ssm::Client) {
         // poll server russula workers/coord
         loop {
@@ -90,7 +89,19 @@ impl ServerNetbenchRussula {
                 poll_coord_done, poll_worker
             );
 
-            if poll_coord_done.is_ready() && poll_worker.is_ready() {
+            // FIXME the worker doesnt complete but its not necessary to wait so continue.
+            //
+            // maybe try sudo
+            //
+            // The collector launches the driver process, which doesnt get killed when the
+            // collector is killed. However its not necessary to wait for its completing
+            // for the purpose of a single run.
+            // ```
+            //  55320  ./target/debug/russula_cli
+            //  55646  /home/ec2-user/bin/netbench-collector
+            //  55647  /home/ec2-user/bin/netbench-driver-s2n-quic-server
+            // ```
+            if poll_coord_done.is_ready()  {
                 break;
             }
             tokio::time::sleep(Duration::from_secs(5)).await;
