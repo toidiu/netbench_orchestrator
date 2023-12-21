@@ -159,7 +159,7 @@ impl Protocol for WorkerProtocol {
             }
             WorkerState::Killing(pid) => {
                 let pid = Pid::from_u32(*pid);
-                let mut system = sysinfo::System::new();
+                let mut system = sysinfo::System::new_all();
                 if system.refresh_process(pid) {
                     let process = system.process(pid).unwrap();
                     let kill = process.kill();

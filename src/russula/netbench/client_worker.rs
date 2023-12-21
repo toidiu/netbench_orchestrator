@@ -160,7 +160,7 @@ impl Protocol for WorkerProtocol {
                 self.state().notify_peer(stream).await?;
 
                 let pid = Pid::from_u32(pid);
-                let mut system = sysinfo::System::new();
+                let mut system = sysinfo::System::new_all();
 
                 let is_process_complete = !system.refresh_process(pid);
 
