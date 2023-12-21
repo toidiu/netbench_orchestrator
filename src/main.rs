@@ -26,9 +26,12 @@ use state::*;
 // TODO
 //
 // D- russula server
-// - run netbench via russula
+// D- run netbench via russula
 //
-// - server russula
+// - experiment with uploading and downloading netbench exec
+// - rm netbench run
+// - experiment with uploading and downloading russula exec
+//
 // - enable cleanup
 
 async fn check_requirements(iam_client: &aws_sdk_iam::Client) -> OrchResult<()> {

@@ -111,10 +111,14 @@ async fn build_netbench_cmd(
         format!("echo clone_netbench > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/{}-step-4", STATE.s3_path(unique_id), host_group),
         format!("aws s3 cp s3://{}/{}/request_response.json /home/ec2-user/request_response.json", STATE.s3_log_bucket, STATE.s3_resource_folder),
         format!("echo downloaded_scenario_file > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/{}-step-5", STATE.s3_path(unique_id), host_group),
-        "cd s2n-quic/netbench".to_string(),
-        "cargo build --release".to_string(),
-        // copy netbench executables to ~/bin folder
-        "find target/release -maxdepth 1 -type f -perm /a+x -exec cp {} /home/ec2-user/bin \\;".to_string(),
+
+        format!("aws s3 sync s3://{}/{}/bin /home/ec2-user/bin", STATE.s3_log_bucket, STATE.s3_resource_folder),
+        "chmod +x /home/ec2-user/bin".to_string(),
+
+        // "cd s2n-quic/netbench".to_string(),
+        // "cargo build --release".to_string(),
+        // // copy netbench executables to ~/bin folder
+        // "find target/release -maxdepth 1 -type f -perm /a+x -exec cp {} /home/ec2-user/bin \\;".to_string(),
 
         "mkdir -p target/netbench".to_string(),
         "cp /home/ec2-user/request_response.json target/netbench/request_response.json".to_string(),
