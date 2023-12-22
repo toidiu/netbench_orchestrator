@@ -9,6 +9,23 @@ However, in-order to get useful results its often necessary to run Netbench scen
 so that the results better match production systems. The goal of this project is to automate
 Netbench runs in the cloud.
 
+## Getting started
+**Pre-requsites**
+- An AWS account with some infrastructure configured. TODO: provide an easy way to do this
+- Built [netbench](https://github.com/aws/s2n-netbench) utilities locally.
+- Include AWS credentials in your shell environment
+
+```
+# Include the netbench utilities in your path!
+export PATH="...path_to_netbench/s2n-quic/netbench/target/release/:$PATH"
+
+# Dont forget to include AWS credentials in your shell environment
+
+git clone git@github.com:toidiu/netbench_orchestrator.git && cd netbench_orchestrator
+
+make orch
+```
+
 ## Implementation details
 
 ### Russula
