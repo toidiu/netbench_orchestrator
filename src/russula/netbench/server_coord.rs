@@ -45,7 +45,7 @@ impl CoordProtocol {
 impl Protocol for CoordProtocol {
     type State = CoordState;
     fn name(&self) -> String {
-        format!("[coord-{}]", 0)
+        format!("server-coord-{}", 0)
     }
 
     async fn connect(&self, addr: &SocketAddr) -> RussulaResult<TcpStream> {
@@ -122,7 +122,7 @@ impl Protocol for CoordProtocol {
 #[async_trait]
 impl StateApi for CoordState {
     fn name_prefix(&self) -> String {
-        "coord".to_string()
+        "server-coord".to_string()
     }
 
     fn transition_step(&self) -> TransitionStep {
