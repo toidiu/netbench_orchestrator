@@ -171,6 +171,20 @@ impl Protocol for WorkerProtocol {
                         "process still RUNNING! send kill signal to pid: {} status: {:?} ----------------------------",
                         process.pid(), process.status()
                     );
+                    // FIXME somethings is causing the collector to become a Zombie process.
+                    //
+                    // We can detect the zombie process and continue because this is a testing
+                    // utility but we should come back and fix Collector or how Russula calls
+                    // Collector so that this completes gracefully.
+                    //
+                    // root       54245  Sl ./target/debug/russula_cli --protocol NetbenchClientWorker --port 9000 --peer-list 54.198.168.151:4433
+                    // root       54688  Z  [netbench-collec] <defunct>
+
+                    if let sysinfo::ProcessStatus::Zombie = process.status() {
+                        self.state_mut()
+                            .transition_self_or_user_driven(stream)
+                            .await?;
+                    }
                 } else {
                     info!(
                         "process COMPLETED! pid: {} ----------------------------",
@@ -189,7 +203,6 @@ impl Protocol for WorkerProtocol {
                         .await?;
                 }
 
-                // FIXME fix this
                 Ok(None)
             }
             WorkerState::Stopped => {
