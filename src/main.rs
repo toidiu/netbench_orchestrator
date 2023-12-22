@@ -28,8 +28,8 @@ use state::*;
 // D- russula server
 // D- run netbench via russula
 //
-// - upload data from russula_netbench run
-// - rm netbench run
+// D- upload russula_netbench run data
+// D- rm netbench run
 //
 // - experiment with uploading and downloading netbench exec
 // - experiment with uploading and downloading russula exec
@@ -179,14 +179,14 @@ async fn main() -> OrchResult<()> {
 
     // run netbench
     {
-        let run_server_netbench = ssm_utils::server::run_netbench(
+        let run_server_netbench = ssm_utils::server::copy_netbench_data(
             &ssm_client,
             server_ids.clone(),
             &client.ip,
             &unique_id,
         )
         .await;
-        let run_client_netbench = ssm_utils::client::run_netbench(
+        let run_client_netbench = ssm_utils::client::copy_netbench_data(
             &ssm_client,
             client_ids.clone(),
             &server.ip,

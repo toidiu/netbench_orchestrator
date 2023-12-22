@@ -5,7 +5,7 @@ use super::{send_command, Step};
 use crate::state::STATE;
 use aws_sdk_ssm::operation::send_command::SendCommandOutput;
 
-pub async fn run_netbench(
+pub async fn copy_netbench_data(
     ssm_client: &aws_sdk_ssm::Client,
     instance_ids: Vec<String>,
     _client_ip: &str,
