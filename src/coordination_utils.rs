@@ -35,7 +35,7 @@ impl ServerNetbenchRussula {
             ssm_utils::server::run_russula_worker(ssm_client, instance_ids, &peer_sock_addr).await;
 
         // wait for worker to start
-        tokio::time::sleep(Duration::from_secs(10)).await;
+        tokio::time::sleep(Duration::from_secs(5)).await;
 
         // server coord
         debug!("starting server coordinator");
@@ -67,7 +67,7 @@ impl ServerNetbenchRussula {
             if poll_coord_worker_running.is_ready() {
                 break;
             }
-            tokio::time::sleep(Duration::from_secs(10)).await;
+            tokio::time::sleep(Duration::from_secs(5)).await;
         }
     }
 
@@ -131,7 +131,7 @@ impl ClientNetbenchRussula {
             ssm_utils::client::run_russula_worker(ssm_client, instance_ids, &peer_sock_addr).await;
 
         // wait for worker to start
-        tokio::time::sleep(Duration::from_secs(10)).await;
+        tokio::time::sleep(Duration::from_secs(5)).await;
 
         // client coord
         debug!("starting client coordinator");
@@ -157,7 +157,8 @@ impl ClientNetbenchRussula {
                 poll_coord_done, poll_worker
             );
 
-            if poll_coord_done.is_ready() && poll_worker.is_ready() {
+            if poll_coord_done.is_ready() {
+            // if poll_coord_done.is_ready() && poll_worker.is_ready() {
                 break;
             }
             tokio::time::sleep(Duration::from_secs(5)).await;

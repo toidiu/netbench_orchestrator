@@ -16,7 +16,7 @@ use std::{fs::File, net::SocketAddr, process::Command};
 use sysinfo::ProcessExt;
 use sysinfo::{Pid, PidExt, SystemExt};
 use tokio::net::{TcpListener, TcpStream};
-use tracing::{debug, info};
+use tracing::{debug, info, warn};
 
 // Only used when creating a state variant
 const PLACEHOLDER_PID: u32 = 1000;
@@ -168,8 +168,9 @@ impl Protocol for WorkerProtocol {
 
                 if let Some(process) = process {
                     debug!(
-                        "process still RUNNING! send kill signal to pid: {} status: {:?} ----------------------------",
-                        process.pid(), process.status()
+                        "process still RUNNING! pid: {} status: {:?} ----------------------------",
+                        process.pid(),
+                        process.status()
                     );
                     // FIXME somethings is causing the collector to become a Zombie process.
                     //
@@ -183,13 +184,17 @@ impl Protocol for WorkerProtocol {
                     // root       54688  Z  [netbench-collec] <defunct>
 
                     if let sysinfo::ProcessStatus::Zombie = process.status() {
+                        warn!(
+                            "Process pid: {} is a Zombie.. ignoring and continuing",
+                            process.pid()
+                        );
                         self.state_mut()
                             .transition_self_or_user_driven(stream)
                             .await?;
                     }
                 } else {
                     info!(
-                        "process COMPLETED! pid: {} ----------------------------",
+                        "Process COMPLETED! pid: {} ----------------------------",
                         pid
                     );
                     // FIXME get this
