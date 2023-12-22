@@ -13,6 +13,7 @@ use async_trait::async_trait;
 use core::fmt::Debug;
 use serde::{Deserialize, Serialize};
 use std::{fs::File, net::SocketAddr, process::Command};
+use sysinfo::ProcessExt;
 use sysinfo::{Pid, PidExt, SystemExt};
 use tokio::net::{TcpListener, TcpStream};
 use tracing::{debug, info};
@@ -119,7 +120,7 @@ impl Protocol for WorkerProtocol {
                         // let driver = "netbench-driver-s2n-quic-client";
                         // let scenario = "request_response.json";
 
-                        let out_json = "russula_netbench-client.json";
+                        let out_json = "client.json";
                         let output_json = File::create(out_json).expect("failed to open log");
                         let mut cmd = Command::new(collector);
                         cmd.env("SERVER_0", peer_sock_addr.to_string())
@@ -162,24 +163,35 @@ impl Protocol for WorkerProtocol {
                 let pid = Pid::from_u32(pid);
                 let mut system = sysinfo::System::new_all();
 
-                let is_process_complete = !system.refresh_process(pid);
+                let process = system.process(pid);
+                // let is_process_complete = !system.refresh_process(pid);
 
-                if is_process_complete {
+                if let Some(process) = process {
                     debug!(
+                        "process still RUNNING! send kill signal to pid: {} ----------------------------",
+                        process.pid()
+                    );
+
+                    process.kill();
+                } else {
+                    info!(
                         "process COMPLETED! pid: {} ----------------------------",
                         pid
                     );
-                } else {
-                    debug!(
-                        "process still RUNNING! pid: {} ----------------------------",
-                        pid
-                    );
+                    // FIXME get this
+                    // format!("aws s3 cp client.json {}/results/request_response/s2n-quic", STATE.s3_path(unique_id));
+                    // Command::new("sh")
+                    //     .args([])
+                    //     .spawn()
+                    //     .expect("Upload netbench result")
+                    //     .wait_with_output();
+
+                    self.state_mut()
+                        .transition_self_or_user_driven(stream)
+                        .await?;
                 }
 
                 // FIXME fix this
-                self.state_mut()
-                    .transition_self_or_user_driven(stream)
-                    .await?;
                 Ok(None)
             }
             WorkerState::Stopped => {

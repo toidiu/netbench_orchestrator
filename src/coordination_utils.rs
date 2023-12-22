@@ -101,7 +101,7 @@ impl ServerNetbenchRussula {
             //  55646  /home/ec2-user/bin/netbench-collector
             //  55647  /home/ec2-user/bin/netbench-driver-s2n-quic-server
             // ```
-            if poll_coord_done.is_ready()  {
+            if poll_coord_done.is_ready() {
                 break;
             }
             tokio::time::sleep(Duration::from_secs(5)).await;

@@ -123,7 +123,7 @@ impl Protocol for WorkerProtocol {
                         // let driver = "netbench-driver-s2n-quic-server";
                         // let scenario = "request_response.json";
 
-                        let out_json = "russula_netbench-server.json";
+                        let out_json = "server.json";
                         let output_json = File::create(out_json).expect("failed to open log");
                         let mut cmd = Command::new(collector);
                         cmd.args([driver, "--scenario", scenario])
@@ -172,7 +172,6 @@ impl Protocol for WorkerProtocol {
                 //             .args([])
                 //             .spawn()
                 //             .expect("Failed to start echo process");
-
 
                 // FIXME fix this
                 self.state_mut()
