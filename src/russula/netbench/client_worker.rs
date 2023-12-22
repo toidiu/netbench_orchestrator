@@ -168,11 +168,9 @@ impl Protocol for WorkerProtocol {
 
                 if let Some(process) = process {
                     debug!(
-                        "process still RUNNING! send kill signal to pid: {} ----------------------------",
-                        process.pid()
+                        "process still RUNNING! send kill signal to pid: {} status: {:?} ----------------------------",
+                        process.pid(), process.status()
                     );
-
-                    process.kill();
                 } else {
                     info!(
                         "process COMPLETED! pid: {} ----------------------------",
