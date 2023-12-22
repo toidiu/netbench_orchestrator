@@ -174,8 +174,10 @@ impl Protocol for WorkerProtocol {
                     // FIXME somethings is causing the collector to become a Zombie process.
                     //
                     // We can detect the zombie process and continue because this is a testing
-                    // utility but we should come back and fix Collector or how Russula calls
-                    // Collector so that this completes gracefully.
+                    // utility but we should come back and fix this
+                    // - Collector issue
+                    // - how Russula calls Collector issue
+                    // - Command::stdout file issue
                     //
                     // root       54245  Sl ./target/debug/russula_cli --protocol NetbenchClientWorker --port 9000 --peer-list 54.198.168.151:4433
                     // root       54688  Z  [netbench-collec] <defunct>
