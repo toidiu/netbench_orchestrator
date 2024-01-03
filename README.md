@@ -10,19 +10,22 @@ so that the results better match production systems. The goal of this project is
 Netbench runs in the cloud.
 
 ## Getting started
+
 **Pre-requsites**
+- Built and include [netbench](https://github.com/aws/s2n-quic/netbench) utilities (`cargo build`)
+  - Include in PATH `export PATH="...path_to_netbench.../s2n-quic/netbench/target/release/:$PATH"`
+  - `which netbench-cli`: TODO move to prequesite netbench checks
+- AWS cli is installed
+  - `which aws`: TODO move to prequesite netbench checks
 - An AWS account with some infrastructure configured. TODO: provide an easy way to do this
-- Built [netbench](https://github.com/aws/s2n-netbench) utilities locally.
-- Include AWS credentials in your shell environment
+  - Make sure AWS credentials are included in your shell environment
+
+**Running**
 
 ```
-# Include the netbench utilities in your path!
-export PATH="...path_to_netbench/s2n-quic/netbench/target/release/:$PATH"
-
-# Dont forget to include AWS credentials in your shell environment
-
 git clone git@github.com:toidiu/netbench_orchestrator.git && cd netbench_orchestrator
 
+# Run the orchestrator
 make orch
 ```
 
