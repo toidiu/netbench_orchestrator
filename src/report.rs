@@ -21,11 +21,11 @@ pub async fn orch_generate_report(s3_client: &aws_sdk_s3::Client, unique_id: &st
     // CLI ---------------------------
     let results_path = format!("{}/results", STATE.workspace_dir);
     let report_path = format!("{}/report", STATE.workspace_dir);
-    let mut cmd = Command::new("netbench-cli");
+    let mut cmd = Command::new("s2n-netbench");
     cmd.args(["report-tree", &results_path, &report_path]);
     println!("{:?}", cmd);
-    let status = cmd.status().expect("netbench-cli command failed");
-    assert!(status.success(), " netbench-cli command failed");
+    let status = cmd.status().expect("s2n-netbench command failed");
+    assert!(status.success(), " s2n-netbench command failed");
 
     // upload report to s3 -----------------------
     let mut cmd = Command::new("aws");

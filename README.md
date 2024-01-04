@@ -12,11 +12,9 @@ Netbench runs in the cloud.
 ## Getting started
 
 **Pre-requsites**
-- Built and include [netbench](https://github.com/aws/s2n-quic/netbench) utilities (`cargo build`)
-  - Include in PATH `export PATH="...path_to_netbench.../s2n-quic/netbench/target/release/:$PATH"`
-  - `which netbench-cli`: TODO move to prequesite netbench checks
-- AWS cli is installed
-  - `which aws`: TODO move to prequesite netbench checks
+- Built and include [netbench](https://github.com/aws/s2n-netbench) utilities (`cargo build`)
+  - Include in PATH `export PATH="s2n-netbench/target/release/:$PATH"`. Test with `which s2n-netbench`
+- AWS cli is installed. Test with `which aws`
 - An AWS account with some infrastructure configured. TODO: provide an easy way to do this
   - Make sure AWS credentials are included in your shell environment
 

@@ -38,10 +38,17 @@ use state::*;
 
 async fn check_requirements(iam_client: &aws_sdk_iam::Client) -> OrchResult<()> {
     // export PATH="/home/toidiu/projects/s2n-quic/netbench/target/release/:$PATH"
-    Command::new("netbench-cli")
+    Command::new("s2n-netbench")
         .output()
         .map_err(|_err| OrchError::Init {
-            dbg: "Missing netbench-cli. export PATH='.../s2n-quic/netbench/target/release/:$PATH'"
+            dbg: "Missing `s2n-netbench` cli. Please the Getting started section in the Readme"
+                .to_string(),
+        })?;
+
+    Command::new("aws")
+        .output()
+        .map_err(|_err| OrchError::Init {
+            dbg: "Missing `aws` cli."
                 .to_string(),
         })?;
 
@@ -55,7 +62,7 @@ async fn check_requirements(iam_client: &aws_sdk_iam::Client) -> OrchResult<()> 
         .send()
         .await
         .map_err(|_err| OrchError::Init {
-            dbg: "Missing AWS creds".to_string(),
+            dbg: "Missing AWS credentials.".to_string(),
         })?;
 
     Ok(())
@@ -205,11 +212,12 @@ async fn main() -> OrchResult<()> {
     // Copy results back
     orch_generate_report(&s3_client, &unique_id).await;
 
-    // infra
-    //     .cleanup(&ec2_client)
-    //     .await
-    //     .map_err(|err| eprintln!("Failed to cleanup resources. {}", err))
-    //     .unwrap();
+    // Cleanup
+    infra
+        .cleanup(&ec2_client)
+        .await
+        .map_err(|err| eprintln!("Failed to cleanup resources. {}", err))
+        .unwrap();
 
     Ok(())
 }
