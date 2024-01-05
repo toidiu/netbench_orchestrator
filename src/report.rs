@@ -5,8 +5,9 @@ use crate::s3_utils::*;
 use crate::state::*;
 use aws_sdk_s3::primitives::{ByteStream, SdkBody};
 use std::process::Command;
-use tracing::info;
 use tracing::debug;
+use tracing::info;
+use tracing::trace;
 
 pub async fn orch_generate_report(s3_client: &aws_sdk_s3::Client, unique_id: &str) {
     // download results from s3 -----------------------
@@ -31,14 +32,17 @@ pub async fn orch_generate_report(s3_client: &aws_sdk_s3::Client, unique_id: &st
 
     // upload report to s3 -----------------------
     let mut cmd = Command::new("aws");
-    let output = cmd.args([
-        "s3",
-        "sync",
-        STATE.workspace_dir,
-        &format!("s3://{}/{}", STATE.s3_log_bucket, unique_id),
-    ]).output().unwrap();
+    let output = cmd
+        .args([
+            "s3",
+            "sync",
+            STATE.workspace_dir,
+            &format!("s3://{}/{}", STATE.s3_log_bucket, unique_id),
+        ])
+        .output()
+        .unwrap();
     debug!("{:?}", cmd);
-    debug!("output: {:?}", output);
+    trace!("{:?}", output);
     assert!(cmd.status().expect("aws sync").success(), "aws sync");
 
     update_report_url(s3_client, unique_id).await;

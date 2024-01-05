@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::{send_command, Step};
-use core::time::Duration;
 use crate::{poll_ssm_results, state::STATE};
 use aws_sdk_ssm::operation::send_command::SendCommandOutput;
+use core::time::Duration;
 use indicatif::ProgressBar;
 use indicatif::ProgressStyle;
 use tracing::debug;

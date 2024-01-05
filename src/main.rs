@@ -48,8 +48,7 @@ async fn check_requirements(iam_client: &aws_sdk_iam::Client) -> OrchResult<()> 
     Command::new("aws")
         .output()
         .map_err(|_err| OrchError::Init {
-            dbg: "Missing `aws` cli."
-                .to_string(),
+            dbg: "Missing `aws` cli.".to_string(),
         })?;
 
     // report folder
@@ -156,7 +155,12 @@ async fn main() -> OrchResult<()> {
         )
         .await;
         build_cmds.extend(client_build_cmds);
-        ssm_utils::common::wait_complete("Setup hosts: update and install dependencies", &ssm_client, build_cmds).await;
+        ssm_utils::common::wait_complete(
+            "Setup hosts: update and install dependencies",
+            &ssm_client,
+            build_cmds,
+        )
+        .await;
 
         info!("Host setup Successful");
     }
