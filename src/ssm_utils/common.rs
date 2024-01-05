@@ -41,6 +41,7 @@ pub async fn wait_complete(
 
         if total_tasks == completed_tasks {
             // debug!("{} SSM poll complete", host_group);
+            bar.finish();
             break;
         } else {
             // debug!("tasks not complete. wait to poll again ...");

@@ -5,6 +5,8 @@ use crate::s3_utils::*;
 use crate::state::*;
 use aws_sdk_s3::primitives::{ByteStream, SdkBody};
 use std::process::Command;
+use tracing::info;
+use tracing::debug;
 
 pub async fn orch_generate_report(s3_client: &aws_sdk_s3::Client, unique_id: &str) {
     // download results from s3 -----------------------
@@ -15,7 +17,7 @@ pub async fn orch_generate_report(s3_client: &aws_sdk_s3::Client, unique_id: &st
         &format!("s3://{}/{}", STATE.s3_log_bucket, unique_id),
         STATE.workspace_dir,
     ]);
-    println!("{:?}", cmd);
+    debug!("{:?}", cmd);
     assert!(cmd.status().expect("aws sync").success(), "aws sync");
 
     // CLI ---------------------------
@@ -23,25 +25,26 @@ pub async fn orch_generate_report(s3_client: &aws_sdk_s3::Client, unique_id: &st
     let report_path = format!("{}/report", STATE.workspace_dir);
     let mut cmd = Command::new("s2n-netbench");
     cmd.args(["report-tree", &results_path, &report_path]);
-    println!("{:?}", cmd);
+    debug!("{:?}", cmd);
     let status = cmd.status().expect("s2n-netbench command failed");
     assert!(status.success(), " s2n-netbench command failed");
 
     // upload report to s3 -----------------------
     let mut cmd = Command::new("aws");
-    cmd.args([
+    let output = cmd.args([
         "s3",
         "sync",
         STATE.workspace_dir,
         &format!("s3://{}/{}", STATE.s3_log_bucket, unique_id),
-    ]);
-    println!("{:?}", cmd);
+    ]).output().unwrap();
+    debug!("{:?}", cmd);
+    debug!("output: {:?}", output);
     assert!(cmd.status().expect("aws sync").success(), "aws sync");
 
     update_report_url(s3_client, unique_id).await;
 
-    println!("Report Finished!: Successful: true");
-    println!("URL: {}/report/index.html", STATE.cf_url(unique_id));
+    info!("Report Finished!: Successful: true");
+    info!("URL: {}/report/index.html", STATE.cf_url(unique_id));
 }
 
 async fn update_report_url(s3_client: &aws_sdk_s3::Client, unique_id: &str) {

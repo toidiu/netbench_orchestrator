@@ -156,9 +156,9 @@ async fn main() -> OrchResult<()> {
         )
         .await;
         build_cmds.extend(client_build_cmds);
-        ssm_utils::common::wait_complete("bootstrap hosts and install dependencies", &ssm_client, build_cmds).await;
+        ssm_utils::common::wait_complete("Setup hosts: update and install dependencies", &ssm_client, build_cmds).await;
 
-        info!("client_server install_deps!: Successful");
+        info!("Host setup Successful");
     }
 
     // run russula
