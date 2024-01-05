@@ -156,7 +156,7 @@ async fn main() -> OrchResult<()> {
         )
         .await;
         build_cmds.extend(client_build_cmds);
-        ssm_utils::common::wait_complete("client_server_config", &ssm_client, build_cmds).await;
+        ssm_utils::common::wait_complete("bootstrap hosts and install dependencies", &ssm_client, build_cmds).await;
 
         info!("client_server install_deps!: Successful");
     }
@@ -184,16 +184,16 @@ async fn main() -> OrchResult<()> {
         server_russula.wait_done(&ssm_client).await;
     }
 
-    // run netbench
+    // copy netbench results
     {
-        let run_server_netbench = ssm_utils::server::copy_netbench_data(
+        let copy_server_netbench = ssm_utils::server::copy_netbench_data(
             &ssm_client,
             server_ids.clone(),
             &client.ip,
             &unique_id,
         )
         .await;
-        let run_client_netbench = ssm_utils::client::copy_netbench_data(
+        let copy_client_netbench = ssm_utils::client::copy_netbench_data(
             &ssm_client,
             client_ids.clone(),
             &server.ip,
@@ -201,12 +201,12 @@ async fn main() -> OrchResult<()> {
         )
         .await;
         ssm_utils::common::wait_complete(
-            "client_server_netbench",
+            "client_server_netbench_copy_results",
             &ssm_client,
-            vec![run_server_netbench, run_client_netbench],
+            vec![copy_server_netbench, copy_client_netbench],
         )
         .await;
-        info!("client_server netbench!: Successful");
+        info!("client_server netbench copy results!: Successful");
     }
 
     // Copy results back

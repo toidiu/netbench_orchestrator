@@ -2,8 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::{send_command, Step};
+use core::time::Duration;
 use crate::{poll_ssm_results, state::STATE};
 use aws_sdk_ssm::operation::send_command::SendCommandOutput;
+use indicatif::ProgressBar;
+use indicatif::ProgressStyle;
 use tracing::debug;
 
 pub async fn wait_complete(
@@ -11,21 +14,36 @@ pub async fn wait_complete(
     ssm_client: &aws_sdk_ssm::Client,
     cmds: Vec<SendCommandOutput>,
 ) {
+    let total_tasks = cmds.len() as u64;
+    let bar = ProgressBar::new(total_tasks);
+    let style = ProgressStyle::with_template(
+        "{spinner} [{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}",
+    )
+    .unwrap()
+    .tick_chars("⠁⠂⠄⡀⢀⠠⠐⠈ ");
+    bar.set_style(style);
+    bar.enable_steady_tick(Duration::from_secs(1));
+
     loop {
-        let mut complete = true;
+        let mut completed_tasks = 0;
         for cmd in cmds.iter() {
             let cmd_id = cmd.command().unwrap().command_id().unwrap();
             let poll_cmd = poll_ssm_results(host_group, ssm_client, cmd_id)
                 .await
                 .unwrap();
-            complete &= poll_cmd.is_ready();
+            if poll_cmd.is_ready() {
+                completed_tasks += 1;
+            }
         }
 
-        if complete {
-            debug!("{} SSM poll complete", host_group);
+        bar.set_position(completed_tasks);
+        bar.set_message(host_group.to_string());
+
+        if total_tasks == completed_tasks {
+            // debug!("{} SSM poll complete", host_group);
             break;
         } else {
-            debug!("tasks not complete. wait to poll again ...");
+            // debug!("tasks not complete. wait to poll again ...");
         }
         tokio::time::sleep(STATE.poll_cmds_duration).await;
     }

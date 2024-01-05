@@ -158,7 +158,7 @@ impl ClientNetbenchRussula {
             );
 
             if poll_coord_done.is_ready() {
-            // if poll_coord_done.is_ready() && poll_worker.is_ready() {
+                // if poll_coord_done.is_ready() && poll_worker.is_ready() {
                 break;
             }
             tokio::time::sleep(Duration::from_secs(5)).await;
