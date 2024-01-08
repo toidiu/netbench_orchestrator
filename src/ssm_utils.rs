@@ -143,7 +143,7 @@ pub(crate) async fn poll_ssm_results(
             status.zip(comment)
         });
     let status = match status_comment {
-        Some((status, comment)) => {
+        Some((status, _comment)) => {
             // debug!(
             //     "endpoint: {} status: {:?}  comment {}",
             //     endpoint, status, comment

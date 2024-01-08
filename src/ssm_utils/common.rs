@@ -7,13 +7,13 @@ use aws_sdk_ssm::operation::send_command::SendCommandOutput;
 use core::time::Duration;
 use indicatif::ProgressBar;
 use indicatif::ProgressStyle;
-use tracing::debug;
 
 pub async fn wait_complete(
     host_group: &str,
     ssm_client: &aws_sdk_ssm::Client,
     cmds: Vec<SendCommandOutput>,
 ) {
+    // TODO use multi-progress bar https://github.com/console-rs/indicatif/blob/main/examples/multi.rs
     let total_tasks = cmds.len() as u64;
     let bar = ProgressBar::new(total_tasks);
     let style = ProgressStyle::with_template(
@@ -27,6 +27,9 @@ pub async fn wait_complete(
     loop {
         let mut completed_tasks = 0;
         for cmd in cmds.iter() {
+            let _comment = cmd.command().unwrap().comment()
+                .map(|s| s.to_string())
+                .unwrap();
             let cmd_id = cmd.command().unwrap().command_id().unwrap();
             let poll_cmd = poll_ssm_results(host_group, ssm_client, cmd_id)
                 .await
@@ -40,11 +43,8 @@ pub async fn wait_complete(
         bar.set_message(host_group.to_string());
 
         if total_tasks == completed_tasks {
-            // debug!("{} SSM poll complete", host_group);
             bar.finish();
             break;
-        } else {
-            // debug!("tasks not complete. wait to poll again ...");
         }
         tokio::time::sleep(STATE.poll_cmds_duration).await;
     }
