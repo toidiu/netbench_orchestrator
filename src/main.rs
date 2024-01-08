@@ -7,6 +7,8 @@ use aws_types::region::Region;
 use error::{OrchError, OrchResult};
 use std::process::Command;
 use tracing::info;
+use std::path::PathBuf;
+
 mod coordination_utils;
 mod dashboard;
 mod ec2_utils;
@@ -24,6 +26,10 @@ use ssm_utils::*;
 use state::*;
 
 // TODO
+// - upload source to s3
+// - download source from s3
+// - navigate to source and compile
+//
 // - specify scenario, driver and path to netbench in russula_cli
 //   - pass russula_cli args down to russula
 //
@@ -61,9 +67,28 @@ async fn check_requirements(iam_client: &aws_sdk_iam::Client) -> OrchResult<()> 
     Ok(())
 }
 
+struct CustomDriver {
+    name: String,
+    local_path: PathBuf,
+    build_cmd: String,
+}
+
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> OrchResult<()> {
     tracing_subscriber::fmt::init();
+
+    let driver = CustomDriver {
+        name: "SaltyLib-Rust".into(),
+        local_path: "~/projects/ws_SaltyLib/src".into(),
+        build_cmd: "cd s2n-quic/s2n-netbench-driver-s2n-quic-dc && cargo build && cp target/debug/s2n_netbench_driver* /home/ec2-user/bin".into()
+    };
+
+    // local to s3
+    format!("aws s3 sync {}/{} s3://netbenchrunnerlogs/TS/{}/ --exclude 'target/*' --exclude '.git/*'", driver.local_path.to_str().unwrap(), driver.name, driver.name);
+
+    // s3 to host
+    // aws s3 sync s3://netbenchrunnerlogs/TS/SaltyLib-Rust/ /home/ec2-user/SaltyLib-Rust --exclude 'target/*' --exclude '.git/*'
+    format!("aws s3 sync s3://netbenchrunnerlogs/TS/{}/ /home/ec2-user/{} --exclude 'target/*' --exclude '.git/*'", driver.name, driver.name);
 
     let orch_provider = Region::new(STATE.region);
     let shared_config = aws_config::from_env().region(orch_provider).load().await;
