@@ -4,6 +4,7 @@
 mod error;
 mod russula;
 
+use std::path::PathBuf;
 use crate::russula::netbench::PeerList;
 use core::time::Duration;
 use error::OrchResult;
@@ -37,6 +38,17 @@ struct Opt {
 
     #[structopt(long)]
     peer_list: Option<PeerList>,
+
+    #[structopt(long, default_value = ".")]
+    netbench_path: PathBuf,
+
+    // TODO make enum and add possible_values
+    #[structopt(long, default_value = "netbench-driver-s2n-quic-client")]
+    netbench_driver: String,
+
+    // https://github.com/aws/s2n-netbench/tree/main/netbench-scenarios
+    #[structopt(possible_values = &["request_response", "connect", "ping"], default_value = "request_response", case_insensitive = true, long)]
+    netbench_scenario: String
 }
 
 arg_enum! {
