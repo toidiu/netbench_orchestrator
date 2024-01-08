@@ -24,17 +24,11 @@ use ssm_utils::*;
 use state::*;
 
 // TODO
-//
-// D- russula server
-// D- run netbench via russula
-//
-// D- upload russula_netbench run data
-// D- rm netbench run
+// - specify scenario, driver and path to netbench in russula_cli
+//   - pass russula_cli args down to russula
 //
 // - experiment with uploading and downloading netbench exec
 // - experiment with uploading and downloading russula exec
-//
-// - enable cleanup
 
 async fn check_requirements(iam_client: &aws_sdk_iam::Client) -> OrchResult<()> {
     // export PATH="/home/toidiu/projects/s2n-quic/netbench/target/release/:$PATH"
