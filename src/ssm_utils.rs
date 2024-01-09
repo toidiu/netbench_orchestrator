@@ -18,6 +18,7 @@ pub mod server;
 
 pub enum Step {
     Configure,
+    BuildDriver,
     BuildRussula,
     BuildNetbench,
     RunRussula,
@@ -28,6 +29,7 @@ impl Step {
     fn as_str(&self) -> &str {
         match self {
             Step::Configure => "configure",
+            Step::BuildDriver => "build_driver",
             Step::BuildRussula => "build_russula",
             Step::BuildNetbench => "build_netbench",
             Step::RunRussula => "run_russula",

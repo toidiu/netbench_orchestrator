@@ -7,6 +7,13 @@ use aws_sdk_ssm::operation::send_command::SendCommandOutput;
 use core::time::Duration;
 use indicatif::ProgressBar;
 use indicatif::ProgressStyle;
+use std::path::PathBuf;
+
+pub struct CustomDriver {
+    pub name: String,
+    pub local_path: PathBuf,
+    pub build_cmd: String,
+}
 
 pub async fn wait_complete(
     host_group: &str,
@@ -27,7 +34,10 @@ pub async fn wait_complete(
     loop {
         let mut completed_tasks = 0;
         for cmd in cmds.iter() {
-            let _comment = cmd.command().unwrap().comment()
+            let _comment = cmd
+                .command()
+                .unwrap()
+                .comment()
                 .map(|s| s.to_string())
                 .unwrap();
             let cmd_id = cmd.command().unwrap().command_id().unwrap();
@@ -54,15 +64,31 @@ pub async fn collect_config_cmds(
     host_group: &str,
     ssm_client: &aws_sdk_ssm::Client,
     instance_ids: Vec<String>,
+    driver: &CustomDriver,
     unique_id: &str,
 ) -> Vec<SendCommandOutput> {
     // configure and build
     let install_deps =
         install_deps_cmd(host_group, ssm_client, instance_ids.clone(), unique_id).await;
+
+    let build_driver = build_custom_driver_cmd(
+        host_group,
+        driver,
+        ssm_client,
+        instance_ids.clone(),
+        unique_id,
+    )
+    .await;
     let build_russula = build_russula_cmd(host_group, ssm_client, instance_ids.clone()).await;
     let build_client_netbench =
         build_netbench_cmd(host_group, ssm_client, instance_ids.clone(), unique_id).await;
-    vec![install_deps, build_russula, build_client_netbench]
+
+    vec![
+        install_deps,
+        build_driver,
+        build_russula,
+        build_client_netbench,
+    ]
 }
 
 async fn install_deps_cmd(
@@ -79,9 +105,73 @@ async fn install_deps_cmd(
         format!("echo ec2 up > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/{}-step-1", STATE.s3_path(unique_id), host_group),
         "yum upgrade -y".to_string(),
         format!("echo yum upgrade finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/{}-step-2", STATE.s3_path(unique_id), host_group),
-        format!("timeout 5m bash -c 'until yum install cmake cargo git perl openssl-devel bpftrace perf tree -y; do sleep 10; done' || (echo yum failed > /home/ec2-user/index.html; aws s3 cp /home/ec2-user/index.html {}/{}-step-3; exit 1)", STATE.s3_path(unique_id), host_group),
+        format!("timeout 5m bash -c 'until yum install cmake git perl openssl-devel bpftrace perf tree -y; do sleep 10; done' || (echo yum failed > /home/ec2-user/index.html; aws s3 cp /home/ec2-user/index.html {}/{}-step-3; exit 1)", STATE.s3_path(unique_id), host_group),
         format!("echo yum finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/{}-step-3", STATE.s3_path(unique_id), host_group),
+        // rust
+        "runuser -u ec2-user -- curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs > rustup.rs".to_string(),
+
+        "chmod +x rustup.rs".to_string(),
+        "chgrp ec2-user rustup.rs".to_string(),
+        "chown ec2-user rustup.rs".to_string(),
+
+        "sh ./rustup.rs -y".to_string(),
+        "runuser -u ec2-user -- sh ./rustup.rs -y".to_string(),
+
+        "./root/.cargo/bin/rustup update".to_string(),
+        "runuser -u ec2-user -- ./.cargo/bin/rustup update".to_string(),
+        // TODO sim link rustc from home/ec2-user/bin
+
     ]).await.expect("Timed out")
+}
+
+async fn build_custom_driver_cmd(
+    host_group: &str,
+    driver: &CustomDriver,
+    ssm_client: &aws_sdk_ssm::Client,
+    instance_ids: Vec<String>,
+    unique_id: &str,
+) -> SendCommandOutput {
+    send_command(
+        vec![Step::Configure],
+        Step::BuildDriver,
+        host_group,
+        &format!("build_driver_{}", driver.name),
+        ssm_client,
+        instance_ids,
+        vec![
+            // copy s3 to host
+            // aws s3 sync s3://netbenchrunnerlogs/2024-01-09T05:25:30Z-v2.0.1//SaltyLib-Rust/ /home/ec2-user/SaltyLib-Rust
+            format!(
+                "aws s3 sync {}/{}/ {}/{}",
+                STATE.s3_path(&unique_id),
+                driver.name,
+                STATE.host_home_path,
+                driver.name
+            ),
+            format!("cd {}", driver.name).to_string(),
+            "touch 11".to_string(),
+
+            // format!("{}", driver.build_cmd).to_string(),
+            // "cd s2n-quic/s2n-netbench-driver-s2n-quic-dc".to_string(),
+            "touch 12".to_string(),
+
+            // "env RUST_LOG=debug ./target/debug/russula_cli..."
+
+            // SSM agent doesn't pick up the newest rustc version installed via rustup`
+            // so instead refer to it directly
+            "env RUSTFLAGS='--cfg s2n_quic_unstable' /home/ec2-user/.cargo/bin/cargo build".to_string(),
+            "touch 13".to_string(),
+
+            // copy executables to bin directory
+            "find target/debug -maxdepth 1 -type f -perm /a+x -exec cp {} /home/ec2-user/bin \\;".to_string(),
+            "touch 14".to_string(),
+        ]
+        .into_iter()
+        .map(String::from)
+        .collect(),
+    )
+    .await
+    .expect("Timed out")
 }
 
 async fn build_russula_cmd(

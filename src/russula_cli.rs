@@ -4,7 +4,6 @@
 mod error;
 mod russula;
 
-use std::path::PathBuf;
 use crate::russula::netbench::PeerList;
 use core::time::Duration;
 use error::OrchResult;
@@ -12,6 +11,7 @@ use russula::{
     netbench::{client, server},
     RussulaBuilder,
 };
+use std::path::PathBuf;
 use std::{collections::BTreeSet, net::SocketAddr, str::FromStr};
 use structopt::{clap::arg_enum, StructOpt};
 use tracing::debug;
@@ -48,7 +48,7 @@ struct Opt {
 
     // https://github.com/aws/s2n-netbench/tree/main/netbench-scenarios
     #[structopt(possible_values = &["request_response", "connect", "ping"], default_value = "request_response", case_insensitive = true, long)]
-    _netbench_scenario: String
+    _netbench_scenario: String,
 }
 
 arg_enum! {

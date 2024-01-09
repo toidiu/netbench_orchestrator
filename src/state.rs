@@ -16,6 +16,7 @@ pub const STATE: State = State {
         clients: 1,
         servers: 1,
     },
+    host_home_path: "/home/ec2-user",
     workspace_dir: "./target/netbench",
     shutdown_min: 120, // 1 hour
     poll_cmds_duration: Duration::from_secs(10),
@@ -54,6 +55,7 @@ pub struct State {
 
     // orchestrator
     pub host_count: HostCount,
+    pub host_home_path: &'static str,
     pub workspace_dir: &'static str,
     pub shutdown_min: u16,
     pub poll_cmds_duration: Duration,
@@ -90,6 +92,10 @@ impl State {
 
     pub fn s3_path(&self, unique_id: &str) -> String {
         format!("s3://{}/{}", self.s3_log_bucket, unique_id)
+    }
+
+    pub fn host_bin_path(&self) -> String {
+        format!("{}/bin", self.host_home_path)
     }
 
     // Create a security group with the following name prefix. Use with `sg_name_with_id`

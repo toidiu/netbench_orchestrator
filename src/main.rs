@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #![allow(dead_code)]
+use crate::common::CustomDriver;
 use crate::report::orch_generate_report;
 use aws_types::region::Region;
 use error::{OrchError, OrchResult};
-use std::process::Command;
+use std::process::{Command, Stdio};
+use tracing::debug;
 use tracing::info;
-use std::path::PathBuf;
 
 mod coordination_utils;
 mod dashboard;
@@ -26,7 +27,7 @@ use ssm_utils::*;
 use state::*;
 
 // TODO
-// - upload source to s3
+// D- upload source to s3
 // - download source from s3
 // - navigate to source and compile
 //
@@ -67,28 +68,9 @@ async fn check_requirements(iam_client: &aws_sdk_iam::Client) -> OrchResult<()> 
     Ok(())
 }
 
-struct CustomDriver {
-    name: String,
-    local_path: PathBuf,
-    build_cmd: String,
-}
-
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> OrchResult<()> {
     tracing_subscriber::fmt::init();
-
-    let driver = CustomDriver {
-        name: "SaltyLib-Rust".into(),
-        local_path: "~/projects/ws_SaltyLib/src".into(),
-        build_cmd: "cd s2n-quic/s2n-netbench-driver-s2n-quic-dc && cargo build && cp target/debug/s2n_netbench_driver* /home/ec2-user/bin".into()
-    };
-
-    // local to s3
-    format!("aws s3 sync {}/{} s3://netbenchrunnerlogs/TS/{}/ --exclude 'target/*' --exclude '.git/*'", driver.local_path.to_str().unwrap(), driver.name, driver.name);
-
-    // s3 to host
-    // aws s3 sync s3://netbenchrunnerlogs/TS/SaltyLib-Rust/ /home/ec2-user/SaltyLib-Rust --exclude 'target/*' --exclude '.git/*'
-    format!("aws s3 sync s3://netbenchrunnerlogs/TS/{}/ /home/ec2-user/{} --exclude 'target/*' --exclude '.git/*'", driver.name, driver.name);
 
     let orch_provider = Region::new(STATE.region);
     let shared_config = aws_config::from_env().region(orch_provider).load().await;
@@ -109,6 +91,35 @@ async fn main() -> OrchResult<()> {
         humantime::format_rfc3339_seconds(std::time::SystemTime::now()),
         STATE.version
     );
+
+    // custom driver
+    let driver = {
+        let driver = CustomDriver {
+            name: "SaltyLib-Rust".into(),
+            local_path: "/Users/apoorvko/projects/ws_SaltyLib/src".into(),
+
+            // TODO
+            // curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+            build_cmd: format!("env RUSTFLAGS='--cfg s2n_quic_unstable' /home/ec2-user/.cargo/bin/cargo build && cp target/debug/s2n-netbench-driver* {}", STATE.host_bin_path())
+        };
+
+        let mut local_to_s3_cmd = Command::new("aws");
+        local_to_s3_cmd.args(["s3", "sync"]).stdout(Stdio::null());
+        local_to_s3_cmd
+            .arg(format!(
+                "{}/{}",
+                driver.local_path.to_str().unwrap(),
+                driver.name
+            ))
+            .arg(format!("{}/{}/", STATE.s3_path(&unique_id), driver.name));
+        local_to_s3_cmd.args(["--exclude", "target/*", "--exclude", ".git/*"]);
+
+        debug!("{:?}", local_to_s3_cmd);
+
+        let status = local_to_s3_cmd.status().unwrap();
+        assert!(status.success(), "aws sync command failed");
+        driver
+    };
 
     update_dashboard(dashboard::Step::UploadIndex, &s3_client, &unique_id).await?;
 
@@ -163,6 +174,7 @@ async fn main() -> OrchResult<()> {
             "server",
             &ssm_client,
             server_ids.clone(),
+            &driver,
             &unique_id,
         )
         .await;
@@ -170,6 +182,7 @@ async fn main() -> OrchResult<()> {
             "client",
             &ssm_client,
             client_ids.clone(),
+            &driver,
             &unique_id,
         )
         .await;
