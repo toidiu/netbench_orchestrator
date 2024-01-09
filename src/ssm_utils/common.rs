@@ -12,7 +12,7 @@ use std::path::PathBuf;
 pub struct CustomDriver {
     pub name: String,
     pub local_path: PathBuf,
-    pub build_cmd: String,
+    pub build_cmd: Vec<String>,
 }
 
 pub async fn wait_complete(
@@ -105,7 +105,7 @@ async fn install_deps_cmd(
         format!("echo ec2 up > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/{}-step-1", STATE.s3_path(unique_id), host_group),
         "yum upgrade -y".to_string(),
         format!("echo yum upgrade finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/{}-step-2", STATE.s3_path(unique_id), host_group),
-        format!("timeout 5m bash -c 'until yum install cmake git perl openssl-devel bpftrace perf tree -y; do sleep 10; done' || (echo yum failed > /home/ec2-user/index.html; aws s3 cp /home/ec2-user/index.html {}/{}-step-3; exit 1)", STATE.s3_path(unique_id), host_group),
+        format!("timeout 5m bash -c 'until yum install cargo cmake git perl openssl-devel bpftrace perf tree -y; do sleep 10; done' || (echo yum failed > /home/ec2-user/index.html; aws s3 cp /home/ec2-user/index.html {}/{}-step-3; exit 1)", STATE.s3_path(unique_id), host_group),
         format!("echo yum finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/{}-step-3", STATE.s3_path(unique_id), host_group),
         // rust
         "runuser -u ec2-user -- curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs > rustup.rs".to_string(),
@@ -140,7 +140,7 @@ async fn build_custom_driver_cmd(
         instance_ids,
         vec![
             // copy s3 to host
-            // aws s3 sync s3://netbenchrunnerlogs/2024-01-09T05:25:30Z-v2.0.1//SaltyLib-Rust/ /home/ec2-user/SaltyLib-Rust
+            // `aws s3 sync s3://netbenchrunnerlogs/2024-01-09T05:25:30Z-v2.0.1//SaltyLib-Rust/ /home/ec2-user/SaltyLib-Rust`
             format!(
                 "aws s3 sync {}/{}/ {}/{}",
                 STATE.s3_path(&unique_id),
@@ -149,24 +149,13 @@ async fn build_custom_driver_cmd(
                 driver.name
             ),
             format!("cd {}", driver.name).to_string(),
-            "touch 11".to_string(),
 
-            // format!("{}", driver.build_cmd).to_string(),
-            // "cd s2n-quic/s2n-netbench-driver-s2n-quic-dc".to_string(),
-            "touch 12".to_string(),
-
-            // "env RUST_LOG=debug ./target/debug/russula_cli..."
-
-            // SSM agent doesn't pick up the newest rustc version installed via rustup`
-            // so instead refer to it directly
-            "env RUSTFLAGS='--cfg s2n_quic_unstable' /home/ec2-user/.cargo/bin/cargo build".to_string(),
-            "touch 13".to_string(),
-
-            // copy executables to bin directory
-            "find target/debug -maxdepth 1 -type f -perm /a+x -exec cp {} /home/ec2-user/bin \\;".to_string(),
-            "touch 14".to_string(),
+            // "env RUSTFLAGS='--cfg s2n_quic_unstable' /home/ec2-user/.cargo/bin/cargo build".to_string(),
+            // // copy executables to bin directory
+            // "find target/debug -maxdepth 1 -type f -perm /a+x -exec cp {} /home/ec2-user/bin \\;".to_string(),
         ]
         .into_iter()
+        .chain(driver.build_cmd.clone().into_iter())
         .map(String::from)
         .collect(),
     )

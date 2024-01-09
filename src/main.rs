@@ -100,7 +100,13 @@ async fn main() -> OrchResult<()> {
 
             // TODO
             // curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-            build_cmd: format!("env RUSTFLAGS='--cfg s2n_quic_unstable' /home/ec2-user/.cargo/bin/cargo build && cp target/debug/s2n-netbench-driver* {}", STATE.host_bin_path())
+            build_cmd: vec![
+                // SSM agent doesn't pick up the newest rustc version installed via rustup`
+                // so instead refer to it directly
+                "env RUSTFLAGS='--cfg s2n_quic_unstable' /home/ec2-user/.cargo/bin/cargo build".to_string(),
+                // copy executables to bin directory
+                "find target/debug -maxdepth 1 -type f -perm /a+x -exec cp {} /home/ec2-user/bin \\;".to_string(),
+            ]
         };
 
         let mut local_to_s3_cmd = Command::new("aws");
