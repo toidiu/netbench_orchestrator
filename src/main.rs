@@ -2,16 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #![allow(dead_code)]
-use crate::common::CustomDriver;
-use crate::report::orch_generate_report;
+use crate::{netbench_driver::NetbenchDriver, report::orch_generate_report};
 use aws_types::region::Region;
 use error::{OrchError, OrchResult};
-use std::process::{Command, Stdio};
-use tracing::debug;
+use std::process::Command;
 use tracing::info;
 
 mod coordination_utils;
 mod dashboard;
+mod duration;
 mod ec2_utils;
 mod error;
 mod report;
@@ -27,12 +26,22 @@ use ssm_utils::*;
 use state::*;
 
 // TODO
+// - get things working using s2n-netbench
+// - reenable testing args for russula_cli
+//
+// - netbench_driver: populate build_cmd for quic
+// - replace common::build_netbench with quic_netbench::build_cmd
+//
 // D- upload source to s3
-// - download source from s3
-// - navigate to source and compile
+// D- download source from s3
+// D- navigate to source and compile
+//
+// D- move rustc to /bin
+// W- pass netbench driver to russula
 //
 // - specify scenario, driver and path to netbench in russula_cli
 //   - pass russula_cli args down to russula
+// - use release build instead of debug
 //
 // - experiment with uploading and downloading netbench exec
 // - experiment with uploading and downloading russula exec
@@ -92,41 +101,6 @@ async fn main() -> OrchResult<()> {
         STATE.version
     );
 
-    // custom driver
-    let driver = {
-        let driver = CustomDriver {
-            name: "SaltyLib-Rust".into(),
-            local_path: "/Users/apoorvko/projects/ws_SaltyLib/src".into(),
-
-            // TODO
-            // curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-            build_cmd: vec![
-                // SSM agent doesn't pick up the newest rustc version installed via rustup`
-                // so instead refer to it directly
-                "env RUSTFLAGS='--cfg s2n_quic_unstable' /home/ec2-user/.cargo/bin/cargo build".to_string(),
-                // copy executables to bin directory
-                "find target/debug -maxdepth 1 -type f -perm /a+x -exec cp {} /home/ec2-user/bin \\;".to_string(),
-            ]
-        };
-
-        let mut local_to_s3_cmd = Command::new("aws");
-        local_to_s3_cmd.args(["s3", "sync"]).stdout(Stdio::null());
-        local_to_s3_cmd
-            .arg(format!(
-                "{}/{}",
-                driver.local_path.to_str().unwrap(),
-                driver.name
-            ))
-            .arg(format!("{}/{}/", STATE.s3_path(&unique_id), driver.name));
-        local_to_s3_cmd.args(["--exclude", "target/*", "--exclude", ".git/*"]);
-
-        debug!("{:?}", local_to_s3_cmd);
-
-        let status = local_to_s3_cmd.status().unwrap();
-        assert!(status.success(), "aws sync command failed");
-        driver
-    };
-
     update_dashboard(dashboard::Step::UploadIndex, &s3_client, &unique_id).await?;
 
     // Setup instances
@@ -174,13 +148,18 @@ async fn main() -> OrchResult<()> {
     )
     .await?;
 
+    // custom driver
+    let salty_server_driver = netbench_driver::saltylib_server_driver(&unique_id);
+    let salty_client_driver = netbench_driver::saltylib_client_driver(&unique_id);
+    let quic_server_driver = netbench_driver::quic_server_driver(&unique_id);
+    let quic_client_driver = netbench_driver::quic_client_driver(&unique_id);
     // configure and build
     {
         let mut build_cmds = ssm_utils::common::collect_config_cmds(
             "server",
             &ssm_client,
             server_ids.clone(),
-            &driver,
+            &salty_server_driver,
             &unique_id,
         )
         .await;
@@ -188,7 +167,7 @@ async fn main() -> OrchResult<()> {
             "client",
             &ssm_client,
             client_ids.clone(),
-            &driver,
+            &salty_client_driver,
             &unique_id,
         )
         .await;
@@ -210,6 +189,7 @@ async fn main() -> OrchResult<()> {
             &infra,
             server_ids.clone(),
             &client.ip,
+            quic_server_driver,
         )
         .await;
         let mut client_russula = coordination_utils::ClientNetbenchRussula::new(
@@ -217,6 +197,7 @@ async fn main() -> OrchResult<()> {
             &infra,
             client_ids.clone(),
             &server.ip,
+            quic_client_driver,
         )
         .await;
 

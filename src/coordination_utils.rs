@@ -3,16 +3,18 @@
 
 use crate::{
     ec2_utils::InfraDetail,
-    poll_ssm_results, russula,
+    netbench_driver::NetbenchDriver,
+    poll_ssm_results,
     russula::{
-        netbench::{client, server},
+        self,
+        netbench::{client, server, Context, ContextArgs},
         RussulaBuilder,
     },
     ssm_utils, STATE,
 };
 use aws_sdk_ssm::operation::send_command::SendCommandOutput;
 use core::time::Duration;
-use std::{net::SocketAddr, str::FromStr};
+use std::{collections::BTreeSet, net::SocketAddr, str::FromStr};
 use tracing::{debug, info};
 
 pub struct ServerNetbenchRussula {
@@ -26,13 +28,19 @@ impl ServerNetbenchRussula {
         infra: &InfraDetail,
         instance_ids: Vec<String>,
         client_ips: &str,
+        driver: NetbenchDriver,
     ) -> Self {
         // server run commands
         debug!("starting server worker");
 
-        let peer_sock_addr = format!("{}:4433", client_ips);
-        let worker =
-            ssm_utils::server::run_russula_worker(ssm_client, instance_ids, &peer_sock_addr).await;
+        let peer_sock_addr = SocketAddr::from_str(&format!("{}:4433", client_ips)).unwrap();
+        let worker = ssm_utils::server::run_russula_worker(
+            ssm_client,
+            instance_ids,
+            peer_sock_addr,
+            driver.remote_path_to_driver(),
+        )
+        .await;
 
         // wait for worker to start
         tokio::time::sleep(Duration::from_secs(5)).await;
@@ -122,13 +130,19 @@ impl ClientNetbenchRussula {
         infra: &InfraDetail,
         instance_ids: Vec<String>,
         server_ips: &str,
+        driver: NetbenchDriver,
     ) -> Self {
         // client run commands
         debug!("starting client worker");
 
-        let peer_sock_addr = format!("{}:4433", server_ips);
-        let worker =
-            ssm_utils::client::run_russula_worker(ssm_client, instance_ids, &peer_sock_addr).await;
+        let peer_sock_addr = SocketAddr::from_str(&format!("{}:4433", server_ips)).unwrap();
+        let worker = ssm_utils::client::run_russula_worker(
+            ssm_client,
+            instance_ids,
+            peer_sock_addr,
+            driver.remote_path_to_driver(),
+        )
+        .await;
 
         // wait for worker to start
         tokio::time::sleep(Duration::from_secs(5)).await;
@@ -169,14 +183,23 @@ impl ClientNetbenchRussula {
 }
 
 async fn server_coord(infra: &InfraDetail) -> russula::Russula<server::CoordProtocol> {
-    let server_ips = infra
+    let server_ips: Vec<SocketAddr> = infra
         .servers
         .iter()
         .map(|instance| {
             SocketAddr::from_str(&format!("{}:{}", instance.ip, STATE.russula_port)).unwrap()
         })
         .collect();
-    let server_coord = RussulaBuilder::new(server_ips, server::CoordProtocol::new());
+
+    // FIXME directly create Context
+    let mut args = ContextArgs::for_russula_coordinator("netbench-driver-s2n-quic-server");
+    args.peer_list = server_ips.clone();
+    let protocol = server::CoordProtocol::new(Context::new(false, &args));
+    let server_coord = RussulaBuilder::new(
+        BTreeSet::from_iter(server_ips),
+        protocol,
+        STATE.poll_delay_russula,
+    );
     let mut server_coord = server_coord.build().await.unwrap();
     server_coord.run_till_ready().await.unwrap();
     info!("server coord Ready");
@@ -184,14 +207,22 @@ async fn server_coord(infra: &InfraDetail) -> russula::Russula<server::CoordProt
 }
 
 async fn client_coord(infra: &InfraDetail) -> russula::Russula<client::CoordProtocol> {
-    let client_ips = infra
+    let client_ips: Vec<SocketAddr> = infra
         .clients
         .iter()
         .map(|instance| {
             SocketAddr::from_str(&format!("{}:{}", instance.ip, STATE.russula_port)).unwrap()
         })
         .collect();
-    let client_coord = RussulaBuilder::new(client_ips, client::CoordProtocol::new());
+
+    let mut args = ContextArgs::for_russula_coordinator("netbench-driver-s2n-quic-client");
+    args.peer_list = client_ips.clone();
+    let protocol = client::CoordProtocol::new(Context::new(false, &args));
+    let client_coord = RussulaBuilder::new(
+        BTreeSet::from_iter(client_ips),
+        protocol,
+        STATE.poll_delay_russula,
+    );
     let mut client_coord = client_coord.build().await.unwrap();
     client_coord.run_till_ready().await.unwrap();
     info!("client coord Ready");

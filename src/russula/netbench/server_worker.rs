@@ -1,7 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-use super::PeerList;
+use super::Context;
 use crate::russula::{
     error::{RussulaError, RussulaResult},
     netbench::server_coord::CoordState,
@@ -40,12 +40,11 @@ pub struct WorkerProtocol {
     id: u16,
     state: WorkerState,
     coord_state: CoordState,
-    // FIXME replace with different ctx info since peer_list is not used
-    netbench_ctx: Option<PeerList>,
+    netbench_ctx: Context,
 }
 
 impl WorkerProtocol {
-    pub fn new(id: u16, netbench_ctx: Option<PeerList>) -> Self {
+    pub fn new(id: u16, netbench_ctx: Context) -> Self {
         WorkerProtocol {
             id,
             state: WorkerState::WaitCoordInit,
@@ -107,35 +106,31 @@ impl Protocol for WorkerProtocol {
                 self.await_next_msg(stream).await.map(Some)
             }
             WorkerState::Run => {
-                let child = match &self.netbench_ctx {
-                    Some(ctx) => {
+                let child = match false {
+                    false => {
+                        let out_log_file = "server.json";
+                        let output_json = File::create(out_log_file).expect("failed to open log");
+
                         // sudo SCENARIO=./target/netbench/connect.json ./target/release/netbench-collector
                         //   ./target/release/netbench-driver-s2n-quic-server
                         info!("{} run task netbench", self.state().name(stream));
                         println!("{} run task netbench", self.state().name(stream));
 
-                        let collector = "/home/ec2-user/bin/netbench-collector";
-                        let driver = "/home/ec2-user/bin/netbench-driver-s2n-quic-server";
-                        let scenario = "/home/ec2-user/request_response.json";
-                        // TODO expose a param to enable this path local testing
-                        // local testing
-                        // let collector = "netbench-collector";
-                        // let driver = "netbench-driver-s2n-quic-server";
-                        // let scenario = "request_response.json";
+                        let netbench_path = self.netbench_ctx.netbench_path.to_str().unwrap();
+                        let collector = format!("{}/netbench-collector", netbench_path);
+                        // driver value ex.: netbench-driver-s2n-quic-server
+                        let driver = format!("{}/{}", netbench_path, self.netbench_ctx.driver);
+                        let scenario = format!("{}/{}", netbench_path, self.netbench_ctx.scenario);
 
-                        let out_json = "server.json";
-                        let output_json = File::create(out_json).expect("failed to open log");
                         let mut cmd = Command::new(collector);
-                        cmd.args([driver, "--scenario", scenario])
+                        cmd.args([&driver, "--scenario", &scenario])
                             .stdout(output_json);
-
                         println!("{:?}", cmd);
                         cmd.spawn()
-                            .expect("Failed to start netbench-driver-s2n-quic-server process")
+                            .expect("Failed to start netbench server process")
                     }
-                    None => {
+                    true => {
                         info!("{} run task sim_netbench_server", self.state().name(stream));
-
                         Command::new("sh")
                             .args(["sim_netbench_server.sh", &self.name()])
                             .spawn()
@@ -143,7 +138,6 @@ impl Protocol for WorkerProtocol {
                     }
                 };
 
-                println!("-----------{:?}", child);
                 let pid = child.id();
                 debug!(
                     "{}----------------------------child id {}",

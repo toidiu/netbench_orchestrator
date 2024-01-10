@@ -14,6 +14,7 @@ use tracing::{debug, trace};
 
 pub mod client;
 pub mod common;
+pub mod netbench_driver;
 pub mod server;
 
 pub enum Step {

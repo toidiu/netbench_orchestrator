@@ -3,7 +3,7 @@
 
 use crate::russula::{
     error::{RussulaError, RussulaResult},
-    netbench::server_worker::WorkerState,
+    netbench::{server_worker::WorkerState, Context},
     network_utils::Msg,
     protocol::Protocol,
     StateApi, TransitionStep,
@@ -33,7 +33,7 @@ pub struct CoordProtocol {
 }
 
 impl CoordProtocol {
-    pub fn new() -> Self {
+    pub fn new(netbench_context: Context) -> Self {
         CoordProtocol {
             state: CoordState::CheckWorker,
             worker_state: WorkerState::WaitCoordInit,

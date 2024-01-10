@@ -5,11 +5,11 @@ use crate::ec2_utils::EndpointType;
 use core::time::Duration;
 
 pub const STATE: State = State {
-    version: "v2.0.1",
+    version: "v2.0.5",
 
     // netbench
-    netbench_repo: "https://github.com/aws/s2n-quic.git",
-    netbench_branch: "ak-netbench-sync",
+    netbench_repo: "https://github.com/aws/s2n-netbench.git",
+    netbench_branch: "main",
 
     // orchestrator
     host_count: HostCount {
@@ -19,12 +19,13 @@ pub const STATE: State = State {
     host_home_path: "/home/ec2-user",
     workspace_dir: "./target/netbench",
     shutdown_min: 120, // 1 hour
-    poll_cmds_duration: Duration::from_secs(10),
+    poll_delay_ssm: Duration::from_secs(10),
 
     // russula
     russula_repo: "https://github.com/toidiu/netbench_orchestrator.git",
     russula_branch: "ak-main",
     russula_port: 9000,
+    poll_delay_russula: Duration::from_secs(10),
 
     // aws
     s3_log_bucket: "netbenchrunnerlogs",
@@ -58,12 +59,13 @@ pub struct State {
     pub host_home_path: &'static str,
     pub workspace_dir: &'static str,
     pub shutdown_min: u16,
-    pub poll_cmds_duration: Duration,
+    pub poll_delay_ssm: Duration,
 
     // russula
     pub russula_repo: &'static str,
     pub russula_branch: &'static str,
     pub russula_port: i32,
+    pub poll_delay_russula: Duration,
 
     // aws
     pub s3_log_bucket: &'static str,

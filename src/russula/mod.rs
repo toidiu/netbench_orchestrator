@@ -36,8 +36,6 @@ use states::{StateApi, TransitionStep};
 // https://statecharts.dev/
 // halting problem https://en.wikipedia.org/wiki/Halting_problem
 
-const POLL_RETRY_DURATION: Duration = Duration::from_secs(10);
-
 pub struct Russula<P: Protocol> {
     peer_list: Vec<RussulaPeer<P>>,
     poll_delay: Duration,
@@ -92,32 +90,31 @@ impl<P: Protocol + Send> Russula<P> {
 }
 
 pub struct RussulaBuilder<P: Protocol> {
-    peer_list: Vec<SockProtocol<P>>,
+    // Address for the Coordinator and Worker to communicate on.
+    //
+    // The Coordinator gets a list of workers addrs to 'connect' to.
+    // The Worker gets its own addr to 'listen' on.
+    russula_pair_addr_list: Vec<SockProtocol<P>>,
     poll_delay: Duration,
     protocol: P,
 }
 
 impl<P: Protocol> RussulaBuilder<P> {
-    pub fn new(addr: BTreeSet<SocketAddr>, protocol: P) -> Self {
-        let mut addr_list = Vec::new();
-        addr.into_iter().for_each(|addr| {
-            addr_list.push((addr, protocol.clone()));
+    pub fn new(peer_addr: BTreeSet<SocketAddr>, protocol: P, poll_delay: Duration) -> Self {
+        let mut peer_list = Vec::new();
+        peer_addr.into_iter().for_each(|addr| {
+            peer_list.push((addr, protocol.clone()));
         });
         Self {
-            peer_list: addr_list,
-            poll_delay: POLL_RETRY_DURATION,
+            russula_pair_addr_list: peer_list,
+            poll_delay,
             protocol,
         }
     }
 
-    pub fn poll_delay(mut self, delay: Duration) -> Self {
-        self.poll_delay = delay;
-        self
-    }
-
     pub async fn build(self) -> RussulaResult<Russula<P>> {
         let mut stream_protocol_list = Vec::new();
-        for (addr, protocol) in self.peer_list.into_iter() {
+        for (addr, protocol) in self.russula_pair_addr_list.into_iter() {
             let stream;
             let mut retry_attempts = 3;
             loop {
@@ -165,6 +162,8 @@ mod tests {
     use crate::russula::netbench::{client, server};
     use std::str::FromStr;
 
+    const POLL_DELAY_DURATION: Duration = Duration::from_secs(1);
+
     #[tokio::test]
     async fn netbench_server_protocol() {
         env_logger::init();
@@ -176,12 +175,9 @@ mod tests {
         // attempt is retried
         let c1 = tokio::spawn(async move {
             let addr = BTreeSet::from_iter(worker_list);
-            let coord = RussulaBuilder::new(addr, server::CoordProtocol::new());
-            let mut coord = coord
-                .poll_delay(Duration::from_secs(1))
-                .build()
-                .await
-                .unwrap();
+            let protocol = server::CoordProtocol::new(netbench::Context::testing());
+            let coord = RussulaBuilder::new(addr, protocol, POLL_DELAY_DURATION);
+            let mut coord = coord.build().await.unwrap();
             coord.run_till_ready().await.unwrap();
             coord
         });
@@ -189,13 +185,11 @@ mod tests {
         let w1 = tokio::spawn(async move {
             let worker = RussulaBuilder::new(
                 BTreeSet::from_iter([w1_sock]),
-                server::WorkerProtocol::new(w1_sock.port(), None),
+                // netbench::Context::new(true, peer_list, ctx)
+                server::WorkerProtocol::new(w1_sock.port(), netbench::Context::testing()),
+                POLL_DELAY_DURATION,
             );
-            let mut worker = worker
-                .poll_delay(Duration::from_secs(1))
-                .build()
-                .await
-                .unwrap();
+            let mut worker = worker.build().await.unwrap();
             worker
                 .run_till_state(server::WorkerState::Done)
                 .await
@@ -205,13 +199,10 @@ mod tests {
         let w2 = tokio::spawn(async move {
             let worker = RussulaBuilder::new(
                 BTreeSet::from_iter([w2_sock]),
-                server::WorkerProtocol::new(w2_sock.port(), None),
+                server::WorkerProtocol::new(w2_sock.port(), netbench::Context::testing()),
+                POLL_DELAY_DURATION,
             );
-            let mut worker = worker
-                .poll_delay(Duration::from_secs(1))
-                .build()
-                .await
-                .unwrap();
+            let mut worker = worker.build().await.unwrap();
             worker
                 .run_till_state(server::WorkerState::Done)
                 .await
@@ -262,12 +253,10 @@ mod tests {
         // attempt is retried
         let c1 = tokio::spawn(async move {
             let addr = BTreeSet::from_iter(worker_list);
-            let coord = RussulaBuilder::new(addr, client::CoordProtocol::new());
-            let mut coord = coord
-                .poll_delay(Duration::from_secs(1))
-                .build()
-                .await
-                .unwrap();
+
+            let protocol = client::CoordProtocol::new(netbench::Context::testing());
+            let coord = RussulaBuilder::new(addr, protocol, POLL_DELAY_DURATION);
+            let mut coord = coord.build().await.unwrap();
             coord.run_till_ready().await.unwrap();
             coord
         });
@@ -275,13 +264,15 @@ mod tests {
         let w1 = tokio::spawn(async move {
             let worker = RussulaBuilder::new(
                 BTreeSet::from_iter([w1_sock]),
-                client::WorkerProtocol::new(w1_sock.port(), None),
+                client::WorkerProtocol::new(
+                    w1_sock.port(),
+                    // not used for testing
+                    SocketAddr::from_str("0.0.0.0:80").unwrap(),
+                    netbench::Context::testing(),
+                ),
+                POLL_DELAY_DURATION,
             );
-            let mut worker = worker
-                .poll_delay(Duration::from_secs(1))
-                .build()
-                .await
-                .unwrap();
+            let mut worker = worker.build().await.unwrap();
             worker
                 .run_till_state(client::WorkerState::Done)
                 .await
@@ -291,13 +282,15 @@ mod tests {
         let w2 = tokio::spawn(async move {
             let worker = RussulaBuilder::new(
                 BTreeSet::from_iter([w2_sock]),
-                client::WorkerProtocol::new(w2_sock.port(), None),
+                client::WorkerProtocol::new(
+                    w2_sock.port(),
+                    // not used for testing
+                    SocketAddr::from_str("0.0.0.0:80").unwrap(),
+                    netbench::Context::testing(),
+                ),
+                POLL_DELAY_DURATION,
             );
-            let mut worker = worker
-                .poll_delay(Duration::from_secs(1))
-                .build()
-                .await
-                .unwrap();
+            let mut worker = worker.build().await.unwrap();
             worker
                 .run_till_state(client::WorkerState::Done)
                 .await

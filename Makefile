@@ -4,14 +4,28 @@ orch:
 
 # -------------------- bin russula_cli
 net_server_coord:
-	RUST_LOG=none,orchestrator=debug,russula_cli=debug cargo run --bin russula_cli -- --protocol NetbenchServerCoordinator
+	RUST_LOG=none,orchestrator=debug,russula_cli=info cargo run --bin russula_cli -- \
+					 --russula-port 7000 \
+					 --testing=true \
+					 netbench-server-coordinator
+
 net_server_worker:
-	RUST_LOG=none,orchestrator=debug,russula_cli=debug cargo run --bin russula_cli -- --protocol NetbenchServerWorker --peer-list 127.0.0.1:4433
+	RUST_LOG=none,orchestrator=debug,russula_cli=info cargo run --bin russula_cli -- \
+					 --russula-port 7000 \
+					 --testing=true \
+					 netbench-server-worker \
 
 net_client_coord:
-	RUST_LOG=none,orchestrator=debug,russula_cli=debug cargo run --bin russula_cli -- --protocol NetbenchClientCoordinator --ip 127.0.0.1
+	RUST_LOG=none,orchestrator=debug,russula_cli=info cargo run --bin russula_cli --  \
+					 --russula-port 7001 \
+					 --testing=true \
+					 netbench-client-coordinator \
+
 net_client_worker:
-	RUST_LOG=none,orchestrator=debug,russula_cli=debug cargo run --bin russula_cli -- --protocol NetbenchClientWorker --ip 127.0.0.1 --peer-list 127.0.0.1:4433
+	RUST_LOG=none,orchestrator=debug,russula_cli=info cargo run --bin russula_cli -- \
+					 --russula-port 7001 \
+					 --testing=true \
+					 netbench-client-worker \
 
 report:
 	s2n-netbench report netbench* -o report.json; xclip -sel c < report.json

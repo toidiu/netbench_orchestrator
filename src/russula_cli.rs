@@ -1,21 +1,21 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-mod error;
-mod russula;
-
-use crate::russula::netbench::PeerList;
+use crate::{duration::parse_duration, russula::netbench};
 use core::time::Duration;
 use error::OrchResult;
 use russula::{
     netbench::{client, server},
     RussulaBuilder,
 };
-use std::path::PathBuf;
-use std::{collections::BTreeSet, net::SocketAddr, str::FromStr};
-use structopt::{clap::arg_enum, StructOpt};
+use std::{collections::BTreeSet, net::SocketAddr};
+use structopt::StructOpt;
 use tracing::debug;
 use tracing_subscriber::EnvFilter;
+
+mod duration;
+mod error;
+mod russula;
 
 /// This utility is a convenient CLI wraper around Russula and can be used to launch
 /// different protocols.
@@ -24,42 +24,43 @@ use tracing_subscriber::EnvFilter;
 
 #[derive(StructOpt, Debug)]
 struct Opt {
-    /// specify the protocol
-    #[structopt(possible_values = &RussulaProtocol::variants(), case_insensitive = true, long)]
-    protocol: RussulaProtocol,
-
-    /// specify the ip
-    #[structopt(long, default_value = "0.0.0.0")]
-    ip: String,
-
-    /// specify the port
-    #[structopt(long, default_value = "9000")]
-    port: u16,
-
+    // Address for the Coordinator and Worker to communicate on.
+    //
+    // The Coordinator gets a list of workers addrs to 'connect' to.
+    // The Worker gets its own addr to 'listen' on.
     #[structopt(long)]
-    peer_list: Option<PeerList>,
+    russula_port: u16,
 
-    #[structopt(long, default_value = ".")]
-    _netbench_path: PathBuf,
+    #[structopt(long, parse(try_from_str=parse_duration), default_value = "5s")]
+    poll_delay: Duration,
 
-    // TODO make enum and add possible_values
-    #[structopt(long, default_value = "netbench-driver-s2n-quic-client")]
-    _netbench_driver: String,
+    // TODO possibly move to Netbench Context
+    #[structopt(long)]
+    testing: bool,
 
-    // https://github.com/aws/s2n-netbench/tree/main/netbench-scenarios
-    #[structopt(possible_values = &["request_response", "connect", "ping"], default_value = "request_response", case_insensitive = true, long)]
-    _netbench_scenario: String,
+    #[structopt(subcommand)]
+    protocol: RussulaProtocol,
 }
 
-arg_enum! {
 #[allow(clippy::enum_variant_names)]
-#[derive(Debug)]
+#[derive(StructOpt, Debug)]
 enum RussulaProtocol {
-    NetbenchServerWorker,
-    NetbenchServerCoordinator,
-    NetbenchClientWorker,
-    NetbenchClientCoordinator,
-}
+    NetbenchServerWorker {
+        #[structopt(flatten)]
+        ctx: netbench::ContextArgs,
+    },
+    NetbenchServerCoordinator {
+        #[structopt(flatten)]
+        ctx: netbench::ContextArgs,
+    },
+    NetbenchClientWorker {
+        #[structopt(flatten)]
+        ctx: netbench::ContextArgs,
+    },
+    NetbenchClientCoordinator {
+        #[structopt(flatten)]
+        ctx: netbench::ContextArgs,
+    },
 }
 
 #[tokio::main(flavor = "current_thread")]
@@ -74,18 +75,22 @@ async fn main() -> OrchResult<()> {
         .init();
 
     debug!("{:?}", opt);
-    match opt.protocol {
-        RussulaProtocol::NetbenchServerWorker => {
-            run_server_worker(opt.ip, opt.port, opt.peer_list).await
+    match &opt.protocol {
+        RussulaProtocol::NetbenchServerWorker { ctx } => {
+            let netbench_ctx = netbench::Context::new(opt.testing, ctx);
+            run_server_worker(opt, netbench_ctx).await
         }
-        RussulaProtocol::NetbenchServerCoordinator => {
-            run_server_coordinator(opt.ip, opt.port).await
+        RussulaProtocol::NetbenchServerCoordinator { ctx } => {
+            let netbench_ctx = netbench::Context::new(opt.testing, ctx);
+            run_server_coordinator(opt, netbench_ctx).await
         }
-        RussulaProtocol::NetbenchClientWorker => {
-            run_client_worker(opt.ip, opt.port, opt.peer_list).await
+        RussulaProtocol::NetbenchClientWorker { ctx } => {
+            let netbench_ctx = netbench::Context::new(opt.testing, ctx);
+            run_client_worker(opt, netbench_ctx).await
         }
-        RussulaProtocol::NetbenchClientCoordinator => {
-            run_client_coordinator(opt.ip, opt.port).await
+        RussulaProtocol::NetbenchClientCoordinator { ctx } => {
+            let netbench_ctx = netbench::Context::new(opt.testing, ctx);
+            run_client_coordinator(opt, netbench_ctx).await
         }
     };
 
@@ -93,10 +98,14 @@ async fn main() -> OrchResult<()> {
     Ok(())
 }
 
-async fn run_server_worker(ip: String, port: u16, netbench_ctx: Option<PeerList>) {
-    let w1_sock = SocketAddr::from_str(&format!("{}:{}", ip, port)).unwrap();
-    let protocol = server::WorkerProtocol::new(port, netbench_ctx);
-    let worker = RussulaBuilder::new(BTreeSet::from_iter([w1_sock]), protocol);
+async fn run_server_worker(opt: Opt, netbench_ctx: netbench::Context) {
+    let id = 1;
+    let protocol = server::WorkerProtocol::new(id, netbench_ctx);
+    let worker = RussulaBuilder::new(
+        BTreeSet::from_iter([russula_addr(opt.russula_port)]),
+        protocol,
+        opt.poll_delay,
+    );
     let mut worker = worker.build().await.unwrap();
     worker.run_till_ready().await.unwrap();
 
@@ -106,10 +115,13 @@ async fn run_server_worker(ip: String, port: u16, netbench_ctx: Option<PeerList>
         .unwrap();
 }
 
-async fn run_server_coordinator(ip: String, port: u16) {
-    let w1_sock = SocketAddr::from_str(&format!("{}:{}", ip, port)).unwrap();
-    let protocol = server::CoordProtocol::new();
-    let coord = RussulaBuilder::new(BTreeSet::from_iter([w1_sock]), protocol);
+async fn run_server_coordinator(opt: Opt, netbench_ctx: netbench::Context) {
+    let protocol = server::CoordProtocol::new(netbench_ctx);
+    let coord = RussulaBuilder::new(
+        BTreeSet::from_iter([russula_addr(opt.russula_port)]),
+        protocol,
+        opt.poll_delay,
+    );
     let mut coord = coord.build().await.unwrap();
 
     coord
@@ -117,10 +129,10 @@ async fn run_server_coordinator(ip: String, port: u16) {
         .await
         .unwrap();
 
-    println!("[server-coord-1] --------- allow worker to run. wait for user input to continue...");
+    println!("Waiting for user input to continue ... WorkersRunning");
     let mut s = String::new();
     let _ = std::io::stdin().read_line(&mut s);
-    println!("[server-coord-1] continue --------- killing server");
+    println!("Continuing ... Running till Done");
 
     coord
         .run_till_state(server::CoordState::Done)
@@ -128,10 +140,14 @@ async fn run_server_coordinator(ip: String, port: u16) {
         .unwrap();
 }
 
-async fn run_client_worker(ip: String, port: u16, netbench_ctx: Option<PeerList>) {
-    let w1_sock = SocketAddr::from_str(&format!("{}:{}", ip, port)).unwrap();
-    let protocol = client::WorkerProtocol::new(port, netbench_ctx);
-    let worker = RussulaBuilder::new(BTreeSet::from_iter([w1_sock]), protocol);
+async fn run_client_worker(opt: Opt, netbench_ctx: netbench::Context) {
+    let id = 1;
+    let protocol = client::WorkerProtocol::new(id, netbench_ctx);
+    let worker = RussulaBuilder::new(
+        BTreeSet::from_iter([russula_addr(opt.russula_port)]),
+        protocol,
+        opt.poll_delay,
+    );
     let mut worker = worker.build().await.unwrap();
     worker.run_till_ready().await.unwrap();
 
@@ -141,10 +157,13 @@ async fn run_client_worker(ip: String, port: u16, netbench_ctx: Option<PeerList>
         .unwrap();
 }
 
-async fn run_client_coordinator(ip: String, port: u16) {
-    let w1_sock = SocketAddr::from_str(&format!("{}:{}", ip, port)).unwrap();
-    let protocol = client::CoordProtocol::new();
-    let coord = RussulaBuilder::new(BTreeSet::from_iter([w1_sock]), protocol);
+async fn run_client_coordinator(opt: Opt, netbench_ctx: netbench::Context) {
+    let protocol = client::CoordProtocol::new(netbench_ctx);
+    let coord = RussulaBuilder::new(
+        BTreeSet::from_iter([russula_addr(opt.russula_port)]),
+        protocol,
+        opt.poll_delay,
+    );
     let mut coord = coord.build().await.unwrap();
 
     coord
@@ -152,11 +171,12 @@ async fn run_client_coordinator(ip: String, port: u16) {
         .await
         .unwrap();
 
-    println!("[client-coord-1] sleeping --------- to allow worker to run");
-    tokio::time::sleep(Duration::from_secs(5)).await;
-
     coord
         .run_till_state(client::CoordState::Done)
         .await
         .unwrap();
+}
+
+fn russula_addr(port: u16) -> SocketAddr {
+    format!("0.0.0.0:{}", port).parse().unwrap()
 }

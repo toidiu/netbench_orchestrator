@@ -5,25 +5,31 @@ use crate::s3_utils::*;
 use crate::state::*;
 use aws_sdk_s3::primitives::{ByteStream, SdkBody};
 use std::process::Command;
+use tempdir::TempDir;
 use tracing::debug;
 use tracing::info;
 use tracing::trace;
 
 pub async fn orch_generate_report(s3_client: &aws_sdk_s3::Client, unique_id: &str) {
+    let tmp_dir = TempDir::new(unique_id).unwrap().into_path();
+    std::fs::create_dir(tmp_dir.join("result")).unwrap();
+    std::fs::create_dir(tmp_dir.join("report")).unwrap();
+    let tmp_dir = tmp_dir.to_str().unwrap();
+
     // download results from s3 -----------------------
     let mut cmd = Command::new("aws");
     cmd.args([
         "s3",
         "sync",
         &format!("s3://{}/{}", STATE.s3_log_bucket, unique_id),
-        STATE.workspace_dir,
+        tmp_dir,
     ]);
     debug!("{:?}", cmd);
     assert!(cmd.status().expect("aws sync").success(), "aws sync");
 
     // CLI ---------------------------
-    let results_path = format!("{}/results", STATE.workspace_dir);
-    let report_path = format!("{}/report", STATE.workspace_dir);
+    let results_path = format!("{}/results", tmp_dir);
+    let report_path = format!("{}/report", tmp_dir);
     let mut cmd = Command::new("s2n-netbench");
     cmd.args(["report-tree", &results_path, &report_path]);
     debug!("{:?}", cmd);
@@ -36,7 +42,7 @@ pub async fn orch_generate_report(s3_client: &aws_sdk_s3::Client, unique_id: &st
         .args([
             "s3",
             "sync",
-            STATE.workspace_dir,
+            tmp_dir,
             &format!("s3://{}/{}", STATE.s3_log_bucket, unique_id),
         ])
         .output()

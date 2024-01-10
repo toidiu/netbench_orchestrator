@@ -1,7 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-use super::PeerList;
+use super::Context;
 use crate::russula::{
     error::{RussulaError, RussulaResult},
     netbench::client::CoordState,
@@ -13,8 +13,7 @@ use async_trait::async_trait;
 use core::fmt::Debug;
 use serde::{Deserialize, Serialize};
 use std::{fs::File, net::SocketAddr, process::Command};
-use sysinfo::ProcessExt;
-use sysinfo::{Pid, PidExt, SystemExt};
+use sysinfo::{Pid, PidExt, ProcessExt, SystemExt};
 use tokio::net::{TcpListener, TcpStream};
 use tracing::{debug, info, warn};
 
@@ -37,11 +36,11 @@ pub struct WorkerProtocol {
     id: u16,
     state: WorkerState,
     coord_state: CoordState,
-    netbench_ctx: Option<PeerList>,
+    netbench_ctx: Context,
 }
 
 impl WorkerProtocol {
-    pub fn new(id: u16, netbench_ctx: Option<PeerList>) -> Self {
+    pub fn new(id: u16, netbench_ctx: Context) -> Self {
         WorkerProtocol {
             id,
             state: WorkerState::WaitCoordInit,
@@ -103,44 +102,40 @@ impl Protocol for WorkerProtocol {
                 self.await_next_msg(stream).await.map(Some)
             }
             WorkerState::Run => {
-                let child = match &self.netbench_ctx {
-                    Some(ctx) => {
+                let child = match false {
+                    false => {
+                        let out_log_file = "client.json";
+                        let output_json = File::create(out_log_file).expect("failed to open log");
+
                         // SCENARIO=./target/netbench/connect.json SERVER_0=localhost:4433
                         //   ./target/release/netbench-driver-s2n-quic-client ./target/netbench/connect.json
-                        info!("{} RUN NETBENCH PROCESS", self.name());
-                        let peer_sock_addr = ctx.0.get(0).expect("get the first peer sock_addr");
+                        info!("{} run netbench process", self.name());
+                        println!("{} run netbench process", self.name());
 
-                        // FIXME figure out different way for local and remote
-                        // remote runs
-                        let collector = "/home/ec2-user/bin/netbench-collector";
-                        let driver = "/home/ec2-user/bin/netbench-driver-s2n-quic-client";
-                        let scenario = "/home/ec2-user/request_response.json";
-                        // TODO expose a param to enable this path local testing
-                        // let collector = "netbench-collector";
-                        // let driver = "netbench-driver-s2n-quic-client";
-                        // let scenario = "request_response.json";
+                        let netbench_path = self.netbench_ctx.netbench_path.to_str().unwrap();
+                        let collector = format!("{}/netbench-collector", netbench_path);
+                        // driver value ex.: netbench-driver-s2n-quic-client
+                        let driver = format!("{}/{}", netbench_path, self.netbench_ctx.driver);
+                        let scenario = format!("{}/{}", netbench_path, self.netbench_ctx.scenario);
 
-                        let out_json = "client.json";
-                        let output_json = File::create(out_json).expect("failed to open log");
                         let mut cmd = Command::new(collector);
-                        cmd.env("SERVER_0", peer_sock_addr.to_string())
-                            .args([driver, "--scenario", scenario])
+                        // FIXME update Netbench to take a list of Server IP
+                        let server_addr = self.netbench_ctx.peer_list.first().unwrap();
+                        cmd.env("SERVER_0", server_addr.to_string())
+                            .args([&driver, "--scenario", &scenario])
                             .stdout(output_json);
-
                         println!("{:?}", cmd);
                         cmd.spawn()
-                            .expect("Failed to start netbench-driver-s2n-quic-client process")
+                            .expect("Failed to start netbench client process")
                     }
-                    None => {
-                        info!("{} RUN SIM_NETBENCH_CLIENT", self.name());
+                    true => {
+                        info!("{} run sim_netbench_client", self.name());
                         Command::new("sh")
                             .args(["sim_netbench_client.sh", &self.name()])
                             .spawn()
                             .expect("Failed to start sim_netbench_client process")
                     }
                 };
-
-                println!("-----------{:?}", child);
 
                 let pid = child.id();
                 debug!(

@@ -4,6 +4,8 @@
 use super::{send_command, Step};
 use crate::state::STATE;
 use aws_sdk_ssm::operation::send_command::SendCommandOutput;
+use std::net::SocketAddr;
+use tracing::debug;
 
 pub async fn copy_netbench_data(
     ssm_client: &aws_sdk_ssm::Client,
@@ -19,19 +21,12 @@ pub async fn copy_netbench_data(
         ssm_client,
         instance_ids,
         vec![
-            // FIXME move this to russula
             "cd netbench_orchestrator",
             format!(
                 "aws s3 cp server.json {}/results/request_response/s2n-quic/",
                 STATE.s3_path(unique_id)
             )
             .as_str(),
-            // "cd s2n-quic/netbench",
-            // format!("env COORD_CLIENT_0={}:8080 ./scripts/netbench-test-player-as-server.sh", client_ip).as_str(),
-            // "chown ec2-user: -R .",
-            // format!("echo run finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/server-step-7", STATE.s3_path(unique_id)).as_str(),
-            // format!("aws s3 sync /home/ec2-user/s2n-quic/netbench/target/netbench {}", STATE.s3_path(unique_id)).as_str(),
-            // format!("echo report upload finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/server-step-8", STATE.s3_path(unique_id)).as_str(),
         ]
         .into_iter()
         .map(String::from)
@@ -44,10 +39,13 @@ pub async fn copy_netbench_data(
 pub async fn run_russula_worker(
     ssm_client: &aws_sdk_ssm::Client,
     instance_ids: Vec<String>,
-    peer_sock_addr: &str,
+    peer_sock_addr: SocketAddr,
+    netbench_driver: String,
 ) -> SendCommandOutput {
+    debug!("{}", peer_sock_addr);
     send_command(vec![Step::BuildRussula], Step::RunRussula, "server", "run_server_russula", ssm_client, instance_ids, vec![
         "cd netbench_orchestrator",
-        format!("env RUST_LOG=debug ./target/debug/russula_cli --protocol NetbenchServerWorker --port {} --peer-list {}", STATE.russula_port, peer_sock_addr).as_str(),
+        format!("env RUST_LOG=debug ./target/debug/russula_cli --russula-port {} netbench-server-worker --peer-list {} --driver {}",
+            STATE.russula_port, peer_sock_addr, netbench_driver).as_str(),
     ].into_iter().map(String::from).collect()).await.expect("Timed out")
 }

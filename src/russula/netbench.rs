@@ -1,7 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-use std::net::SocketAddr;
+use std::{net::SocketAddr, path::PathBuf};
 use structopt::{clap::arg_enum, StructOpt};
 
 mod client_coord;
@@ -9,21 +9,67 @@ mod client_worker;
 mod server_coord;
 mod server_worker;
 
+#[derive(StructOpt, Debug)]
+pub struct ContextArgs {
+    // The path to the netbench utility and scenario file.
+    #[structopt(long, default_value = "/home/ec2-user/bin")]
+    netbench_path: PathBuf,
+
+    #[structopt(long)]
+    driver: String,
+
+    // The name of the scenario file.
+    //
+    // https://github.com/aws/s2n-netbench/tree/main/netbench-scenarios
+    #[structopt(long, default_value = "request_response.json")]
+    scenario: String,
+
+    // The list of Client and Server peers
+    #[structopt(long)]
+    pub peer_list: Vec<SocketAddr>,
+}
+
+impl ContextArgs {
+    // FIXME directly create Context
+    pub fn for_russula_coordinator(driver_name: &str) -> Self {
+        Self {
+            netbench_path: "unused_by_coordinator".into(),
+            driver: driver_name.into(),
+            scenario: "unused_by_coordinator".to_owned(),
+            peer_list: vec![],
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
-pub struct PeerList(Vec<SocketAddr>);
+pub struct Context {
+    pub peer_list: Vec<SocketAddr>,
+    netbench_path: PathBuf,
+    driver: String,
+    scenario: String,
+    testing: bool,
+}
 
-impl std::str::FromStr for PeerList {
-    type Err = Box<dyn std::error::Error>;
+impl Context {
+    pub fn new(testing: bool, ctx: &ContextArgs) -> Self {
+        Context {
+            peer_list: ctx.peer_list.clone(),
+            netbench_path: ctx.netbench_path.clone(),
+            driver: ctx.driver.clone(),
+            scenario: ctx.scenario.clone(),
+            testing,
+        }
+    }
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(PeerList(
-            s.split(',')
-                .map(|x| {
-                    let str_value = x.trim();
-                    SocketAddr::from_str(str_value).unwrap()
-                })
-                .collect(),
-        ))
+    #[cfg(test)]
+    pub fn testing() -> Self {
+        Context {
+            peer_list: vec![],
+            netbench_path: "".into(),
+            driver: "".to_string(),
+            scenario: "".to_string(),
+            testing: true,
+        }
     }
 }
 
