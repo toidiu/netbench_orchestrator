@@ -17,12 +17,6 @@ pub struct NetbenchDriver {
     local_path_to_proj: Option<PathBuf>,
 }
 
-impl NetbenchDriver {
-    pub fn remote_path_to_driver(&self) -> String {
-        format!("{}/{}", STATE.host_bin_path(), self.driver_name)
-    }
-}
-
 pub fn quic_server_driver(unique_id: &str) -> NetbenchDriver {
     let proj_name = "s2n-netbench".to_string();
     let driver = NetbenchDriver {
@@ -62,9 +56,7 @@ pub fn quic_client_driver(unique_id: &str) -> NetbenchDriver {
     let name = "todo".to_string();
     let driver = NetbenchDriver {
         driver_name: "netbench-driver-s2n-quic-client".to_string(),
-        build_cmd: vec![
-            format!("cd {}", name),
-        ],
+        build_cmd: vec![format!("cd {}", name)],
         proj_name: name.clone(),
         local_path_to_proj: None,
     };
@@ -91,9 +83,15 @@ pub fn saltylib_server_driver(unique_id: &str) -> NetbenchDriver {
             format!("cd {}", proj_name),
             // SSM agent doesn't pick up the newest rustc version installed via rustup`
             // so instead refer to it directly
-            format!("env RUSTFLAGS='--cfg s2n_quic_unstable' {}/cargo build", STATE.host_bin_path()),
+            format!(
+                "env RUSTFLAGS='--cfg s2n_quic_unstable' {}/cargo build",
+                STATE.host_bin_path()
+            ),
             // copy executables to bin directory
-            format!("find target/debug -maxdepth 1 -type f -perm /a+x -exec cp {{}} {} \\;", STATE.host_bin_path()),
+            format!(
+                "find target/debug -maxdepth 1 -type f -perm /a+x -exec cp {{}} {} \\;",
+                STATE.host_bin_path()
+            ),
         ],
         proj_name: proj_name.clone(),
         local_path_to_proj: Some("/Users/apoorvko/projects/ws_SaltyLib/src".into()),
@@ -121,9 +119,15 @@ pub fn saltylib_client_driver(unique_id: &str) -> NetbenchDriver {
             format!("cd {}", proj_name),
             // SSM agent doesn't pick up the newest rustc version installed via rustup`
             // so instead refer to it directly
-            format!("env RUSTFLAGS='--cfg s2n_quic_unstable' {}/cargo build", STATE.host_bin_path()),
+            format!(
+                "env RUSTFLAGS='--cfg s2n_quic_unstable' {}/cargo build",
+                STATE.host_bin_path()
+            ),
             // copy executables to bin directory
-            format!("find target/debug -maxdepth 1 -type f -perm /a+x -exec cp {{}} {} \\;", STATE.host_bin_path()),
+            format!(
+                "find target/debug -maxdepth 1 -type f -perm /a+x -exec cp {{}} {} \\;",
+                STATE.host_bin_path()
+            ),
         ],
         proj_name: proj_name.clone(),
         local_path_to_proj: Some("/Users/apoorvko/projects/ws_SaltyLib/src".into()),

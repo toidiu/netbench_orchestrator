@@ -38,7 +38,7 @@ impl ServerNetbenchRussula {
             ssm_client,
             instance_ids,
             peer_sock_addr,
-            driver.remote_path_to_driver(),
+            driver.driver_name,
         )
         .await;
 
@@ -140,7 +140,7 @@ impl ClientNetbenchRussula {
             ssm_client,
             instance_ids,
             peer_sock_addr,
-            driver.remote_path_to_driver(),
+            driver.driver_name,
         )
         .await;
 
