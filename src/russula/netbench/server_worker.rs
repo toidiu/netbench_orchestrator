@@ -106,7 +106,7 @@ impl Protocol for WorkerProtocol {
                 self.await_next_msg(stream).await.map(Some)
             }
             WorkerState::Run => {
-                let child = match false {
+                let child = match &self.netbench_ctx.testing {
                     false => {
                         let out_log_file = "server.json";
                         let output_json = File::create(out_log_file).expect("failed to open log");

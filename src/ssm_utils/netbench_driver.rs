@@ -64,13 +64,6 @@ pub fn quic_client_driver(unique_id: &str) -> NetbenchDriver {
         driver_name: "netbench-driver-s2n-quic-client".to_string(),
         build_cmd: vec![
             format!("cd {}", name),
-            // // SSM agent doesn't pick up the newest rustc version installed via rustup`
-            // // so instead refer to it directly
-            // "env RUSTFLAGS='--cfg s2n_quic_unstable' /home/ec2-user/.cargo/bin/cargo build"
-            //     .to_string(),
-            // // copy executables to bin directory
-            // "find target/debug -maxdepth 1 -type f -perm /a+x -exec cp {} /home/ec2-user/bin \\;"
-            //     .to_string(),
         ],
         proj_name: name.clone(),
         local_path_to_proj: None,

@@ -4,28 +4,32 @@ orch:
 
 # -------------------- bin russula_cli
 net_server_coord:
-	RUST_LOG=none,orchestrator=debug,russula_cli=info cargo run --bin russula_cli -- \
+	RUST_LOG=none,orchestrator=debug,russula_cli=debug cargo run --bin russula_cli -- \
 					 --russula-port 7000 \
-					 --testing=true \
-					 netbench-server-coordinator
+					 --testing \
+					 netbench-server-coordinator \
+					 --driver unused
 
 net_server_worker:
-	RUST_LOG=none,orchestrator=debug,russula_cli=info cargo run --bin russula_cli -- \
+	RUST_LOG=none,orchestrator=debug,russula_cli=debug cargo run --bin russula_cli -- \
 					 --russula-port 7000 \
-					 --testing=true \
+					 --testing \
 					 netbench-server-worker \
+					 --driver netbench-driver-s2n-quic-server
 
 net_client_coord:
-	RUST_LOG=none,orchestrator=debug,russula_cli=info cargo run --bin russula_cli --  \
+	RUST_LOG=none,orchestrator=debug,russula_cli=debug cargo run --bin russula_cli --  \
 					 --russula-port 7001 \
-					 --testing=true \
+					 --testing \
 					 netbench-client-coordinator \
+					 --driver unused
 
 net_client_worker:
-	RUST_LOG=none,orchestrator=debug,russula_cli=info cargo run --bin russula_cli -- \
+	RUST_LOG=none,orchestrator=debug,russula_cli=debug cargo run --bin russula_cli -- \
 					 --russula-port 7001 \
-					 --testing=true \
+					 --testing \
 					 netbench-client-worker \
+					 --driver netbench-driver-s2n-quic-client
 
 report:
 	s2n-netbench report netbench* -o report.json; xclip -sel c < report.json

@@ -75,6 +75,7 @@ async fn main() -> OrchResult<()> {
         .init();
 
     debug!("{:?}", opt);
+    println!("{:?}", opt);
     match &opt.protocol {
         RussulaProtocol::NetbenchServerWorker { ctx } => {
             let netbench_ctx = netbench::Context::new(opt.testing, ctx);
