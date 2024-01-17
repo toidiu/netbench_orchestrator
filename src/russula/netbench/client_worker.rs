@@ -125,6 +125,7 @@ impl Protocol for WorkerProtocol {
                             .args([&driver, "--scenario", &scenario])
                             .stdout(output_json);
                         println!("{:?}", cmd);
+                        debug!("{:?}", cmd);
                         cmd.spawn()
                             .expect("Failed to start netbench client process")
                     }

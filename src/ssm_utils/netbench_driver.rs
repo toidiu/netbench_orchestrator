@@ -19,7 +19,7 @@ pub struct NetbenchDriver {
 
 impl NetbenchDriver {
     pub fn remote_path_to_driver(&self) -> String {
-        format!("{}/{}", STATE.host_bin_path(), self.proj_name)
+        format!("{}/{}", STATE.host_bin_path(), self.driver_name)
     }
 }
 
