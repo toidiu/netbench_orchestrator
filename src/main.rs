@@ -26,25 +26,16 @@ use ssm_utils::*;
 use state::*;
 
 // TODO
-// - get things working using s2n-netbench
-// - reenable testing args for russula_cli
 //
 // - netbench_driver: populate build_cmd for quic
 // - replace common::build_netbench with quic_netbench::build_cmd
 //
-// D- upload source to s3
-// D- download source from s3
-// D- navigate to source and compile
+// - pass netbench_path to russula_cli
+// - pass scenario to russula_cli
+// - pass scenario and path from coord -> worker?
 //
-// D- move rustc to /bin
-// W- pass netbench driver to russula
-//
-// - specify scenario, driver and path to netbench in russula_cli
-//   - pass russula_cli args down to russula
 // - use release build instead of debug
-//
 // - experiment with uploading and downloading netbench exec
-// - experiment with uploading and downloading russula exec
 
 async fn check_requirements(iam_client: &aws_sdk_iam::Client) -> OrchResult<()> {
     // export PATH="/home/toidiu/projects/s2n-quic/netbench/target/release/:$PATH"

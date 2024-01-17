@@ -26,24 +26,24 @@ pub struct ContextArgs {
 
     // The list of Client and Server peers
     #[structopt(long)]
-    pub peer_list: Vec<SocketAddr>,
+    peer_list: Vec<SocketAddr>,
 }
 
 impl ContextArgs {
-    // FIXME directly create Context
-    pub fn for_russula_coordinator(driver_name: &str) -> Self {
+    // FIXME pass scenario and path from coord -> worker?
+    pub fn for_russula_coordinator(driver_name: &str, peer_list: Vec<SocketAddr>) -> Self {
         Self {
             netbench_path: "unused_by_coordinator".into(),
             driver: driver_name.into(),
             scenario: "unused_by_coordinator".to_owned(),
-            peer_list: vec![],
+            peer_list,
         }
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct Context {
-    pub peer_list: Vec<SocketAddr>,
+    peer_list: Vec<SocketAddr>,
     netbench_path: PathBuf,
     driver: String,
     scenario: String,

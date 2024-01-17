@@ -192,8 +192,8 @@ async fn server_coord(infra: &InfraDetail) -> russula::Russula<server::CoordProt
         .collect();
 
     // FIXME directly create Context
-    let mut args = ContextArgs::for_russula_coordinator("netbench-driver-s2n-quic-server");
-    args.peer_list = server_ips.clone();
+    let args =
+        ContextArgs::for_russula_coordinator("netbench-driver-s2n-quic-server", server_ips.clone());
     let protocol = server::CoordProtocol::new(Context::new(false, &args));
     let server_coord = RussulaBuilder::new(
         BTreeSet::from_iter(server_ips),
@@ -215,8 +215,8 @@ async fn client_coord(infra: &InfraDetail) -> russula::Russula<client::CoordProt
         })
         .collect();
 
-    let mut args = ContextArgs::for_russula_coordinator("netbench-driver-s2n-quic-client");
-    args.peer_list = client_ips.clone();
+    let args =
+        ContextArgs::for_russula_coordinator("netbench-driver-s2n-quic-client", client_ips.clone());
     let protocol = client::CoordProtocol::new(Context::new(false, &args));
     let client_coord = RussulaBuilder::new(
         BTreeSet::from_iter(client_ips),
