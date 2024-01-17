@@ -20,7 +20,7 @@ pub struct NetbenchDriver {
 pub fn quic_server_driver(unique_id: &str) -> NetbenchDriver {
     let proj_name = "s2n-netbench".to_string();
     let driver = NetbenchDriver {
-        driver_name: "netbench-driver-s2n-quic-server".to_string(),
+        driver_name: "s2n-netbench-driver-server-s2n-quic".to_string(),
         build_cmd: vec![
             // format!(
             //     "git clone --branch {} {}",
@@ -55,7 +55,7 @@ pub fn quic_server_driver(unique_id: &str) -> NetbenchDriver {
 pub fn quic_client_driver(unique_id: &str) -> NetbenchDriver {
     let name = "todo".to_string();
     let driver = NetbenchDriver {
-        driver_name: "netbench-driver-s2n-quic-client".to_string(),
+        driver_name: "s2n-netbench-driver-client-s2n-quic".to_string(),
         build_cmd: vec![format!("cd {}", name)],
         proj_name: name.clone(),
         local_path_to_proj: None,
@@ -71,7 +71,7 @@ pub fn quic_client_driver(unique_id: &str) -> NetbenchDriver {
 pub fn saltylib_server_driver(unique_id: &str) -> NetbenchDriver {
     let proj_name = "SaltyLib-Rust".to_string();
     let driver = NetbenchDriver {
-        driver_name: "netbench-driver-s2n-quic-dc-server".to_string(),
+        driver_name: "s2n-netbench-driver-s2n-quic-dc-server".to_string(),
         build_cmd: vec![
             // copy s3 to host
             // `aws s3 sync s3://netbenchrunnerlogs/2024-01-09T05:25:30Z-v2.0.1//SaltyLib-Rust/ /home/ec2-user/SaltyLib-Rust`
@@ -107,7 +107,7 @@ pub fn saltylib_server_driver(unique_id: &str) -> NetbenchDriver {
 pub fn saltylib_client_driver(unique_id: &str) -> NetbenchDriver {
     let proj_name = "SaltyLib-Rust".to_string();
     let driver = NetbenchDriver {
-        driver_name: "netbench-driver-s2n-quic-dc-client".to_string(),
+        driver_name: "s2n-netbench-driver-s2n-quic-dc-client".to_string(),
         build_cmd: vec![
             // copy s3 to host
             // `aws s3 sync s3://netbenchrunnerlogs/2024-01-09T05:25:30Z-v2.0.1//SaltyLib-Rust/ /home/ec2-user/SaltyLib-Rust`

@@ -113,7 +113,7 @@ impl Protocol for WorkerProtocol {
                         println!("{} run netbench process", self.name());
 
                         let netbench_path = self.netbench_ctx.netbench_path.to_str().unwrap();
-                        let collector = format!("{}/netbench-collector", netbench_path);
+                        let collector = format!("{}/s2n-netbench-collector", netbench_path);
                         // driver value ex.: netbench-driver-s2n-quic-client
                         let driver = format!("{}/{}", netbench_path, self.netbench_ctx.driver);
                         let scenario = format!("{}/{}", netbench_path, self.netbench_ctx.scenario);
