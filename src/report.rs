@@ -21,6 +21,7 @@ pub async fn orch_generate_report(s3_client: &aws_sdk_s3::Client, unique_id: &st
     cmd.args([
         "s3",
         "sync",
+        "--no-progress",
         &format!("s3://{}/{}", STATE.s3_log_bucket, unique_id),
         tmp_dir,
     ]);
