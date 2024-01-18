@@ -1,5 +1,5 @@
 # -------------------- bin orchestrator
-orch:
+run_orchestrator:
 	RUST_LOG=none,orchestrator=debug cargo run --bin orchestrator
 
 # -------------------- bin russula_cli

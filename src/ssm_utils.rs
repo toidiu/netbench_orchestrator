@@ -19,7 +19,7 @@ pub mod server;
 
 pub enum Step {
     Configure,
-    BuildDriver,
+    BuildDriver(String),
     BuildRussula,
     RunRussula,
     RunNetbench,
@@ -29,10 +29,20 @@ impl Step {
     fn as_str(&self) -> &str {
         match self {
             Step::Configure => "configure",
-            Step::BuildDriver => "build_driver",
+            Step::BuildDriver(_driver_name) => "build_driver",
             Step::BuildRussula => "build_russula",
             Step::RunRussula => "run_russula",
             Step::RunNetbench => "run_netbench",
+        }
+    }
+
+    fn task_detail(&self) -> Option<&str> {
+        match self {
+            Step::Configure => None,
+            Step::BuildDriver(driver_name) => Some(driver_name),
+            Step::BuildRussula => None,
+            Step::RunRussula => None,
+            Step::RunNetbench => None,
         }
     }
 }
@@ -46,26 +56,48 @@ pub async fn send_command(
     ids: Vec<String>,
     commands: Vec<String>,
 ) -> Option<SendCommandOutput> {
-    let mut assemble_command = Vec::new();
-    // wait for previous steps
-    for step in wait_steps {
+    let command = {
+        // SSM doesnt have a concept of order. However, we would still
+        // like to execute commands in parallel. To achieve this we
+        // create files based on the [`Step`] name and poll till the
+        // previous steps has finished.
+        //
+        // For example, the Step::RunRussula step waits for the
+        // Step::BuildRussula and Step::BuildDriver steps to finish.
+        let mut assemble_command = Vec::new();
+
+        // Insert at beginning
+        // wait for previous steps
+        for step in wait_steps {
+            assemble_command.push(format!(
+                "cd /home/ec2-user; until [ -f {}_fin___ ]; do sleep 5; done",
+                step.as_str()
+            ));
+        }
+        // indicate that this step has started
         assemble_command.push(format!(
-            "cd /home/ec2-user; until [ -f {}_fin___ ]; do sleep 5; done",
+            "cd /home/ec2-user; touch {}_start___",
             step.as_str()
         ));
-    }
-    // indicate that this step has started
-    assemble_command.push(format!(
-        "cd /home/ec2-user; touch {}_start___",
-        step.as_str()
-    ));
-    assemble_command.extend(commands);
-    // indicate that this step has finished
-    assemble_command.extend(vec![
-        "cd /home/ec2-user".to_string(),
-        format!("touch {}_fin___", step.as_str()),
-    ]);
-    trace!("{} {:?}", endpoint, assemble_command);
+        if let Some(detail) = step.task_detail() {
+            assemble_command.push(format!(
+                "cd /home/ec2-user; touch {}_{}_start___",
+                step.as_str(),
+                detail
+            ));
+        }
+        assemble_command.extend(commands);
+
+        // Insert at end.
+        // indicate that this step has finished.
+        assemble_command.extend(vec![
+            "cd /home/ec2-user".to_string(),
+            format!("mv {}_start___ {}_fin___", step.as_str(), step.as_str()),
+        ]);
+
+        trace!("{} {:?}", endpoint, assemble_command);
+        assemble_command
+    };
 
     let mut remaining_try_count: u32 = 10;
     loop {
@@ -76,7 +108,7 @@ pub async fn send_command(
             .set_instance_ids(Some(ids.clone()))
             .document_name("AWS-RunShellScript")
             .document_version("$LATEST")
-            .parameters("commands", assemble_command.clone())
+            .parameters("commands", command.clone())
             .cloud_watch_output_config(
                 CloudWatchOutputConfig::builder()
                     .cloud_watch_log_group_name(STATE.cloud_watch_group)

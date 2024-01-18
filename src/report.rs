@@ -12,20 +12,19 @@ use tracing::trace;
 
 pub async fn orch_generate_report(s3_client: &aws_sdk_s3::Client, unique_id: &str) {
     let tmp_dir = TempDir::new(unique_id).unwrap().into_path();
-    std::fs::create_dir(tmp_dir.join("result")).unwrap();
-    std::fs::create_dir(tmp_dir.join("report")).unwrap();
     let tmp_dir = tmp_dir.to_str().unwrap();
 
     // download results from s3 -----------------------
     let mut cmd = Command::new("aws");
-    let output = cmd.args([
-        "s3",
-        "sync",
-        &format!("s3://{}/{}", STATE.s3_log_bucket, unique_id),
-        tmp_dir,
-    ])
-    .output()
-    .unwrap();
+    let output = cmd
+        .args([
+            "s3",
+            "sync",
+            &format!("s3://{}/{}", STATE.s3_log_bucket, unique_id),
+            tmp_dir,
+        ])
+        .output()
+        .unwrap();
     debug!("{:?}", cmd);
     trace!("{:?}", output);
     assert!(cmd.status().expect("aws sync").success(), "aws sync");

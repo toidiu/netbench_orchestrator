@@ -132,7 +132,7 @@ async fn build_netbench_driver_cmd(
 ) -> SendCommandOutput {
     send_command(
         vec![Step::Configure],
-        Step::BuildDriver,
+        Step::BuildDriver(driver.driver_name.clone()),
         host_group,
         &format!("build_driver_{}", driver.proj_name),
         ssm_client,

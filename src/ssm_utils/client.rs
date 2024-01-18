@@ -14,7 +14,7 @@ pub async fn copy_netbench_data(
     unique_id: &str,
 ) -> SendCommandOutput {
     send_command(
-        vec![Step::BuildDriver, Step::RunRussula],
+        vec![Step::RunRussula],
         Step::RunNetbench,
         "client",
         "run_client_netbench",
@@ -43,7 +43,7 @@ pub async fn run_russula_worker(
     netbench_driver: String,
 ) -> SendCommandOutput {
     debug!("{}", peer_sock_addr);
-    send_command(vec![Step::BuildRussula], Step::RunRussula, "client", "run_client_russula", ssm_client, instance_ids, vec![
+    send_command(vec![Step::BuildDriver("".to_string()), Step::BuildRussula], Step::RunRussula, "client", "run_client_russula", ssm_client, instance_ids, vec![
         "cd netbench_orchestrator",
         format!("env RUST_LOG=debug ./target/debug/russula_cli --russula-port {} netbench-client-worker --peer-list {} --driver {}",
                 STATE.russula_port, peer_sock_addr, netbench_driver).as_str(),
