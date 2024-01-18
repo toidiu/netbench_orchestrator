@@ -149,13 +149,15 @@ async fn main() -> OrchResult<()> {
     let salty_client_driver = ssm_utils::saltylib_client_driver(&unique_id);
     let quic_server_driver = ssm_utils::quic_server_driver(&unique_id);
     let quic_client_driver = ssm_utils::quic_client_driver(&unique_id);
+    let tcp_server_driver = ssm_utils::tcp_server_driver(&unique_id);
+    let tcp_client_driver = ssm_utils::tcp_client_driver(&unique_id);
     // configure and build
     {
         let mut build_cmds = ssm_utils::common::collect_config_cmds(
             "server",
             &ssm_client,
             server_ids.clone(),
-            &[&salty_server_driver, &quic_server_driver],
+            &[&salty_server_driver, &quic_server_driver, &tcp_server_driver],
             &unique_id,
         )
         .await;
@@ -163,7 +165,7 @@ async fn main() -> OrchResult<()> {
             "client",
             &ssm_client,
             client_ids.clone(),
-            &[&salty_client_driver, &quic_client_driver],
+            &[&salty_client_driver, &quic_client_driver, &tcp_client_driver],
             &unique_id,
         )
         .await;
@@ -186,7 +188,8 @@ async fn main() -> OrchResult<()> {
             server_ids.clone(),
             &client.ip,
             // quic_server_driver,
-            salty_server_driver,
+            // salty_server_driver,
+            tcp_server_driver
         )
         .await;
         let mut client_russula = coordination_utils::ClientNetbenchRussula::new(
@@ -195,7 +198,8 @@ async fn main() -> OrchResult<()> {
             client_ids.clone(),
             &server.ip,
             // quic_client_driver,
-            salty_client_driver,
+            // salty_client_driver,
+            tcp_client_driver
         )
         .await;
 
