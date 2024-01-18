@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use aws_sdk_s3 as s3;
-use aws_sdk_s3::error::SdkError;
-use aws_sdk_s3::operation::get_object::GetObjectError;
-use aws_sdk_s3::operation::get_object::GetObjectOutput;
-use aws_sdk_s3::operation::put_object::PutObjectError;
-use aws_sdk_s3::operation::put_object::PutObjectOutput;
-use std::fs::File;
-use std::io::prelude::*;
-use std::path::Path;
+use aws_sdk_s3::{
+    error::SdkError,
+    operation::{
+        get_object::{GetObjectError, GetObjectOutput},
+        put_object::{PutObjectError, PutObjectOutput},
+    },
+};
+use std::{fs::File, io::prelude::*, path::Path};
 use tokio_stream::StreamExt;
 
 pub async fn download_object_to_file<P: AsRef<Path>>(

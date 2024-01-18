@@ -1,14 +1,11 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::s3_utils::*;
-use crate::state::*;
+use crate::{s3_utils::*, state::*};
 use aws_sdk_s3::primitives::{ByteStream, SdkBody};
 use std::process::Command;
 use tempdir::TempDir;
-use tracing::debug;
-use tracing::info;
-use tracing::trace;
+use tracing::{debug, info, trace};
 
 pub async fn orch_generate_report(s3_client: &aws_sdk_s3::Client, unique_id: &str) {
     let tmp_dir = TempDir::new(unique_id).unwrap().into_path();

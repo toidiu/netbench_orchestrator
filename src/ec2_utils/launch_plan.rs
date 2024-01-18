@@ -1,13 +1,15 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::ec2_utils::instance::launch_instance;
-use crate::ec2_utils::instance::{EndpointType, InstanceDetail};
-use crate::ec2_utils::poll_state;
-use crate::error::{OrchError, OrchResult};
-use crate::state::HostCount;
-use crate::InfraDetail;
-use crate::STATE;
+use crate::{
+    ec2_utils::{
+        instance::{launch_instance, EndpointType, InstanceDetail},
+        poll_state,
+    },
+    error::{OrchError, OrchResult},
+    state::HostCount,
+    InfraDetail, STATE,
+};
 use aws_sdk_ec2::types::{
     Filter, InstanceStateName, IpPermission, IpRange, ResourceType, TagSpecification,
 };
