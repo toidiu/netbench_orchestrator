@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #![allow(dead_code)]
-use crate::{netbench_driver::NetbenchDriver, report::orch_generate_report};
+use crate::report::orch_generate_report;
 use aws_types::region::Region;
 use error::{OrchError, OrchResult};
 use std::process::Command;
@@ -145,10 +145,10 @@ async fn main() -> OrchResult<()> {
     .await?;
 
     // custom driver
-    let salty_server_driver = netbench_driver::saltylib_server_driver(&unique_id);
-    let salty_client_driver = netbench_driver::saltylib_client_driver(&unique_id);
-    let quic_server_driver = netbench_driver::quic_server_driver(&unique_id);
-    let quic_client_driver = netbench_driver::quic_client_driver(&unique_id);
+    let salty_server_driver = ssm_utils::saltylib_server_driver(&unique_id);
+    let salty_client_driver = ssm_utils::saltylib_client_driver(&unique_id);
+    let quic_server_driver = ssm_utils::quic_server_driver(&unique_id);
+    let quic_client_driver = ssm_utils::quic_client_driver(&unique_id);
     // configure and build
     {
         let mut build_cmds = ssm_utils::common::collect_config_cmds(

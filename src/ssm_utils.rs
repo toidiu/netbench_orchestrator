@@ -14,8 +14,10 @@ use tracing::{debug, trace};
 
 pub mod client;
 pub mod common;
-pub mod netbench_driver;
+mod netbench_driver;
 pub mod server;
+
+pub use netbench_driver::*;
 
 pub enum Step {
     Configure,
