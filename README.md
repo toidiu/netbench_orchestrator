@@ -24,7 +24,7 @@ Netbench runs in the cloud.
 git clone git@github.com:toidiu/netbench_orchestrator.git && cd netbench_orchestrator
 
 # Run the orchestrator
-make orch
+make run_orchestrator
 ```
 
 ## Implementation details
