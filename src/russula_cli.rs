@@ -30,7 +30,9 @@ struct Opt {
     // The Worker gets its own addr to 'listen' on.
     #[structopt(long)]
     russula_port: u16,
-
+    // FIXME replace russula_port with this.
+    // workers get '0.0.0.0:port' and coord get 'x.x.x.x:port'; x can be 0 if testing locally
+    // russula_pair_addr_list: Vec<SocketAddr>
     #[structopt(long, parse(try_from_str=parse_duration), default_value = "5s")]
     poll_delay: Duration,
 
@@ -178,6 +180,8 @@ async fn run_client_coordinator(opt: Opt, netbench_ctx: netbench::Context) {
         .unwrap();
 }
 
+// FIXME this only works for local runs.. coordinators attempting to connect to remote workers need
+// an arg
 fn russula_addr(port: u16) -> SocketAddr {
     format!("0.0.0.0:{}", port).parse().unwrap()
 }

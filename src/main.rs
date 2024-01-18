@@ -30,10 +30,13 @@ use state::*;
 // - netbench_driver: populate build_cmd for quic
 // - replace common::build_netbench with quic_netbench::build_cmd
 //
+// # Expanding Russula/Cli
 // - pass netbench_path to russula_cli
 // - pass scenario to russula_cli
 // - pass scenario and path from coord -> worker?
+// - replace russula_cli russula_port with russula_pair_addr_list
 //
+// # Optimization
 // - use release build instead of debug
 // - experiment with uploading and downloading netbench exec
 
