@@ -68,6 +68,11 @@ pub async fn send_command(
 
         // Insert at beginning
         // wait for previous steps
+        //
+        // FIXME this doesnt work if more than one task share the same step. Multiple BuildDriver
+        // for example. Instead wait for ALL sub-tasks to finish: `for {}_*_start; wait `.
+        // This is not an issue now since the driver build and russula run are not run in
+        // parallel.
         for step in wait_steps {
             assemble_command.push(format!(
                 "cd /home/ec2-user; until [ -f {}_fin___ ]; do sleep 5; done",
