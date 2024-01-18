@@ -14,7 +14,7 @@ pub async fn copy_netbench_data(
     unique_id: &str,
 ) -> SendCommandOutput {
     send_command(
-        vec![Step::BuildNetbench, Step::RunRussula],
+        vec![Step::BuildDriver, Step::RunRussula],
         Step::RunNetbench,
         "client",
         "run_client_netbench",

@@ -30,6 +30,8 @@ use state::*;
 // - netbench_driver: populate build_cmd for quic
 // - replace common::build_netbench with quic_netbench::build_cmd
 //
+// - save netbench output to different named files instead of server.json/client.json
+//
 // # Expanding Russula/Cli
 // - pass netbench_path to russula_cli
 // - pass scenario to russula_cli

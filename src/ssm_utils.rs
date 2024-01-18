@@ -21,7 +21,6 @@ pub enum Step {
     Configure,
     BuildDriver,
     BuildRussula,
-    BuildNetbench,
     RunRussula,
     RunNetbench,
 }
@@ -32,7 +31,6 @@ impl Step {
             Step::Configure => "configure",
             Step::BuildDriver => "build_driver",
             Step::BuildRussula => "build_russula",
-            Step::BuildNetbench => "build_netbench",
             Step::RunRussula => "run_russula",
             Step::RunNetbench => "run_netbench",
         }
