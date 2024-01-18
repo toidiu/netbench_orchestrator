@@ -18,14 +18,16 @@ pub async fn orch_generate_report(s3_client: &aws_sdk_s3::Client, unique_id: &st
 
     // download results from s3 -----------------------
     let mut cmd = Command::new("aws");
-    cmd.args([
+    let output = cmd.args([
         "s3",
         "sync",
-        "--no-progress",
         &format!("s3://{}/{}", STATE.s3_log_bucket, unique_id),
         tmp_dir,
-    ]);
+    ])
+    .output()
+    .unwrap();
     debug!("{:?}", cmd);
+    trace!("{:?}", output);
     assert!(cmd.status().expect("aws sync").success(), "aws sync");
 
     // CLI ---------------------------

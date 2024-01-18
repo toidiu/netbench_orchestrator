@@ -92,7 +92,7 @@ pub fn quic_client_driver(unique_id: &str) -> NetbenchDriver {
 pub fn saltylib_server_driver(unique_id: &str) -> NetbenchDriver {
     let proj_name = "SaltyLib-Rust".to_string();
     let driver = NetbenchDriver {
-        driver_name: "s2n-netbench-driver-s2n-quic-dc-server".to_string(),
+        driver_name: "s2n-netbench-driver-server-s2n-quic-dc".to_string(),
         ssm_build_cmd: vec![
             // copy s3 to host: `aws s3 sync s3://netbenchrunnerlogs/2024-01-09T05:25:30Z-v2.0.1//SaltyLib-Rust/ /home/ec2-user/SaltyLib-Rust`
             format!(
@@ -128,7 +128,7 @@ pub fn saltylib_server_driver(unique_id: &str) -> NetbenchDriver {
 pub fn saltylib_client_driver(unique_id: &str) -> NetbenchDriver {
     let proj_name = "SaltyLib-Rust".to_string();
     let driver = NetbenchDriver {
-        driver_name: "s2n-netbench-driver-s2n-quic-dc-client".to_string(),
+        driver_name: "s2n-netbench-driver-client-s2n-quic-dc".to_string(),
         ssm_build_cmd: vec![
             // copy s3 to host
             // `aws s3 sync s3://netbenchrunnerlogs/2024-01-09T05:25:30Z-v2.0.1//SaltyLib-Rust/ /home/ec2-user/SaltyLib-Rust`
