@@ -185,7 +185,8 @@ async fn main() -> OrchResult<()> {
             &infra,
             server_ids.clone(),
             &client.ip,
-            quic_server_driver,
+            // quic_server_driver,
+            salty_server_driver,
         )
         .await;
         let mut client_russula = coordination_utils::ClientNetbenchRussula::new(
@@ -193,7 +194,8 @@ async fn main() -> OrchResult<()> {
             &infra,
             client_ids.clone(),
             &server.ip,
-            quic_client_driver,
+            // quic_client_driver,
+            salty_client_driver,
         )
         .await;
 
