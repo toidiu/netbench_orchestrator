@@ -61,31 +61,31 @@ pub async fn collect_config_cmds(
     host_group: &str,
     ssm_client: &aws_sdk_ssm::Client,
     instance_ids: Vec<String>,
-    driver: &NetbenchDriver,
+    netbench_drivers: &[&NetbenchDriver],
     unique_id: &str,
 ) -> Vec<SendCommandOutput> {
     // configure and build
     let install_deps =
         install_deps_cmd(host_group, ssm_client, instance_ids.clone(), unique_id).await;
 
-    let build_driver = build_custom_driver_cmd(
-        host_group,
-        driver,
-        ssm_client,
-        instance_ids.clone(),
-        unique_id,
-    )
-    .await;
+    let mut build_drivers = Vec::new();
+    for driver in netbench_drivers {
+        let build_driver_cmd = build_netbench_driver_cmd(
+            host_group,
+            driver,
+            ssm_client,
+            instance_ids.clone(),
+            unique_id,
+        )
+        .await;
+        build_drivers.push(build_driver_cmd);
+    }
     let build_russula = build_russula_cmd(host_group, ssm_client, instance_ids.clone()).await;
-    let build_client_netbench =
-        build_netbench_cmd(host_group, ssm_client, instance_ids.clone(), unique_id).await;
 
-    vec![
-        install_deps,
-        build_driver,
-        build_russula,
-        build_client_netbench,
-    ]
+    vec![install_deps, build_russula]
+        .into_iter()
+        .chain(build_drivers)
+        .collect()
 }
 
 async fn install_deps_cmd(
@@ -123,7 +123,7 @@ async fn install_deps_cmd(
     ]).await.expect("Timed out")
 }
 
-async fn build_custom_driver_cmd(
+async fn build_netbench_driver_cmd(
     host_group: &str,
     driver: &NetbenchDriver,
     ssm_client: &aws_sdk_ssm::Client,
@@ -149,7 +149,7 @@ async fn build_custom_driver_cmd(
             ),
         ]
         .into_iter()
-        .chain(driver.build_cmd.clone().into_iter())
+        .chain(driver.ssm_build_cmd.clone().into_iter())
         .map(String::from)
         .collect(),
     )
@@ -184,37 +184,4 @@ async fn build_russula_cmd(
     )
     .await
     .expect("Timed out")
-}
-
-async fn build_netbench_cmd(
-    host_group: &str,
-    ssm_client: &aws_sdk_ssm::Client,
-    instance_ids: Vec<String>,
-    unique_id: &str,
-) -> SendCommandOutput {
-    send_command(
-        vec![Step::Configure],
-        Step::BuildNetbench,
-        host_group,
-        &format!("build_netbench_{}", host_group),
-        ssm_client, instance_ids,
-        vec![
-        format!("git clone --branch {} {}", STATE.netbench_branch, STATE.netbench_repo),
-        format!("cd s2n-netbench"),
-
-        format!("echo clone_netbench > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/{}-step-4", STATE.s3_path(unique_id), host_group),
-
-        // copy scenario file to host
-        format!("aws s3 cp s3://{}/{}/request_response.json {}/request_response.json", STATE.s3_log_bucket, STATE.s3_resource_folder, STATE.host_bin_path()),
-        format!("echo downloaded_scenario_file > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/{}-step-5", STATE.s3_path(unique_id), host_group),
-
-
-        format!("{}/cargo build --release", STATE.host_bin_path()),
-        // copy netbench executables to ~/bin folder. the double `{{}}` is used for the find
-        format!("find target/release -maxdepth 1 -type f -perm /a+x -exec cp {{}} {} \\;", STATE.host_bin_path()),
-        format!("echo cargo build finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/{}-step-6", STATE.s3_path(unique_id), host_group),
-
-        // "mkdir -p target/netbench".to_string(),
-        // "cp /home/ec2-user/request_response.json target/netbench/request_response.json".to_string(),
-    ]).await.expect("Timed out")
 }

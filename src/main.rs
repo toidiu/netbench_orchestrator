@@ -153,7 +153,7 @@ async fn main() -> OrchResult<()> {
             "server",
             &ssm_client,
             server_ids.clone(),
-            &salty_server_driver,
+            &[&salty_server_driver, &quic_server_driver],
             &unique_id,
         )
         .await;
@@ -161,7 +161,7 @@ async fn main() -> OrchResult<()> {
             "client",
             &ssm_client,
             client_ids.clone(),
-            &salty_client_driver,
+            &[&salty_client_driver, &quic_client_driver],
             &unique_id,
         )
         .await;
