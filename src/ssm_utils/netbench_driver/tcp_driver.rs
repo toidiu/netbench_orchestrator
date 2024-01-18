@@ -9,6 +9,8 @@ pub fn tcp_server_driver(unique_id: &str) -> NetbenchDriver {
     let driver = NetbenchDriver {
         driver_name: "s2n-netbench-driver-server-tcp".to_string(),
         ssm_build_cmd: vec![
+            // FIXME this completes immediately.. possibly because it contends with the s2n-quic
+            // driver
             format!(
                 "git clone --branch {} {}",
                 STATE.netbench_branch, STATE.netbench_repo

@@ -68,39 +68,49 @@ pub async fn send_command(
         // Step::BuildRussula and Step::BuildDriver steps to finish.
         let mut assemble_command = Vec::new();
 
-        // Insert at beginning
-        // wait for previous steps
+        // Insert at beginning of user provided commands
         //
-        // FIXME this doesnt work if more than one task share the same step. Multiple BuildDriver
+        // FIXME: use `for entry in ./start_build_driver*; do echo "$entry"; done`
+        // this doesnt work if more than one task share the same step. Multiple BuildDriver
         // for example. Instead wait for ALL sub-tasks to finish: `for {}_*_start; wait `.
         // This is not an issue now since the driver build and russula run are not run in
         // parallel.
         for step in wait_steps {
+            // wait for previous steps
             assemble_command.push(format!(
-                "cd /home/ec2-user; until [ -f {}_fin___ ]; do sleep 5; done",
+                "cd /home/ec2-user; until [ -f fin_{}___ ]; do sleep 5; done",
                 step.as_str()
             ));
         }
         // indicate that this step has started
         assemble_command.push(format!(
-            "cd /home/ec2-user; touch {}_start___",
+            "cd /home/ec2-user; touch start_{}___",
             step.as_str()
         ));
         if let Some(detail) = step.task_detail() {
             assemble_command.push(format!(
-                "cd /home/ec2-user; touch {}_{}_start___",
+                "cd /home/ec2-user; touch start_{}_{}___",
                 step.as_str(),
                 detail
             ));
         }
         assemble_command.extend(commands);
 
-        // Insert at end.
+        // Insert at end of user provided commands
         // indicate that this step has finished.
         assemble_command.extend(vec![
             "cd /home/ec2-user".to_string(),
-            format!("mv {}_start___ {}_fin___", step.as_str(), step.as_str()),
+            format!("mv start_{}___ fin_{}___", step.as_str(), step.as_str()),
         ]);
+        if let Some(detail) = step.task_detail() {
+            assemble_command.push(format!(
+                "cd /home/ec2-user; mv start_{}_{}___ fin_{}_{}___",
+                step.as_str(),
+                detail,
+                step.as_str(),
+                detail
+            ));
+        }
 
         trace!("{} {:?}", endpoint, assemble_command);
         assemble_command
