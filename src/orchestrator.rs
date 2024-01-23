@@ -14,13 +14,13 @@ use tracing::info;
 
 // TODO
 // D- clap app
-// W- upload request_response.json
-// - get STATE config from scenario.json
+// D- upload request_response.json
+// D- get STATE config from scenario.json
 // - save netbench output to different named files instead of server.json/client.json
 //
 // # Expanding Russula/Cli
+// D- pass scenario to russula_cli
 // - pass netbench_path to russula_cli
-// - pass scenario to russula_cli
 // - pass scenario and path from coord -> worker?
 // - replace russula_cli russula_port with russula_pair_addr_list
 //
