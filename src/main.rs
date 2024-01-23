@@ -5,7 +5,7 @@
 use aws_types::region::Region;
 use clap::Parser;
 use error::{OrchError, OrchResult};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use serde_json::Value;
 use std::{
     fs::File,
@@ -62,37 +62,34 @@ async fn main() -> OrchResult<()> {
 
     let region = Region::new(STATE.region);
     let aws_config = aws_config::from_env().region(region).load().await;
-    check_requirements(&args, &aws_config).await?;
+    let scenario = check_requirements(&args, &aws_config).await?;
 
-    orchestrator::run(args, &aws_config).await
+    orchestrator::run(args, scenario, &aws_config).await
 }
 
-async fn check_requirements(args: &Args, aws_config: &aws_types::SdkConfig) -> OrchResult<()> {
-    if !Path::new(&args.scenario_file).exists() {
-        return Err(OrchError::Init {
-            dbg: "Scenario file doesn't exist".to_string(),
-        });
-    }
+async fn check_requirements(
+    args: &Args,
+    aws_config: &aws_types::SdkConfig,
+) -> OrchResult<Scenario> {
     let path = Path::new(&args.scenario_file);
-    path.file_name()
-        .map(|f| f.to_str())
+    let name = path
+        .file_name()
+        .and_then(|f| f.to_str())
         .ok_or(OrchError::Init {
             dbg: "Scenario file not specified".to_string(),
-        })?;
+        })?
+        .to_string();
     let scenario_file = File::open(path).map_err(|_err| OrchError::Init {
         dbg: "Scenario file not specified".to_string(),
     })?;
-    let Scenario { clients, servers } = serde_json::from_reader(scenario_file).unwrap();
-    println!("{} {}", clients.len(), servers.len());
+    let scenario: NetbenchScenario = serde_json::from_reader(scenario_file).unwrap();
 
-    // let _scenario_name = args
-    //     .scenario_file
-    //     .as_path()
-    //     .file_name()
-    //     .map(|f| f.to_str())
-    //     .ok_or(OrchError::Init {
-    //         dbg: "Scenario file not specified".to_string(),
-    //     })?;
+    let ctx = Scenario {
+        name,
+        path: args.scenario_file.clone(),
+        clients: scenario.clients.len(),
+        servers: scenario.servers.len(),
+    };
 
     // export PATH="/home/toidiu/projects/s2n-quic/netbench/target/release/:$PATH"
     Command::new("s2n-netbench")
@@ -122,12 +119,12 @@ async fn check_requirements(args: &Args, aws_config: &aws_types::SdkConfig) -> O
             dbg: "Missing AWS credentials.".to_string(),
         })?;
 
-    Ok(())
+    Ok(ctx)
 }
 
 // FIXME get from netbench project
-#[derive(Clone, Debug, Default, Deserialize, Serialize)]
-pub struct Scenario {
+#[derive(Clone, Debug, Default, Deserialize)]
+struct NetbenchScenario {
     // pub id: Id,
     pub clients: Vec<Value>,
     pub servers: Vec<Value>,
@@ -137,4 +134,12 @@ pub struct Scenario {
     // pub traces: Arc<Vec<String>>,
     // #[serde(skip_serializing_if = "Vec::is_empty", default)]
     // pub certificates: Vec<Arc<Certificate>>,
+}
+
+#[derive(Clone, Debug)]
+pub struct Scenario {
+    path: PathBuf,
+    clients: usize,
+    servers: usize,
+    name: String,
 }

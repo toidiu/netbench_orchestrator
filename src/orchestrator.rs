@@ -6,7 +6,7 @@ use crate::{
     ec2_utils::LaunchPlan,
     error::{OrchError, OrchResult},
     report::orch_generate_report,
-    ssm_utils, update_dashboard, upload_object, Args, STATE,
+    ssm_utils, update_dashboard, upload_object, Args, Scenario, STATE,
 };
 use aws_sdk_s3::primitives::ByteStream;
 use aws_types::region::Region;
@@ -28,7 +28,11 @@ use tracing::info;
 // - use release build instead of debug
 // - experiment with uploading and downloading netbench exec
 
-pub async fn run(args: Args, aws_config: &aws_types::SdkConfig) -> OrchResult<()> {
+pub async fn run(
+    _args: Args,
+    scenario: Scenario,
+    aws_config: &aws_types::SdkConfig,
+) -> OrchResult<()> {
     let iam_client = aws_sdk_iam::Client::new(aws_config);
     let s3_client = aws_sdk_s3::Client::new(aws_config);
     let orch_provider_vpc = Region::new(STATE.vpc_region);
@@ -45,14 +49,7 @@ pub async fn run(args: Args, aws_config: &aws_types::SdkConfig) -> OrchResult<()
         STATE.version
     );
 
-    let scenario_name = args
-        .scenario_file
-        .as_path()
-        .file_name()
-        .expect("scenario file checked at validation")
-        .to_str()
-        .unwrap();
-    let scenario_file = ByteStream::from_path(args.scenario_file.as_path())
+    let scenario_file = ByteStream::from_path(scenario.path.as_path())
         .await
         .map_err(|err| OrchError::Init {
             dbg: err.to_string(),
@@ -61,7 +58,7 @@ pub async fn run(args: Args, aws_config: &aws_types::SdkConfig) -> OrchResult<()
         &s3_client,
         STATE.s3_log_bucket,
         scenario_file,
-        &format!("{unique_id}/{scenario_name}"),
+        &format!("{unique_id}/{}", scenario.name),
     )
     .await
     .unwrap();
