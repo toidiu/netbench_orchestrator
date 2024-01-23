@@ -7,15 +7,22 @@ use core::time::Duration;
 pub const STATE: State = State {
     version: "v2.0.9",
 
+    // TODO get from scenario --------------
+    host_count: HostCount {
+        clients: 1,
+        servers: 1,
+    },
+    // TODO remove `vpc_region` and configure vpc/subnet in same `region`
+    region: "us-west-1",
+    vpc_region: "us-east-1",
+    instance_type: "c5.4xlarge",
+    // TODO get from scenario --------------
+
     // netbench
     netbench_repo: "https://github.com/aws/s2n-netbench.git",
     netbench_branch: "main",
 
     // orchestrator
-    host_count: HostCount {
-        clients: 1,
-        servers: 1,
-    },
     host_home_path: "/home/ec2-user",
     workspace_dir: "./target/netbench",
     shutdown_min: 120, // 1 hour
@@ -33,10 +40,6 @@ pub const STATE: State = State {
     s3_resource_folder: "TS",
     cloudfront_url: "http://d2jusruq1ilhjs.cloudfront.net",
     cloud_watch_group: "netbench_runner_logs",
-    // TODO remove `vpc_region` and configure vpc/subnet in same `region`
-    region: "us-west-1",
-    vpc_region: "us-east-1",
-    instance_type: "c5.4xlarge",
     // Used to give permissions to the ec2 instance. Part of the IAM Role `NetbenchRunnerRole`
     instance_profile: "NetbenchRunnerInstanceProfile",
     // Used to find subnets with the following tag/value pair
@@ -50,12 +53,20 @@ pub const STATE: State = State {
 
 pub struct State {
     pub version: &'static str,
+
+    // TODO get from scenario --------------
+    pub host_count: HostCount,
+    pub region: &'static str,
+    // TODO we shouldnt need two different regions. create infra in the single region
+    pub vpc_region: &'static str,
+    pub instance_type: &'static str,
+    // TODO get from scenario --------------
+
     // netbench
     pub netbench_repo: &'static str,
     pub netbench_branch: &'static str,
 
     // orchestrator
-    pub host_count: HostCount,
     pub host_home_path: &'static str,
     pub workspace_dir: &'static str,
     pub shutdown_min: u16,
@@ -72,10 +83,6 @@ pub struct State {
     pub s3_resource_folder: &'static str,
     pub cloudfront_url: &'static str,
     pub cloud_watch_group: &'static str,
-    pub region: &'static str,
-    // TODO we shouldnt need two different regions. create infra in the single region
-    pub vpc_region: &'static str,
-    pub instance_type: &'static str,
     pub instance_profile: &'static str,
     pub subnet_tag_value: (&'static str, &'static str),
     pub ssh_key_name: &'static str,
