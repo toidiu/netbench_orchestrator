@@ -1,6 +1,6 @@
 # -------------------- bin orchestrator
 run_orchestrator:
-	RUST_LOG=none,orchestrator=debug cargo run --bin orchestrator
+	RUST_LOG=none,orchestrator::russula=info,orchestrator=debug cargo run --bin orchestrator
 
 # -------------------- bin russula_cli
 net_server_coord:
