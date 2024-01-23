@@ -31,7 +31,6 @@ pub const STATE: State = State {
 
     // aws
     s3_log_bucket: "netbenchrunnerlogs",
-    // TODO contains request_response.json but that should just come from the orchestrator
     s3_resource_folder: "TS",
     cloudfront_url: "http://d2jusruq1ilhjs.cloudfront.net",
     cloud_watch_group: "netbench_runner_logs",

@@ -13,9 +13,9 @@ use aws_types::region::Region;
 use tracing::info;
 
 // TODO
-// - clap app
-// - upload request_response.json
-// - get STATE config from infra.json and scenario.json
+// D- clap app
+// W- upload request_response.json
+// - get STATE config from scenario.json
 // - save netbench output to different named files instead of server.json/client.json
 //
 // # Expanding Russula/Cli
@@ -184,6 +184,7 @@ pub async fn run(
             server_ids.clone(),
             &client.ip,
             &unique_id,
+            &scenario,
         )
         .await;
         let copy_client_netbench = ssm_utils::client::copy_netbench_data(
@@ -191,6 +192,7 @@ pub async fn run(
             client_ids.clone(),
             &server.ip,
             &unique_id,
+            &scenario,
         )
         .await;
         ssm_utils::common::wait_complete(

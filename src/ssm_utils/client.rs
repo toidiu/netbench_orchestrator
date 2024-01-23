@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::{send_command, Step};
-use crate::state::STATE;
+use crate::{state::STATE, Scenario};
 use aws_sdk_ssm::operation::send_command::SendCommandOutput;
 use std::net::SocketAddr;
 use tracing::debug;
@@ -12,6 +12,7 @@ pub async fn copy_netbench_data(
     instance_ids: Vec<String>,
     _server_ip: &str,
     unique_id: &str,
+    scenario: &Scenario,
 ) -> SendCommandOutput {
     send_command(
         vec![Step::RunRussula],
@@ -23,8 +24,9 @@ pub async fn copy_netbench_data(
         vec![
             "cd netbench_orchestrator",
             format!(
-                "aws s3 cp client.json {}/results/request_response/s2n-quic/",
-                STATE.s3_path(unique_id)
+                "aws s3 cp client.json {}/results/{}/s2n-quic/",
+                STATE.s3_path(unique_id),
+                scenario.file_stem()
             )
             .as_str(),
         ]

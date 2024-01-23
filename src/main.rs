@@ -138,8 +138,19 @@ struct NetbenchScenario {
 
 #[derive(Clone, Debug)]
 pub struct Scenario {
+    name: String,
     path: PathBuf,
     clients: usize,
     servers: usize,
-    name: String,
+}
+
+impl Scenario {
+    pub fn file_stem(&self) -> &str {
+        self.path
+            .as_path()
+            .file_stem()
+            .expect("expect scenario file")
+            .to_str()
+            .unwrap()
+    }
 }
