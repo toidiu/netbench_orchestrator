@@ -43,11 +43,12 @@ pub async fn run_russula_worker(
     instance_ids: Vec<String>,
     peer_sock_addr: SocketAddr,
     netbench_driver: String,
+    scenario: &Scenario,
 ) -> SendCommandOutput {
     debug!("{}", peer_sock_addr);
     send_command(vec![Step::BuildDriver("".to_string()), Step::BuildRussula], Step::RunRussula, "client", "run_client_russula", ssm_client, instance_ids, vec![
         "cd netbench_orchestrator",
-        format!("env RUST_LOG=debug ./target/debug/russula_cli --russula-port {} netbench-client-worker --peer-list {} --driver {}",
-                STATE.russula_port, peer_sock_addr, netbench_driver).as_str(),
+        format!("env RUST_LOG=debug ./target/debug/russula_cli --russula-port {} netbench-client-worker --peer-list {peer_sock_addr} --driver {netbench_driver} --scenario {}",
+                STATE.russula_port, scenario.name).as_str(),
     ].into_iter().map(String::from).collect()).await.expect("Timed out")
 }

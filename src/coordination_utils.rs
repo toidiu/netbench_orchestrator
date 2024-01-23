@@ -9,7 +9,7 @@ use crate::{
         netbench::{client, server, Context, ContextArgs},
         RussulaBuilder,
     },
-    ssm_utils, NetbenchDriver, STATE,
+    ssm_utils, NetbenchDriver, Scenario, STATE,
 };
 use aws_sdk_ssm::operation::send_command::SendCommandOutput;
 use core::time::Duration;
@@ -27,6 +27,7 @@ impl ServerNetbenchRussula {
         infra: &InfraDetail,
         instance_ids: Vec<String>,
         client_ips: &str,
+        scenario: &Scenario,
         driver: NetbenchDriver,
     ) -> Self {
         // server run commands
@@ -38,6 +39,7 @@ impl ServerNetbenchRussula {
             instance_ids,
             peer_sock_addr,
             driver.driver_name,
+            scenario,
         )
         .await;
 
@@ -129,6 +131,7 @@ impl ClientNetbenchRussula {
         infra: &InfraDetail,
         instance_ids: Vec<String>,
         server_ips: &str,
+        scenario: &Scenario,
         driver: NetbenchDriver,
     ) -> Self {
         // client run commands
@@ -140,6 +143,7 @@ impl ClientNetbenchRussula {
             instance_ids,
             peer_sock_addr,
             driver.driver_name,
+            scenario,
         )
         .await;
 

@@ -193,13 +193,6 @@ impl Protocol for WorkerProtocol {
                         "Process COMPLETED! pid: {} ----------------------------",
                         pid
                     );
-                    // FIXME get this
-                    // format!("aws s3 cp client.json {}/results/request_response/s2n-quic", STATE.s3_path(unique_id));
-                    // Command::new("sh")
-                    //     .args([])
-                    //     .spawn()
-                    //     .expect("Upload netbench result")
-                    //     .wait_with_output();
 
                     self.state_mut()
                         .transition_self_or_user_driven(stream)

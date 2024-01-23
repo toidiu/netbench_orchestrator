@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::{local_upload_source_to_s3, NetbenchDriver};
-use crate::STATE;
+use crate::{Scenario, STATE};
 
-pub fn tcp_server_driver(unique_id: &str) -> NetbenchDriver {
+pub fn tcp_server_driver(unique_id: &str, scenario: &Scenario) -> NetbenchDriver {
     let proj_name = "s2n-netbench".to_string();
     let driver = NetbenchDriver {
         driver_name: "s2n-netbench-driver-server-tcp".to_string(),
@@ -24,10 +24,13 @@ pub fn tcp_server_driver(unique_id: &str) -> NetbenchDriver {
             ),
             // copy scenario file to host
             format!(
-                "aws s3 cp s3://{}/{}/request_response.json {}/request_response.json",
+                "aws s3 cp s3://{}/{unique_id}/{} {}/{}",
+                // from
                 STATE.s3_log_bucket,
-                STATE.s3_resource_folder,
-                STATE.host_bin_path()
+                scenario.name,
+                // to
+                STATE.host_bin_path(),
+                scenario.name
             ),
         ],
         proj_name,
@@ -41,7 +44,7 @@ pub fn tcp_server_driver(unique_id: &str) -> NetbenchDriver {
     driver
 }
 
-pub fn tcp_client_driver(unique_id: &str) -> NetbenchDriver {
+pub fn tcp_client_driver(unique_id: &str, scenario: &Scenario) -> NetbenchDriver {
     let proj_name = "s2n-netbench".to_string();
     let driver = NetbenchDriver {
         driver_name: "s2n-netbench-driver-client-tcp".to_string(),
@@ -59,10 +62,13 @@ pub fn tcp_client_driver(unique_id: &str) -> NetbenchDriver {
             ),
             // copy scenario file to host
             format!(
-                "aws s3 cp s3://{}/{}/request_response.json {}/request_response.json",
+                "aws s3 cp s3://{}/{unique_id}/{} {}/{}",
+                // from
                 STATE.s3_log_bucket,
-                STATE.s3_resource_folder,
-                STATE.host_bin_path()
+                scenario.name,
+                // to
+                STATE.host_bin_path(),
+                scenario.name
             ),
         ],
         proj_name,
