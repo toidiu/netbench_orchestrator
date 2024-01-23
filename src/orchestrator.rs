@@ -70,6 +70,12 @@ pub async fn run(
         .await
         .launch(&ec2_client, &unique_id)
         .await?;
+    let _clients: Vec<String> = infra
+        .clients
+        .iter()
+        .map(|instance| instance.ip.clone())
+        .collect();
+    // FIXME
     let client = &infra.clients[0];
     let server = &infra.servers[0];
     let client_ids: Vec<String> = infra
@@ -184,7 +190,6 @@ pub async fn run(
         let copy_server_netbench = ssm_utils::server::copy_netbench_data(
             &ssm_client,
             server_ids.clone(),
-            &client.ip,
             &unique_id,
             &scenario,
         )
@@ -192,7 +197,6 @@ pub async fn run(
         let copy_client_netbench = ssm_utils::client::copy_netbench_data(
             &ssm_client,
             client_ids.clone(),
-            &server.ip,
             &unique_id,
             &scenario,
         )

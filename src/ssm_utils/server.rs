@@ -10,7 +10,6 @@ use tracing::debug;
 pub async fn copy_netbench_data(
     ssm_client: &aws_sdk_ssm::Client,
     instance_ids: Vec<String>,
-    _client_ip: &str,
     unique_id: &str,
     scenario: &Scenario,
 ) -> SendCommandOutput {
