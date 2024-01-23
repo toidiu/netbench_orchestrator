@@ -7,8 +7,7 @@ use crate::{
         poll_state,
     },
     error::{OrchError, OrchResult},
-    state::HostCount,
-    InfraDetail, STATE,
+    InfraDetail, Scenario, STATE,
 };
 use aws_sdk_ec2::types::{
     Filter, InstanceStateName, IpPermission, IpRange, ResourceType, TagSpecification,
@@ -16,22 +15,22 @@ use aws_sdk_ec2::types::{
 use std::{thread::sleep, time::Duration};
 use tracing::info;
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct LaunchPlan {
+#[derive(Clone)]
+pub struct LaunchPlan<'a> {
     pub subnet_id: String,
     pub security_group_id: String,
     pub ami_id: String,
     pub instance_profile_arn: String,
-    pub host_count: HostCount,
+    pub scenario: &'a Scenario,
 }
 
-impl LaunchPlan {
+impl<'a> LaunchPlan<'a> {
     pub async fn create(
         unique_id: &str,
         ec2_client: &aws_sdk_ec2::Client,
         iam_client: &aws_sdk_iam::Client,
         ssm_client: &aws_sdk_ssm::Client,
-        host_count: HostCount,
+        scenario: &'a Scenario,
     ) -> Self {
         let instance_profile_arn = get_instance_profile(iam_client).await.unwrap();
         let (subnet_id, vpc_id) = get_subnet_vpc_ids(ec2_client).await.unwrap();
@@ -46,7 +45,7 @@ impl LaunchPlan {
             subnet_id,
             security_group_id,
             instance_profile_arn,
-            host_count,
+            scenario,
         }
     }
 
@@ -57,11 +56,11 @@ impl LaunchPlan {
     ) -> OrchResult<InfraDetail> {
         let mut servers = Vec::new();
         let mut clients = Vec::new();
-        for _i in 0..self.host_count.servers {
+        for _i in 0..self.scenario.servers {
             let server = launch_instance(ec2_client, self, unique_id, EndpointType::Server).await?;
             servers.push(server);
         }
-        for _i in 0..self.host_count.clients {
+        for _i in 0..self.scenario.clients {
             let client = launch_instance(ec2_client, self, unique_id, EndpointType::Client).await?;
             clients.push(client);
         }

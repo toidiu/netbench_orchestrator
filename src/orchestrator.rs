@@ -66,16 +66,10 @@ pub async fn run(
     update_dashboard(dashboard::Step::UploadIndex, &s3_client, &unique_id).await?;
 
     // Setup instances
-    let infra = LaunchPlan::create(
-        &unique_id,
-        &ec2_client,
-        &iam_client,
-        &ssm_client,
-        STATE.host_count,
-    )
-    .await
-    .launch(&ec2_client, &unique_id)
-    .await?;
+    let infra = LaunchPlan::create(&unique_id, &ec2_client, &iam_client, &ssm_client, &scenario)
+        .await
+        .launch(&ec2_client, &unique_id)
+        .await?;
     let client = &infra.clients[0];
     let server = &infra.servers[0];
     let client_ids: Vec<String> = infra

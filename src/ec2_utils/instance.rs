@@ -61,7 +61,7 @@ impl InstanceDetail {
 
 pub async fn launch_instance(
     ec2_client: &aws_sdk_ec2::Client,
-    launch_plan: &LaunchPlan,
+    launch_plan: &LaunchPlan<'_>,
     unique_id: &str,
     endpoint_type: EndpointType,
 ) -> OrchResult<Instance> {

@@ -7,11 +7,6 @@ use core::time::Duration;
 pub const STATE: State = State {
     version: "v2.0.9",
 
-    // TODO get from scenario --------------
-    host_count: HostCount {
-        clients: 1,
-        servers: 1,
-    },
     // TODO remove `vpc_region` and configure vpc/subnet in same `region`
     region: "us-west-1",
     vpc_region: "us-east-1",
@@ -55,7 +50,7 @@ pub struct State {
     pub version: &'static str,
 
     // TODO get from scenario --------------
-    pub host_count: HostCount,
+    // pub host_count: HostCount,
     pub region: &'static str,
     // TODO we shouldnt need two different regions. create infra in the single region
     pub vpc_region: &'static str,
@@ -86,12 +81,6 @@ pub struct State {
     pub instance_profile: &'static str,
     pub subnet_tag_value: (&'static str, &'static str),
     pub ssh_key_name: &'static str,
-}
-
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct HostCount {
-    pub clients: u16,
-    pub servers: u16,
 }
 
 impl State {
