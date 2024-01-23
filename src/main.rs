@@ -5,7 +5,13 @@
 use aws_types::region::Region;
 use clap::Parser;
 use error::{OrchError, OrchResult};
-use std::{path::PathBuf, process::Command};
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use std::{
+    fs::File,
+    path::{Path, PathBuf},
+    process::Command,
+};
 
 mod coordination_utils;
 mod dashboard;
@@ -44,7 +50,7 @@ use state::*;
 #[derive(Parser, Debug)]
 pub struct Args {
     /// Path the scenario file
-    #[arg(long)]
+    #[arg(long, default_value = "request_response.json")]
     scenario_file: PathBuf,
 }
 
@@ -56,12 +62,38 @@ async fn main() -> OrchResult<()> {
 
     let region = Region::new(STATE.region);
     let aws_config = aws_config::from_env().region(region).load().await;
-    check_requirements(&aws_config).await?;
+    check_requirements(&args, &aws_config).await?;
 
     orchestrator::run(args, &aws_config).await
 }
 
-async fn check_requirements(aws_config: &aws_types::SdkConfig) -> OrchResult<()> {
+async fn check_requirements(args: &Args, aws_config: &aws_types::SdkConfig) -> OrchResult<()> {
+    if !Path::new(&args.scenario_file).exists() {
+        return Err(OrchError::Init {
+            dbg: "Scenario file doesn't exist".to_string(),
+        });
+    }
+    let path = Path::new(&args.scenario_file);
+    path.file_name()
+        .map(|f| f.to_str())
+        .ok_or(OrchError::Init {
+            dbg: "Scenario file not specified".to_string(),
+        })?;
+    let scenario_file = File::open(path).map_err(|_err| OrchError::Init {
+        dbg: "Scenario file not specified".to_string(),
+    })?;
+    let Scenario { clients, servers } = serde_json::from_reader(scenario_file).unwrap();
+    println!("{} {}", clients.len(), servers.len());
+
+    // let _scenario_name = args
+    //     .scenario_file
+    //     .as_path()
+    //     .file_name()
+    //     .map(|f| f.to_str())
+    //     .ok_or(OrchError::Init {
+    //         dbg: "Scenario file not specified".to_string(),
+    //     })?;
+
     // export PATH="/home/toidiu/projects/s2n-quic/netbench/target/release/:$PATH"
     Command::new("s2n-netbench")
         .output()
@@ -91,4 +123,18 @@ async fn check_requirements(aws_config: &aws_types::SdkConfig) -> OrchResult<()>
         })?;
 
     Ok(())
+}
+
+// FIXME get from netbench project
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+pub struct Scenario {
+    // pub id: Id,
+    pub clients: Vec<Value>,
+    pub servers: Vec<Value>,
+    // #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    // pub routers: Vec<Arc<Router>>,
+    // #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    // pub traces: Arc<Vec<String>>,
+    // #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    // pub certificates: Vec<Arc<Certificate>>,
 }

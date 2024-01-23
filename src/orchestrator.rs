@@ -2,9 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
-    coordination_utils, dashboard, ec2_utils::LaunchPlan, error::OrchResult,
-    report::orch_generate_report, ssm_utils, update_dashboard, Args, STATE,
+    coordination_utils, dashboard,
+    ec2_utils::LaunchPlan,
+    error::{OrchError, OrchResult},
+    report::orch_generate_report,
+    ssm_utils, update_dashboard, upload_object, Args, STATE,
 };
+use aws_sdk_s3::primitives::ByteStream;
 use aws_types::region::Region;
 use tracing::info;
 
@@ -40,6 +44,27 @@ pub async fn run(args: Args, aws_config: &aws_types::SdkConfig) -> OrchResult<()
         humantime::format_rfc3339_seconds(std::time::SystemTime::now()),
         STATE.version
     );
+
+    let scenario_name = args
+        .scenario_file
+        .as_path()
+        .file_name()
+        .expect("scenario file checked at validation")
+        .to_str()
+        .unwrap();
+    let scenario_file = ByteStream::from_path(args.scenario_file.as_path())
+        .await
+        .map_err(|err| OrchError::Init {
+            dbg: err.to_string(),
+        })?;
+    upload_object(
+        &s3_client,
+        STATE.s3_log_bucket,
+        scenario_file,
+        &format!("{unique_id}/{scenario_name}"),
+    )
+    .await
+    .unwrap();
 
     update_dashboard(dashboard::Step::UploadIndex, &s3_client, &unique_id).await?;
 
