@@ -107,8 +107,6 @@ impl Protocol for WorkerProtocol {
                         let out_log_file = "client.json";
                         let output_json = File::create(out_log_file).expect("failed to open log");
 
-                        // SCENARIO=./target/netbench/connect.json SERVER_0=localhost:4433
-                        //   ./target/release/netbench-driver-s2n-quic-client ./target/netbench/connect.json
                         info!("{} run netbench process", self.name());
                         println!("{} run netbench process", self.name());
 
@@ -121,7 +119,15 @@ impl Protocol for WorkerProtocol {
                         let mut cmd = Command::new(collector);
                         // FIXME update Netbench to take a list of Server IP
                         let server_addr = self.netbench_ctx.peer_list.first().unwrap();
-                        cmd.env("SERVER_0", server_addr.to_string())
+
+                        // SCENARIO=request_response.json SERVER_0=127.0.0.1:8888 SERVER_1=127.0.0.1:9999 s2n-netbench-collector s2n-netbench-driver-client-s2n-quic
+                        for (i, peer_list) in self.netbench_ctx.peer_list.iter().enumerate() {
+                            let server_idx = format!("SERVER_{}", i);
+                            cmd.env(server_idx, peer_list.to_string());
+                        }
+
+                        cmd
+                            // .env("SERVER_0", server_addr.to_string())
                             .args([&driver, "--scenario", &scenario])
                             .stdout(output_json);
                         println!("{:?}", cmd);

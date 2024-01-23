@@ -40,11 +40,12 @@ pub async fn copy_netbench_data(
 pub async fn run_russula_worker(
     ssm_client: &aws_sdk_ssm::Client,
     instance_ids: Vec<String>,
-    peer_sock_addr: SocketAddr,
+    peer_sock_addr: Vec<SocketAddr>,
     netbench_driver: String,
     scenario: &Scenario,
 ) -> SendCommandOutput {
-    debug!("{}", peer_sock_addr);
+    debug!("{:?}", peer_sock_addr);
+    let peer_sock_addr = peer_sock_addr.first().unwrap();
     send_command(
         vec![Step::BuildDriver("".to_string()), Step::BuildRussula],
         Step::RunRussula,

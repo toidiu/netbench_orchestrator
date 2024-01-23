@@ -70,14 +70,16 @@ pub async fn run(
         .await
         .launch(&ec2_client, &unique_id)
         .await?;
-    let _clients: Vec<String> = infra
+    let clients_ips: Vec<String> = infra
         .clients
         .iter()
         .map(|instance| instance.ip.clone())
         .collect();
-    // FIXME
-    let client = &infra.clients[0];
-    let server = &infra.servers[0];
+    let server_ips: Vec<String> = infra
+        .servers
+        .iter()
+        .map(|instance| instance.ip.clone())
+        .collect();
     let client_ids: Vec<String> = infra
         .clients
         .clone()
@@ -160,18 +162,19 @@ pub async fn run(
             &ssm_client,
             &infra,
             server_ids.clone(),
-            &client.ip,
+            &clients_ips,
             &scenario,
             // quic_server_driver,
             // dc_quic_server_driver,
             tcp_server_driver,
         )
         .await;
+
         let mut client_russula = coordination_utils::ClientNetbenchRussula::new(
             &ssm_client,
             &infra,
             client_ids.clone(),
-            &server.ip,
+            &server_ips,
             &scenario,
             // quic_client_driver,
             // dc_quic_client_driver,

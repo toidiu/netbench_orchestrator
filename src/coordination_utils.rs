@@ -26,14 +26,17 @@ impl ServerNetbenchRussula {
         ssm_client: &aws_sdk_ssm::Client,
         infra: &InfraDetail,
         instance_ids: Vec<String>,
-        client_ips: &str,
+        client_ips: &[String],
         scenario: &Scenario,
         driver: NetbenchDriver,
     ) -> Self {
         // server run commands
         debug!("starting server worker");
 
-        let peer_sock_addr = SocketAddr::from_str(&format!("{}:4433", client_ips)).unwrap();
+        let peer_sock_addr: Vec<SocketAddr> = client_ips
+            .iter()
+            .map(|ip| SocketAddr::from_str(&format!("{}:4433", ip)).unwrap())
+            .collect();
         let worker = ssm_utils::server::run_russula_worker(
             ssm_client,
             instance_ids,
@@ -130,14 +133,17 @@ impl ClientNetbenchRussula {
         ssm_client: &aws_sdk_ssm::Client,
         infra: &InfraDetail,
         instance_ids: Vec<String>,
-        server_ips: &str,
+        server_ips: &[String],
         scenario: &Scenario,
         driver: NetbenchDriver,
     ) -> Self {
         // client run commands
         debug!("starting client worker");
 
-        let peer_sock_addr = SocketAddr::from_str(&format!("{}:4433", server_ips)).unwrap();
+        let peer_sock_addr: Vec<SocketAddr> = server_ips
+            .iter()
+            .map(|ip| SocketAddr::from_str(&format!("{}:4433", ip)).unwrap())
+            .collect();
         let worker = ssm_utils::client::run_russula_worker(
             ssm_client,
             instance_ids,
