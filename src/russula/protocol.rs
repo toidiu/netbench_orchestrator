@@ -125,8 +125,8 @@ pub trait Protocol: Clone {
                 self.state_mut().transition_next(stream).await?;
                 break;
             } else {
-                let fut = self.state().notify_peer(stream);
-                fut.await?;
+                // let fut = self.state().notify_peer(stream);
+                // fut.await?;
             }
         }
 
