@@ -162,13 +162,6 @@ impl Protocol for WorkerProtocol {
                     debug!("did KILL pid: {} {}----------------------------", pid, kill);
                 }
 
-                // let cmd = "aws s3 cp "
-                //         Command::new("sh")
-                //             .args([])
-                //             .spawn()
-                //             .expect("Failed to start echo process");
-
-                // FIXME fix this
                 self.state_mut()
                     .transition_self_or_user_driven(stream)
                     .await?;

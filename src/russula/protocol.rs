@@ -45,6 +45,7 @@ pub trait Protocol: Clone {
         self.poll_state(stream, &ready_state).await
     }
 
+    // if not at the desired state then attempt to make progress by 'run_current' action
     async fn poll_state(
         &mut self,
         stream: &TcpStream,
