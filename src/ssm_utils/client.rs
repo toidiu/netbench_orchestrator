@@ -30,7 +30,7 @@ pub async fn upload_netbench_data(
         vec![
             "cd netbench_orchestrator",
             format!(
-                "aws s3 cp net_data* {}/results/{}/{driver_name}/",
+                "aws s3 cp client* {}/results/{}/{driver_name}/",
                 STATE.s3_path(unique_id),
                 scenario.file_stem()
             )
