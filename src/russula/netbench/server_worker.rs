@@ -108,7 +108,9 @@ impl Protocol for WorkerProtocol {
             WorkerState::Run => {
                 let child = match &self.netbench_ctx.testing {
                     false => {
-                        let out_log_file = "server.json";
+                        // TODO use unique id
+                        let out_log_file = "net_data_server.json";
+                        let out_log_file = format!("net_data_{}.json", self.name());
                         let output_json = File::create(out_log_file).expect("failed to open log");
 
                         // sudo SCENARIO=./target/netbench/connect.json ./target/release/netbench-collector
@@ -122,8 +124,10 @@ impl Protocol for WorkerProtocol {
                         let driver = format!("{}/{}", netbench_path, self.netbench_ctx.driver);
                         let scenario = format!("{}/{}", netbench_path, self.netbench_ctx.scenario);
 
+                        debug!("netbench_port: {}", self.netbench_ctx.netbench_port);
+
                         let mut cmd = Command::new(collector);
-                        cmd.env("PORT", "9000");
+                        cmd.env("PORT", self.netbench_ctx.netbench_port.to_string());
                         cmd.args([&driver, "--scenario", &scenario])
                             .stdout(output_json);
                         println!("{:?}", cmd);

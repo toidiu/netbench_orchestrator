@@ -49,6 +49,9 @@ pub struct ServerContext {
     // https://github.com/aws/s2n-netbench/tree/main/netbench-scenarios
     #[structopt(long, default_value = "request_response.json")]
     scenario: String,
+
+    #[structopt(long, default_value = "4433")]
+    netbench_port: u16,
 }
 
 impl ServerContext {
@@ -59,6 +62,7 @@ impl ServerContext {
             driver: "".to_string(),
             scenario: "".to_string(),
             testing: true,
+            netbench_port: 4433,
         }
     }
 }
