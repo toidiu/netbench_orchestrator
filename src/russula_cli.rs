@@ -84,11 +84,15 @@ async fn main() -> OrchResult<()> {
             let russula_port = *russula_port;
             run_client_worker(opt, netbench_ctx, russula_port).await
         }
-        RussulaProtocol::NetbenchServerCoordinator { russula_worker_addrs } => {
+        RussulaProtocol::NetbenchServerCoordinator {
+            russula_worker_addrs,
+        } => {
             let w = russula_worker_addrs.clone();
             run_local_server_coordinator(opt, w).await
         }
-        RussulaProtocol::NetbenchClientCoordinator { russula_worker_addrs } => {
+        RussulaProtocol::NetbenchClientCoordinator {
+            russula_worker_addrs,
+        } => {
             let w = russula_worker_addrs.clone();
             run_local_client_coordinator(opt, w).await
         }

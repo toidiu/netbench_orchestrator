@@ -35,13 +35,9 @@ impl ServerNetbenchRussula {
         // server run commands
         debug!("starting server worker");
 
-        let worker = ssm_utils::server::run_russula_worker(
-            ssm_client,
-            instance_ids,
-            &driver,
-            scenario,
-        )
-        .await;
+        let worker =
+            ssm_utils::server::run_russula_worker(ssm_client, instance_ids, &driver, scenario)
+                .await;
 
         // wait for worker to start
         tokio::time::sleep(Duration::from_secs(5)).await;

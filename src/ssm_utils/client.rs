@@ -1,9 +1,8 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::NetbenchDriver;
 use super::{send_command, Step};
-use crate::{state::STATE, Scenario};
+use crate::{state::STATE, NetbenchDriver, Scenario};
 use aws_sdk_ssm::operation::send_command::SendCommandOutput;
 use std::net::{IpAddr, SocketAddr};
 use tracing::debug;
