@@ -5,8 +5,9 @@ use self::instance::poll_state;
 use crate::{
     ec2_utils::instance::delete_instance,
     error::{OrchError, OrchResult},
+    STATE,
 };
-use std::{thread::sleep, time::Duration};
+use std::{net::SocketAddr, str::FromStr, thread::sleep, time::Duration};
 use tracing::info;
 
 mod cluster;
@@ -27,6 +28,24 @@ impl InfraDetail {
         self.delete_instances(ec2_client).await?;
         self.delete_security_group(ec2_client).await?;
         Ok(())
+    }
+
+    pub fn server_ips(&self) -> Vec<SocketAddr> {
+        self.servers
+            .iter()
+            .map(|instance| {
+                SocketAddr::from_str(&format!("{}:{}", instance.ip, STATE.russula_port)).unwrap()
+            })
+            .collect()
+    }
+
+    pub fn client_ips(&self) -> Vec<SocketAddr> {
+        self.clients
+            .iter()
+            .map(|instance| {
+                SocketAddr::from_str(&format!("{}:{}", instance.ip, STATE.russula_port)).unwrap()
+            })
+            .collect()
     }
 }
 

@@ -45,7 +45,7 @@ impl ServerNetbenchRussula {
 
         // server coord
         debug!("starting server coordinator");
-        let coord = server_coord(infra).await;
+        let coord = server_coord(infra.server_ips()).await;
         ServerNetbenchRussula { worker, coord }
     }
 
@@ -152,7 +152,7 @@ impl ClientNetbenchRussula {
 
         // client coord
         debug!("starting client coordinator");
-        let coord = client_coord(infra).await;
+        let coord = client_coord(infra.client_ips()).await;
         ClientNetbenchRussula { worker, coord }
     }
 
@@ -185,15 +185,7 @@ impl ClientNetbenchRussula {
     }
 }
 
-async fn server_coord(infra: &InfraDetail) -> russula::Russula<server::CoordProtocol> {
-    let server_ips: Vec<SocketAddr> = infra
-        .servers
-        .iter()
-        .map(|instance| {
-            SocketAddr::from_str(&format!("{}:{}", instance.ip, STATE.russula_port)).unwrap()
-        })
-        .collect();
-
+async fn server_coord(server_ips: Vec<SocketAddr>) -> russula::Russula<server::CoordProtocol> {
     let protocol = server::CoordProtocol::new();
     let server_coord = RussulaBuilder::new(
         BTreeSet::from_iter(server_ips),
@@ -206,15 +198,7 @@ async fn server_coord(infra: &InfraDetail) -> russula::Russula<server::CoordProt
     server_coord
 }
 
-async fn client_coord(infra: &InfraDetail) -> russula::Russula<client::CoordProtocol> {
-    let client_ips: Vec<SocketAddr> = infra
-        .clients
-        .iter()
-        .map(|instance| {
-            SocketAddr::from_str(&format!("{}:{}", instance.ip, STATE.russula_port)).unwrap()
-        })
-        .collect();
-
+async fn client_coord(client_ips: Vec<SocketAddr>) -> russula::Russula<client::CoordProtocol> {
     let protocol = client::CoordProtocol::new();
     let client_coord = RussulaBuilder::new(
         BTreeSet::from_iter(client_ips),
