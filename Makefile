@@ -7,7 +7,7 @@ net_server_coord:
 	RUST_LOG=none,orchestrator=debug,russula_cli=debug cargo run --bin russula_cli -- \
 					 --poll-delay 2s \
 					 netbench-server-coordinator \
-					 --worker-addrs 0.0.0.0:7000 \
+					 --russula-worker-addrs 0.0.0.0:7000 \
 					 0.0.0.0:8000 \
 
 net_server_worker1:
@@ -36,7 +36,7 @@ test_server_coord:
 	RUST_LOG=none,orchestrator=debug,russula_cli=debug cargo run --bin russula_cli -- \
 					 --poll-delay 1s \
 					 netbench-server-coordinator \
-					 --worker-addrs 0.0.0.0:7000 0.0.0.0:7001 \
+					 --russula-worker-addrs 0.0.0.0:7000 0.0.0.0:7001 \
 
 test_server_worker1:
 	RUST_LOG=none,orchestrator=debug,russula_cli=debug cargo run --bin russula_cli -- \
@@ -58,7 +58,7 @@ test_client_coord:
 	RUST_LOG=none,orchestrator=debug,russula_cli=debug cargo run --bin russula_cli --  \
 					 --poll-delay 1s \
 					 netbench-client-coordinator \
-					 --worker-addrs 0.0.0.0:8000 0.0.0.0:8001 \
+					 --russula-worker-addrs 0.0.0.0:8000 0.0.0.0:8001 \
 
 test_client_worker1:
 	RUST_LOG=none,orchestrator=debug,russula_cli=debug cargo run --bin russula_cli -- \

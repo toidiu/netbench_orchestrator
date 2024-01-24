@@ -52,11 +52,11 @@ enum RussulaProtocol {
     },
     NetbenchServerCoordinator {
         #[structopt(long, required = true)]
-        worker_addrs: Vec<SocketAddr>,
+        russula_worker_addrs: Vec<SocketAddr>,
     },
     NetbenchClientCoordinator {
         #[structopt(long)]
-        worker_addrs: Vec<SocketAddr>,
+        russula_worker_addrs: Vec<SocketAddr>,
     },
 }
 
@@ -84,12 +84,12 @@ async fn main() -> OrchResult<()> {
             let russula_port = *russula_port;
             run_client_worker(opt, netbench_ctx, russula_port).await
         }
-        RussulaProtocol::NetbenchServerCoordinator { worker_addrs } => {
-            let w = worker_addrs.clone();
+        RussulaProtocol::NetbenchServerCoordinator { russula_worker_addrs } => {
+            let w = russula_worker_addrs.clone();
             run_local_server_coordinator(opt, w).await
         }
-        RussulaProtocol::NetbenchClientCoordinator { worker_addrs } => {
-            let w = worker_addrs.clone();
+        RussulaProtocol::NetbenchClientCoordinator { russula_worker_addrs } => {
+            let w = russula_worker_addrs.clone();
             run_local_client_coordinator(opt, w).await
         }
     };
@@ -132,11 +132,11 @@ async fn run_client_worker(opt: Opt, netbench_ctx: netbench::ClientContext, russ
         .unwrap();
 }
 
-async fn run_local_server_coordinator(opt: Opt, worker_addrs: Vec<SocketAddr>) {
+async fn run_local_server_coordinator(opt: Opt, russula_worker_addrs: Vec<SocketAddr>) {
     let protocol = server::CoordProtocol::new();
     let coord = RussulaBuilder::new(
         // TODO for local testing.. we only connect to 1 local worker
-        BTreeSet::from_iter(worker_addrs),
+        BTreeSet::from_iter(russula_worker_addrs),
         protocol,
         opt.poll_delay,
     );
@@ -158,11 +158,11 @@ async fn run_local_server_coordinator(opt: Opt, worker_addrs: Vec<SocketAddr>) {
         .unwrap();
 }
 
-async fn run_local_client_coordinator(opt: Opt, worker_addrs: Vec<SocketAddr>) {
+async fn run_local_client_coordinator(opt: Opt, russula_worker_addrs: Vec<SocketAddr>) {
     let protocol = client::CoordProtocol::new();
     let coord = RussulaBuilder::new(
         // TODO for local testing.. we only connect to 1 local worker
-        BTreeSet::from_iter(worker_addrs),
+        BTreeSet::from_iter(russula_worker_addrs),
         protocol,
         opt.poll_delay,
     );
