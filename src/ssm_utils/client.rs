@@ -1,6 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::NetbenchDriver;
 use super::{send_command, Step};
 use crate::{state::STATE, Scenario};
 use aws_sdk_ssm::operation::send_command::SendCommandOutput;
@@ -41,10 +42,10 @@ pub async fn run_russula_worker(
     ssm_client: &aws_sdk_ssm::Client,
     instance_ids: Vec<String>,
     server_ips: &Vec<IpAddr>,
-    netbench_driver: String,
+    driver: &NetbenchDriver,
     scenario: &Scenario,
 ) -> SendCommandOutput {
-    let server_addr = server_ips
+    let netbench_server_addr = server_ips
         .iter()
         .map(|ip| SocketAddr::new(*ip, STATE.netbench_port).to_string())
         .reduce(|mut accum, item| {
@@ -55,8 +56,8 @@ pub async fn run_russula_worker(
         .unwrap();
 
     let netbench_cmd =
-        format!("env RUST_LOG=debug ./target/debug/russula_cli netbench-client-worker --russula-port {} --driver {netbench_driver} --scenario {} --netbench-servers {server_addr}",
-            STATE.russula_port, scenario.name);
+        format!("env RUST_LOG=debug ./target/debug/russula_cli netbench-client-worker --russula-port {} --driver {} --scenario {} --netbench-servers {netbench_server_addr}",
+            STATE.russula_port, driver.driver_name, scenario.name);
     debug!("{}", netbench_cmd);
 
     send_command(

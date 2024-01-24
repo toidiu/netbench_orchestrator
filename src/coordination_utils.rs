@@ -38,7 +38,7 @@ impl ServerNetbenchRussula {
         let worker = ssm_utils::server::run_russula_worker(
             ssm_client,
             instance_ids,
-            driver.driver_name,
+            &driver,
             scenario,
         )
         .await;
@@ -139,7 +139,7 @@ impl ClientNetbenchRussula {
             ssm_client,
             instance_ids,
             &infra.server_ips(),
-            driver.driver_name,
+            &driver,
             scenario,
         )
         .await;
