@@ -7,7 +7,7 @@ use aws_sdk_ssm::operation::send_command::SendCommandOutput;
 use std::net::{IpAddr, SocketAddr};
 use tracing::debug;
 
-pub async fn copy_netbench_data(
+pub async fn upload_netbench_data(
     ssm_client: &aws_sdk_ssm::Client,
     instance_ids: Vec<String>,
     unique_id: &str,
@@ -24,7 +24,7 @@ pub async fn copy_netbench_data(
         vec![Step::RunRussula],
         Step::UploadNetbenchRawData,
         "client",
-        "run_client_netbench",
+        "upload_netbench_raw_data",
         ssm_client,
         instance_ids,
         vec![

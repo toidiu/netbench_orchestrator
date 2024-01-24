@@ -104,8 +104,8 @@ impl Protocol for WorkerProtocol {
             WorkerState::Run => {
                 let child = match &self.netbench_ctx.testing {
                     false => {
-                        let out_log_file = "net_data_client.json";
-                        let output_json = File::create(out_log_file).expect("failed to open log");
+                        let output_log_file = "client.json";
+                        let output_log_file = File::create(output_log_file).expect("failed to open log");
 
                         info!("{} run netbench process", self.name());
                         println!("{} run netbench process", self.name());
@@ -126,7 +126,7 @@ impl Protocol for WorkerProtocol {
                         }
 
                         cmd.args([&driver, "--scenario", &scenario])
-                            .stdout(output_json);
+                            .stdout(output_log_file);
                         println!("{:?}", cmd);
                         debug!("{:?}", cmd);
                         cmd.spawn()

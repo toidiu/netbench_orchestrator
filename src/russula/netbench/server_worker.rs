@@ -4,7 +4,7 @@
 use super::ServerContext;
 use crate::russula::{
     error::{RussulaError, RussulaResult},
-    netbench::server_coord::CoordState,
+    setbench::server_coord::CoordState,
     network_utils::Msg,
     protocol::Protocol,
     StateApi, TransitionStep,
@@ -109,9 +109,8 @@ impl Protocol for WorkerProtocol {
                 let child = match &self.netbench_ctx.testing {
                     false => {
                         // TODO use unique id
-                        let out_log_file = "net_data_server.json";
-                        let out_log_file = format!("net_data_{}.json", self.name());
-                        let output_json = File::create(out_log_file).expect("failed to open log");
+                        let output_log_file = "server.json";
+                        let output_log_file = File::create(output_log_file).expect("failed to open log");
 
                         // sudo SCENARIO=./target/netbench/connect.json ./target/release/netbench-collector
                         //   ./target/release/netbench-driver-s2n-quic-server
@@ -130,7 +129,7 @@ impl Protocol for WorkerProtocol {
                         cmd.env("PORT", self.netbench_ctx.netbench_port.to_string());
                         // cmd.arg("--disable-bpf");
                         cmd.args([&driver, "--scenario", &scenario])
-                            .stdout(output_json);
+                            .stdout(output_log_file);
                         println!("{:?}", cmd);
                         debug!("{:?}", cmd);
                         cmd.spawn()

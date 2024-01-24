@@ -178,7 +178,7 @@ pub async fn run(
 
     // copy netbench results
     {
-        let copy_server_netbench = ssm_utils::server::copy_netbench_data(
+        let copy_server_netbench = ssm_utils::server::upload_netbench_data(
             &ssm_client,
             server_ids.clone(),
             &unique_id,
@@ -186,7 +186,7 @@ pub async fn run(
             server_driver_to_run,
         )
         .await;
-        let copy_client_netbench = ssm_utils::client::copy_netbench_data(
+        let copy_client_netbench = ssm_utils::client::upload_netbench_data(
             &ssm_client,
             client_ids.clone(),
             &unique_id,
