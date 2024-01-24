@@ -16,6 +16,7 @@ pub const STATE: State = State {
     // netbench
     netbench_repo: "https://github.com/aws/s2n-netbench.git",
     netbench_branch: "main",
+    netbench_port: 4433,
 
     // orchestrator
     host_home_path: "/home/ec2-user",
@@ -59,6 +60,7 @@ pub struct State {
     // netbench
     pub netbench_repo: &'static str,
     pub netbench_branch: &'static str,
+    pub netbench_port: u16,
 
     // orchestrator
     pub host_home_path: &'static str,
@@ -69,7 +71,7 @@ pub struct State {
     // russula
     pub russula_repo: &'static str,
     pub russula_branch: &'static str,
-    pub russula_port: i32,
+    pub russula_port: u16,
     pub poll_delay_russula: Duration,
 
     // aws

@@ -34,6 +34,8 @@ use state::*;
 // TODO
 // - provide incast scenario.. possibly rename??
 // - attempt to launch 2 server and 1 client remotely
+// - incast scenario and russula in testing mode
+// - incast scenario and russulas
 //
 // - run russula on multiple hosts
 // - save netbench output to different named files instead of server.json/client.json

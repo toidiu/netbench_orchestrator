@@ -172,8 +172,8 @@ async fn configure_networking(
         )
         .ip_permissions(
             IpPermission::builder()
-                .from_port(STATE.russula_port)
-                .to_port(STATE.russula_port)
+                .from_port(STATE.russula_port.into())
+                .to_port(STATE.russula_port.into())
                 .ip_protocol("tcp")
                 .ip_ranges(russula_ip_range)
                 .build(),

@@ -70,16 +70,6 @@ pub async fn run(
         .await
         .launch(&ec2_client, &unique_id)
         .await?;
-    let clients_ips: Vec<String> = infra
-        .clients
-        .iter()
-        .map(|instance| instance.ip.clone())
-        .collect();
-    let server_ips: Vec<String> = infra
-        .servers
-        .iter()
-        .map(|instance| instance.ip.clone())
-        .collect();
     let client_ids: Vec<String> = infra
         .clients
         .clone()
@@ -173,7 +163,6 @@ pub async fn run(
             &ssm_client,
             &infra,
             client_ids.clone(),
-            &server_ips,
             &scenario,
             // quic_client_driver,
             // dc_quic_client_driver,

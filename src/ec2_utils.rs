@@ -5,9 +5,8 @@ use self::instance::poll_state;
 use crate::{
     ec2_utils::instance::delete_instance,
     error::{OrchError, OrchResult},
-    STATE,
 };
-use std::{net::SocketAddr, str::FromStr, thread::sleep, time::Duration};
+use std::{net::IpAddr, str::FromStr, thread::sleep, time::Duration};
 use tracing::info;
 
 mod cluster;
@@ -30,21 +29,17 @@ impl InfraDetail {
         Ok(())
     }
 
-    pub fn server_ips(&self) -> Vec<SocketAddr> {
+    pub fn server_ips(&self) -> Vec<IpAddr> {
         self.servers
             .iter()
-            .map(|instance| {
-                SocketAddr::from_str(&format!("{}:{}", instance.ip, STATE.russula_port)).unwrap()
-            })
+            .map(|instance| IpAddr::from_str(&instance.ip).unwrap())
             .collect()
     }
 
-    pub fn client_ips(&self) -> Vec<SocketAddr> {
+    pub fn client_ips(&self) -> Vec<IpAddr> {
         self.clients
             .iter()
-            .map(|instance| {
-                SocketAddr::from_str(&format!("{}:{}", instance.ip, STATE.russula_port)).unwrap()
-            })
+            .map(|instance| IpAddr::from_str(&instance.ip).unwrap())
             .collect()
     }
 }

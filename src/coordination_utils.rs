@@ -13,7 +13,10 @@ use crate::{
 };
 use aws_sdk_ssm::operation::send_command::SendCommandOutput;
 use core::time::Duration;
-use std::{collections::BTreeSet, net::SocketAddr, str::FromStr};
+use std::{
+    collections::BTreeSet,
+    net::{IpAddr, SocketAddr},
+};
 use tracing::{debug, info};
 
 pub struct ServerNetbenchRussula {
@@ -127,21 +130,15 @@ impl ClientNetbenchRussula {
         ssm_client: &aws_sdk_ssm::Client,
         infra: &InfraDetail,
         instance_ids: Vec<String>,
-        server_ips: &[String],
         scenario: &Scenario,
         driver: NetbenchDriver,
     ) -> Self {
         // client run commands
         debug!("starting client worker");
-
-        let peer_sock_addr: Vec<SocketAddr> = server_ips
-            .iter()
-            .map(|ip| SocketAddr::from_str(&format!("{}:4433", ip)).unwrap())
-            .collect();
         let worker = ssm_utils::client::run_russula_worker(
             ssm_client,
             instance_ids,
-            peer_sock_addr,
+            &infra.server_ips(),
             driver.driver_name,
             scenario,
         )
@@ -185,10 +182,14 @@ impl ClientNetbenchRussula {
     }
 }
 
-async fn server_coord(server_ips: Vec<SocketAddr>) -> russula::Russula<server::CoordProtocol> {
+async fn server_coord(server_ips: Vec<IpAddr>) -> russula::Russula<server::CoordProtocol> {
     let protocol = server::CoordProtocol::new();
+    let server_addr: Vec<SocketAddr> = server_ips
+        .iter()
+        .map(|ip| SocketAddr::new(*ip, STATE.russula_port))
+        .collect();
     let server_coord = RussulaBuilder::new(
-        BTreeSet::from_iter(server_ips),
+        BTreeSet::from_iter(server_addr),
         protocol,
         STATE.poll_delay_russula,
     );
@@ -198,10 +199,14 @@ async fn server_coord(server_ips: Vec<SocketAddr>) -> russula::Russula<server::C
     server_coord
 }
 
-async fn client_coord(client_ips: Vec<SocketAddr>) -> russula::Russula<client::CoordProtocol> {
+async fn client_coord(client_ips: Vec<IpAddr>) -> russula::Russula<client::CoordProtocol> {
     let protocol = client::CoordProtocol::new();
+    let client_addr: Vec<SocketAddr> = client_ips
+        .iter()
+        .map(|ip| SocketAddr::new(*ip, STATE.russula_port))
+        .collect();
     let client_coord = RussulaBuilder::new(
-        BTreeSet::from_iter(client_ips),
+        BTreeSet::from_iter(client_addr),
         protocol,
         STATE.poll_delay_russula,
     );

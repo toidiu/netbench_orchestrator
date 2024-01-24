@@ -43,8 +43,8 @@ pub async fn run_russula_worker(
     scenario: &Scenario,
 ) -> SendCommandOutput {
     let netbench_cmd =
-        format!("env RUST_LOG=debug ./target/debug/russula_cli netbench-server-worker --russula-port {} --driver {netbench_driver} --scenario {}",
-            STATE.russula_port, scenario.name);
+        format!("env RUST_LOG=debug ./target/debug/russula_cli netbench-server-worker --russula-port {} --driver {netbench_driver} --scenario {} --netbench-port {}",
+            STATE.russula_port, scenario.name, STATE.netbench_port);
     debug!("{}", netbench_cmd);
 
     send_command(

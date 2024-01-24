@@ -4,7 +4,7 @@
 use super::{send_command, Step};
 use crate::{state::STATE, Scenario};
 use aws_sdk_ssm::operation::send_command::SendCommandOutput;
-use std::net::SocketAddr;
+use std::net::{IpAddr, SocketAddr};
 use tracing::debug;
 
 pub async fn copy_netbench_data(
@@ -40,14 +40,13 @@ pub async fn copy_netbench_data(
 pub async fn run_russula_worker(
     ssm_client: &aws_sdk_ssm::Client,
     instance_ids: Vec<String>,
-    servers: Vec<SocketAddr>,
+    server_ips: &Vec<IpAddr>,
     netbench_driver: String,
     scenario: &Scenario,
 ) -> SendCommandOutput {
-    debug!("{:?}", servers);
-    let server_ips = servers
-        .into_iter()
-        .map(|addr| addr.to_string())
+    let server_addr = server_ips
+        .iter()
+        .map(|ip| SocketAddr::new(*ip, STATE.netbench_port).to_string())
         .reduce(|mut accum, item| {
             accum.push(' ');
             accum.push_str(&item);
@@ -56,7 +55,7 @@ pub async fn run_russula_worker(
         .unwrap();
 
     let netbench_cmd =
-        format!("env RUST_LOG=debug ./target/debug/russula_cli netbench-client-worker --russula-port {} --netbench-servers {server_ips} --driver {netbench_driver} --scenario {}",
+        format!("env RUST_LOG=debug ./target/debug/russula_cli netbench-client-worker --russula-port {} --driver {netbench_driver} --scenario {} --netbench-servers {server_addr}",
             STATE.russula_port, scenario.name);
     debug!("{}", netbench_cmd);
 
