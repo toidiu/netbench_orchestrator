@@ -5,7 +5,7 @@
 use crate::russula::protocol::{ProtocolInstance, SockProtocol};
 use core::{task::Poll, time::Duration};
 use std::{collections::BTreeSet, net::SocketAddr};
-use tracing::{debug, info, warn};
+use tracing::{debug, error, info, warn};
 
 mod error;
 pub mod netbench;
@@ -54,6 +54,7 @@ impl<P: Protocol + Send> Russula<P> {
         for peer in self.instance_list.iter_mut() {
             if let Err(err) = peer.protocol.poll_state(&peer.stream, &state).await {
                 if err.is_fatal() {
+                    error!("{}", err);
                     panic!("{}", err);
                 }
             }

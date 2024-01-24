@@ -123,6 +123,7 @@ impl Protocol for WorkerProtocol {
                         let scenario = format!("{}/{}", netbench_path, self.netbench_ctx.scenario);
 
                         let mut cmd = Command::new(collector);
+                        cmd.env("PORT", "9000");
                         cmd.args([&driver, "--scenario", &scenario])
                             .stdout(output_json);
                         println!("{:?}", cmd);
