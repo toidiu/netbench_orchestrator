@@ -33,12 +33,11 @@ use state::*;
 
 // TODO
 // D- verify orch works with new russula api
-// - see if orch works with different scenario file names
+// D- see if orch works with different scenario file names
 //
-// - provide incast scenario.. possibly rename??
-//   - attempt to launch 2 server and 1 client remotely
-// - incast scenario and russula in testing mode
-// - incast scenario and russulas
+// - provide incast scenario: 2 server and 1 client remotely
+//   - incast scenario and russula in testing mode
+//   - incast scenario and russulas
 //
 // - run russula on multiple hosts
 // - save netbench output to different named files instead of server.json/client.json

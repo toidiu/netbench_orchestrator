@@ -1,6 +1,7 @@
 # -------------------- bin orchestrator
 run_orchestrator:
-	RUST_LOG=none,orchestrator::russula=info,orchestrator=debug cargo run --bin orchestrator
+	RUST_LOG=none,orchestrator::russula=info,orchestrator=debug cargo run --bin orchestrator -- \
+					 --scenario-file scripts/request_response_incast.json
 
 # -------------------- test russula_cli with netbench
 net_server_coord:
