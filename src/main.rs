@@ -32,8 +32,11 @@ use ssm_utils::*;
 use state::*;
 
 // TODO
+// D- verify orch works with new russula api
+// - see if orch works with different scenario file names
+//
 // - provide incast scenario.. possibly rename??
-// - attempt to launch 2 server and 1 client remotely
+//   - attempt to launch 2 server and 1 client remotely
 // - incast scenario and russula in testing mode
 // - incast scenario and russulas
 //
