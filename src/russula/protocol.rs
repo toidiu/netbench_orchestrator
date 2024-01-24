@@ -20,7 +20,7 @@ const NOTIFY_DONE_TIMEOUT: Duration = Duration::from_secs(1);
 
 pub type SockProtocol<P> = (SocketAddr, P);
 
-pub(crate) struct RussulaPeer<P: Protocol> {
+pub(crate) struct ProtocolInstance<P: Protocol> {
     pub addr: SocketAddr,
     pub stream: TcpStream,
     pub protocol: P,
@@ -45,7 +45,8 @@ pub trait Protocol: Clone {
         self.poll_state(stream, &ready_state).await
     }
 
-    // if not at the desired state then attempt to make progress by 'run_current' action
+    // If the peer is not at the desired state then attempt to make progress by invoking the
+    // 'run_current' action
     async fn poll_state(
         &mut self,
         stream: &TcpStream,

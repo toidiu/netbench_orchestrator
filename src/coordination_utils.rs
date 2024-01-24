@@ -6,7 +6,7 @@ use crate::{
     poll_ssm_results,
     russula::{
         self,
-        netbench::{client, server, Context, ContextArgs},
+        netbench::{client, server},
         RussulaBuilder,
     },
     ssm_utils, NetbenchDriver, Scenario, STATE,
@@ -200,10 +200,7 @@ async fn server_coord(infra: &InfraDetail) -> russula::Russula<server::CoordProt
         })
         .collect();
 
-    // FIXME directly create Context
-    let args =
-        ContextArgs::for_russula_coordinator("netbench-driver-s2n-quic-server", server_ips.clone());
-    let protocol = server::CoordProtocol::new(Context::new(false, &args));
+    let protocol = server::CoordProtocol::new();
     let server_coord = RussulaBuilder::new(
         BTreeSet::from_iter(server_ips),
         protocol,
@@ -224,9 +221,7 @@ async fn client_coord(infra: &InfraDetail) -> russula::Russula<client::CoordProt
         })
         .collect();
 
-    let args =
-        ContextArgs::for_russula_coordinator("netbench-driver-s2n-quic-client", client_ips.clone());
-    let protocol = client::CoordProtocol::new(Context::new(false, &args));
+    let protocol = client::CoordProtocol::new();
     let client_coord = RussulaBuilder::new(
         BTreeSet::from_iter(client_ips),
         protocol,

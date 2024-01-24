@@ -24,21 +24,8 @@ mod russula;
 
 #[derive(StructOpt, Debug)]
 struct Opt {
-    // Address for the Coordinator and Worker to communicate on.
-    //
-    // The Coordinator gets a list of workers addrs to 'connect' to.
-    // The Worker gets its own addr to 'listen' on.
-    #[structopt(long)]
-    russula_port: u16,
-    // FIXME replace russula_port with this.
-    // workers get '0.0.0.0:port' and coord get 'x.x.x.x:port'; x can be 0 if testing locally
-    // russula_pair_addr_list: Vec<SocketAddr>
     #[structopt(long, parse(try_from_str=parse_duration), default_value = "5s")]
     poll_delay: Duration,
-
-    // TODO possibly move to Netbench Context
-    #[structopt(long)]
-    testing: bool,
 
     #[structopt(subcommand)]
     protocol: RussulaProtocol,
@@ -48,20 +35,28 @@ struct Opt {
 #[derive(StructOpt, Debug)]
 enum RussulaProtocol {
     NetbenchServerWorker {
-        #[structopt(flatten)]
-        ctx: netbench::ContextArgs,
-    },
-    NetbenchServerCoordinator {
+        // The port on which the Worker should 'listen' on.
+        #[structopt(long)]
+        russula_port: u16,
+
         #[structopt(flatten)]
         ctx: netbench::ContextArgs,
     },
     NetbenchClientWorker {
+        // The port on which the Worker should 'listen' on.
+        #[structopt(long)]
+        russula_port: u16,
+
         #[structopt(flatten)]
         ctx: netbench::ContextArgs,
     },
+    NetbenchServerCoordinator {
+        #[structopt(long, required = true)]
+        worker_addrs: Vec<SocketAddr>,
+    },
     NetbenchClientCoordinator {
-        #[structopt(flatten)]
-        ctx: netbench::ContextArgs,
+        #[structopt(long)]
+        worker_addrs: Vec<SocketAddr>,
     },
 }
 
@@ -79,21 +74,23 @@ async fn main() -> OrchResult<()> {
     debug!("{:?}", opt);
     println!("{:?}", opt);
     match &opt.protocol {
-        RussulaProtocol::NetbenchServerWorker { ctx } => {
-            let netbench_ctx = netbench::Context::new(opt.testing, ctx);
-            run_server_worker(opt, netbench_ctx).await
+        RussulaProtocol::NetbenchServerWorker { ctx, russula_port } => {
+            let netbench_ctx = netbench::Context::new(ctx);
+            let russula_port = *russula_port;
+            run_server_worker(opt, netbench_ctx, russula_port).await
         }
-        RussulaProtocol::NetbenchServerCoordinator { ctx } => {
-            let netbench_ctx = netbench::Context::new(opt.testing, ctx);
-            run_local_server_coordinator(opt, netbench_ctx).await
+        RussulaProtocol::NetbenchClientWorker { ctx, russula_port } => {
+            let netbench_ctx = netbench::Context::new(ctx);
+            let russula_port = *russula_port;
+            run_client_worker(opt, netbench_ctx, russula_port).await
         }
-        RussulaProtocol::NetbenchClientWorker { ctx } => {
-            let netbench_ctx = netbench::Context::new(opt.testing, ctx);
-            run_client_worker(opt, netbench_ctx).await
+        RussulaProtocol::NetbenchServerCoordinator { worker_addrs } => {
+            let w = worker_addrs.clone();
+            run_local_server_coordinator(opt, w).await
         }
-        RussulaProtocol::NetbenchClientCoordinator { ctx } => {
-            let netbench_ctx = netbench::Context::new(opt.testing, ctx);
-            run_local_client_coordinator(opt, netbench_ctx).await
+        RussulaProtocol::NetbenchClientCoordinator { worker_addrs } => {
+            let w = worker_addrs.clone();
+            run_local_client_coordinator(opt, w).await
         }
     };
 
@@ -101,11 +98,11 @@ async fn main() -> OrchResult<()> {
     Ok(())
 }
 
-async fn run_server_worker(opt: Opt, netbench_ctx: netbench::Context) {
+async fn run_server_worker(opt: Opt, netbench_ctx: netbench::Context, russula_port: u16) {
     let id = 1;
     let protocol = server::WorkerProtocol::new(id, netbench_ctx);
     let worker = RussulaBuilder::new(
-        BTreeSet::from_iter([russula_local_addr(&opt)]),
+        BTreeSet::from_iter([local_listen_addr(russula_port)]),
         protocol,
         opt.poll_delay,
     );
@@ -118,11 +115,11 @@ async fn run_server_worker(opt: Opt, netbench_ctx: netbench::Context) {
         .unwrap();
 }
 
-async fn run_client_worker(opt: Opt, netbench_ctx: netbench::Context) {
+async fn run_client_worker(opt: Opt, netbench_ctx: netbench::Context, russula_port: u16) {
     let id = 1;
     let protocol = client::WorkerProtocol::new(id, netbench_ctx);
     let worker = RussulaBuilder::new(
-        BTreeSet::from_iter([russula_local_addr(&opt)]),
+        BTreeSet::from_iter([local_listen_addr(russula_port)]),
         protocol,
         opt.poll_delay,
     );
@@ -135,11 +132,11 @@ async fn run_client_worker(opt: Opt, netbench_ctx: netbench::Context) {
         .unwrap();
 }
 
-async fn run_local_server_coordinator(opt: Opt, netbench_ctx: netbench::Context) {
-    let protocol = server::CoordProtocol::new(netbench_ctx);
+async fn run_local_server_coordinator(opt: Opt, worker_addrs: Vec<SocketAddr>) {
+    let protocol = server::CoordProtocol::new();
     let coord = RussulaBuilder::new(
         // TODO for local testing.. we only connect to 1 local worker
-        BTreeSet::from_iter([russula_local_addr(&opt)]),
+        BTreeSet::from_iter(worker_addrs),
         protocol,
         opt.poll_delay,
     );
@@ -161,11 +158,11 @@ async fn run_local_server_coordinator(opt: Opt, netbench_ctx: netbench::Context)
         .unwrap();
 }
 
-async fn run_local_client_coordinator(opt: Opt, netbench_ctx: netbench::Context) {
-    let protocol = client::CoordProtocol::new(netbench_ctx);
+async fn run_local_client_coordinator(opt: Opt, worker_addrs: Vec<SocketAddr>) {
+    let protocol = client::CoordProtocol::new();
     let coord = RussulaBuilder::new(
         // TODO for local testing.. we only connect to 1 local worker
-        BTreeSet::from_iter([russula_local_addr(&opt)]),
+        BTreeSet::from_iter(worker_addrs),
         protocol,
         opt.poll_delay,
     );
@@ -182,8 +179,6 @@ async fn run_local_client_coordinator(opt: Opt, netbench_ctx: netbench::Context)
         .unwrap();
 }
 
-// FIXME this only works for local runs..
-// Coordinators attempting to connect to remote workers wont work
-fn russula_local_addr(opt: &Opt) -> SocketAddr {
-    format!("0.0.0.0:{}", opt.russula_port).parse().unwrap()
+fn local_listen_addr(russula_port: u16) -> SocketAddr {
+    format!("0.0.0.0:{}", russula_port).parse().unwrap()
 }

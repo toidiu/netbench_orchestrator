@@ -11,6 +11,9 @@ mod server_worker;
 
 #[derive(StructOpt, Debug)]
 pub struct ContextArgs {
+    #[structopt(long)]
+    testing: bool,
+
     // The path to the netbench utility and scenario file.
     #[structopt(long, default_value = "/home/ec2-user/bin")]
     netbench_path: PathBuf,
@@ -29,18 +32,6 @@ pub struct ContextArgs {
     peer_list: Vec<SocketAddr>,
 }
 
-impl ContextArgs {
-    // FIXME pass scenario and path from coord -> worker?
-    pub fn for_russula_coordinator(driver_name: &str, peer_list: Vec<SocketAddr>) -> Self {
-        Self {
-            netbench_path: "unused_by_coordinator".into(),
-            driver: driver_name.into(),
-            scenario: "unused_by_coordinator".to_owned(),
-            peer_list,
-        }
-    }
-}
-
 #[derive(Debug, Clone)]
 pub struct Context {
     peer_list: Vec<SocketAddr>,
@@ -51,13 +42,13 @@ pub struct Context {
 }
 
 impl Context {
-    pub fn new(testing: bool, ctx: &ContextArgs) -> Self {
+    pub fn new(ctx: &ContextArgs) -> Self {
         Context {
             peer_list: ctx.peer_list.clone(),
             netbench_path: ctx.netbench_path.clone(),
             driver: ctx.driver.clone(),
             scenario: ctx.scenario.clone(),
-            testing,
+            testing: ctx.testing,
         }
     }
 
