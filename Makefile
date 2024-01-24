@@ -3,6 +3,13 @@ run_orchestrator:
 	RUST_LOG=none,orchestrator::russula=info,orchestrator=debug cargo run --bin orchestrator
 
 # -------------------- bin russula_cli
+#
+# russula_cli --russula-port {} \
+# 	netbench-server-worker \
+# 	--peer-list {peer_sock_addr} \
+# 	--driver {netbench_driver} \
+# 	--scenario {}
+#
 net_server_coord:
 	RUST_LOG=none,orchestrator=debug,russula_cli=debug cargo run --bin russula_cli -- \
 					 --russula-port 7000 \

@@ -117,8 +117,6 @@ impl Protocol for WorkerProtocol {
                         let scenario = format!("{}/{}", netbench_path, self.netbench_ctx.scenario);
 
                         let mut cmd = Command::new(collector);
-                        // FIXME update Netbench to take a list of Server IP
-                        let server_addr = self.netbench_ctx.peer_list.first().unwrap();
 
                         // SCENARIO=request_response.json SERVER_0=127.0.0.1:8888 SERVER_1=127.0.0.1:9999 s2n-netbench-collector s2n-netbench-driver-client-s2n-quic
                         for (i, peer_list) in self.netbench_ctx.peer_list.iter().enumerate() {
@@ -126,9 +124,7 @@ impl Protocol for WorkerProtocol {
                             cmd.env(server_idx, peer_list.to_string());
                         }
 
-                        cmd
-                            // .env("SERVER_0", server_addr.to_string())
-                            .args([&driver, "--scenario", &scenario])
+                        cmd.args([&driver, "--scenario", &scenario])
                             .stdout(output_json);
                         println!("{:?}", cmd);
                         debug!("{:?}", cmd);

@@ -33,7 +33,7 @@ pub struct CoordProtocol {
 }
 
 impl CoordProtocol {
-    pub fn new(netbench_context: Context) -> Self {
+    pub fn new(netbench_ctx: Context) -> Self {
         CoordProtocol {
             state: CoordState::CheckWorker,
             worker_state: WorkerState::WaitCoordInit,
