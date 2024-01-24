@@ -46,9 +46,23 @@ pub async fn run_russula_worker(
 ) -> SendCommandOutput {
     debug!("{:?}", servers);
     let server_ips = servers.first().unwrap();
-    send_command(vec![Step::BuildDriver("".to_string()), Step::BuildRussula], Step::RunRussula, "client", "run_client_russula", ssm_client, instance_ids, vec![
-        "cd netbench_orchestrator",
+    let netbench_cmd =
         format!("env RUST_LOG=debug ./target/debug/russula_cli netbench-client-worker --russula-port {} --netbench-servers {server_ips} --driver {netbench_driver} --scenario {}",
-                STATE.russula_port, scenario.name).as_str(),
-    ].into_iter().map(String::from).collect()).await.expect("Timed out")
+            STATE.russula_port, scenario.name);
+    debug!("{}", netbench_cmd);
+
+    send_command(
+        vec![Step::BuildDriver("".to_string()), Step::BuildRussula],
+        Step::RunRussula,
+        "client",
+        "run_client_russula",
+        ssm_client,
+        instance_ids,
+        vec!["cd netbench_orchestrator", netbench_cmd.as_str()]
+            .into_iter()
+            .map(String::from)
+            .collect(),
+    )
+    .await
+    .expect("Timed out")
 }
