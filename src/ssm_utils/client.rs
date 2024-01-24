@@ -12,10 +12,17 @@ pub async fn copy_netbench_data(
     instance_ids: Vec<String>,
     unique_id: &str,
     scenario: &Scenario,
+    driver: &NetbenchDriver,
 ) -> SendCommandOutput {
+    let driver_name = driver
+        .driver_name
+        .trim_start_matches("s2n-netbench-driver-")
+        .trim_start_matches("netbench-driver-")
+        .trim_end_matches(".json");
+
     send_command(
         vec![Step::RunRussula],
-        Step::RunNetbench,
+        Step::UploadNetbenchRawData,
         "client",
         "run_client_netbench",
         ssm_client,
@@ -23,7 +30,7 @@ pub async fn copy_netbench_data(
         vec![
             "cd netbench_orchestrator",
             format!(
-                "aws s3 cp client.json {}/results/{}/s2n-quic/",
+                "aws s3 cp net_data* {}/results/{}/{driver_name}/",
                 STATE.s3_path(unique_id),
                 scenario.file_stem()
             )

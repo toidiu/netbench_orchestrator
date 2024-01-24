@@ -25,6 +25,7 @@ pub enum Step {
     BuildRussula,
     RunRussula,
     RunNetbench,
+    UploadNetbenchRawData,
 }
 
 impl Step {
@@ -35,6 +36,7 @@ impl Step {
             Step::BuildRussula => "build_russula",
             Step::RunRussula => "run_russula",
             Step::RunNetbench => "run_netbench",
+            Step::UploadNetbenchRawData => "upload_netbench_raw_data",
         }
     }
 
@@ -45,6 +47,7 @@ impl Step {
             Step::BuildRussula => None,
             Step::RunRussula => None,
             Step::RunNetbench => None,
+            Step::UploadNetbenchRawData => None,
         }
     }
 }

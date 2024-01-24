@@ -30,7 +30,7 @@ impl ServerNetbenchRussula {
         infra: &InfraDetail,
         instance_ids: Vec<String>,
         scenario: &Scenario,
-        driver: NetbenchDriver,
+        driver: &NetbenchDriver,
     ) -> Self {
         // server run commands
         debug!("starting server worker");
@@ -127,7 +127,7 @@ impl ClientNetbenchRussula {
         infra: &InfraDetail,
         instance_ids: Vec<String>,
         scenario: &Scenario,
-        driver: NetbenchDriver,
+        driver: &NetbenchDriver,
     ) -> Self {
         // client run commands
         debug!("starting client worker");

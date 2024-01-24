@@ -109,6 +109,10 @@ pub async fn run(
     let quic_client_driver = ssm_utils::quic_client_driver(&unique_id, &scenario);
     let tcp_server_driver = ssm_utils::tcp_server_driver(&unique_id, &scenario);
     let tcp_client_driver = ssm_utils::tcp_client_driver(&unique_id, &scenario);
+
+    let client_driver_to_run = &tcp_client_driver;
+    let server_driver_to_run = &tcp_server_driver;
+
     // configure and build
     {
         let mut build_cmds = ssm_utils::common::collect_config_cmds(
@@ -153,9 +157,7 @@ pub async fn run(
             &infra,
             server_ids.clone(),
             &scenario,
-            // quic_server_driver,
-            // dc_quic_server_driver,
-            tcp_server_driver,
+            server_driver_to_run,
         )
         .await;
 
@@ -164,9 +166,7 @@ pub async fn run(
             &infra,
             client_ids.clone(),
             &scenario,
-            // quic_client_driver,
-            // dc_quic_client_driver,
-            tcp_client_driver,
+            client_driver_to_run,
         )
         .await;
 
@@ -183,6 +183,7 @@ pub async fn run(
             server_ids.clone(),
             &unique_id,
             &scenario,
+            server_driver_to_run,
         )
         .await;
         let copy_client_netbench = ssm_utils::client::copy_netbench_data(
@@ -190,6 +191,7 @@ pub async fn run(
             client_ids.clone(),
             &unique_id,
             &scenario,
+            client_driver_to_run,
         )
         .await;
         ssm_utils::common::wait_complete(
@@ -204,12 +206,12 @@ pub async fn run(
     // Copy results back
     orch_generate_report(&s3_client, &unique_id).await;
 
-    // Cleanup
-    infra
-        .cleanup(&ec2_client)
-        .await
-        .map_err(|err| eprintln!("Failed to cleanup resources. {}", err))
-        .unwrap();
+    // // Cleanup
+    // infra
+    //     .cleanup(&ec2_client)
+    //     .await
+    //     .map_err(|err| eprintln!("Failed to cleanup resources. {}", err))
+    //     .unwrap();
 
     Ok(())
 }
