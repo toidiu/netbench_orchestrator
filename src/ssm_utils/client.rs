@@ -45,7 +45,16 @@ pub async fn run_russula_worker(
     scenario: &Scenario,
 ) -> SendCommandOutput {
     debug!("{:?}", servers);
-    let server_ips = servers.first().unwrap();
+    let server_ips = servers
+        .into_iter()
+        .map(|addr| addr.to_string())
+        .reduce(|mut accum, item| {
+            accum.push(' ');
+            accum.push_str(&item);
+            accum
+        })
+        .unwrap();
+
     let netbench_cmd =
         format!("env RUST_LOG=debug ./target/debug/russula_cli netbench-client-worker --russula-port {} --netbench-servers {server_ips} --driver {netbench_driver} --scenario {}",
             STATE.russula_port, scenario.name);

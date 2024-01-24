@@ -128,6 +128,7 @@ impl Protocol for WorkerProtocol {
 
                         let mut cmd = Command::new(collector);
                         cmd.env("PORT", self.netbench_ctx.netbench_port.to_string());
+                        cmd.arg("--disable-bpf");
                         cmd.args([&driver, "--scenario", &scenario])
                             .stdout(output_json);
                         println!("{:?}", cmd);
