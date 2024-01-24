@@ -17,7 +17,7 @@ mod duration;
 mod error;
 mod russula;
 
-/// This utility is a convenient CLI wraper around Russula and can be used to launch
+/// This utility is a convenient CLI wrapper around Russula and can be used to launch
 /// different protocols.
 ///
 /// It currently supports launching server/client Netbench protocols.
@@ -40,7 +40,7 @@ enum RussulaProtocol {
         russula_port: u16,
 
         #[structopt(flatten)]
-        ctx: netbench::ContextArgs,
+        ctx: netbench::ServerContext,
     },
     NetbenchClientWorker {
         // The port on which the Worker should 'listen' on.
@@ -48,7 +48,7 @@ enum RussulaProtocol {
         russula_port: u16,
 
         #[structopt(flatten)]
-        ctx: netbench::ContextArgs,
+        ctx: netbench::ClientContext,
     },
     NetbenchServerCoordinator {
         #[structopt(long, required = true)]
@@ -75,12 +75,12 @@ async fn main() -> OrchResult<()> {
     println!("{:?}", opt);
     match &opt.protocol {
         RussulaProtocol::NetbenchServerWorker { ctx, russula_port } => {
-            let netbench_ctx = netbench::Context::new(ctx);
+            let netbench_ctx = ctx.clone();
             let russula_port = *russula_port;
             run_server_worker(opt, netbench_ctx, russula_port).await
         }
         RussulaProtocol::NetbenchClientWorker { ctx, russula_port } => {
-            let netbench_ctx = netbench::Context::new(ctx);
+            let netbench_ctx = ctx.clone();
             let russula_port = *russula_port;
             run_client_worker(opt, netbench_ctx, russula_port).await
         }
@@ -98,7 +98,7 @@ async fn main() -> OrchResult<()> {
     Ok(())
 }
 
-async fn run_server_worker(opt: Opt, netbench_ctx: netbench::Context, russula_port: u16) {
+async fn run_server_worker(opt: Opt, netbench_ctx: netbench::ServerContext, russula_port: u16) {
     let id = 1;
     let protocol = server::WorkerProtocol::new(id, netbench_ctx);
     let worker = RussulaBuilder::new(
@@ -115,7 +115,7 @@ async fn run_server_worker(opt: Opt, netbench_ctx: netbench::Context, russula_po
         .unwrap();
 }
 
-async fn run_client_worker(opt: Opt, netbench_ctx: netbench::Context, russula_port: u16) {
+async fn run_client_worker(opt: Opt, netbench_ctx: netbench::ClientContext, russula_port: u16) {
     let id = 1;
     let protocol = client::WorkerProtocol::new(id, netbench_ctx);
     let worker = RussulaBuilder::new(

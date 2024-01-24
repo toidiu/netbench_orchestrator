@@ -9,8 +9,8 @@ mod client_worker;
 mod server_coord;
 mod server_worker;
 
-#[derive(StructOpt, Debug)]
-pub struct ContextArgs {
+#[derive(StructOpt, Debug, Clone)]
+pub struct ClientContext {
     #[structopt(long)]
     testing: bool,
 
@@ -27,34 +27,46 @@ pub struct ContextArgs {
     #[structopt(long, default_value = "request_response.json")]
     scenario: String,
 
-    // The list of Client and Server peers
+    // The list of Server to connect to
     #[structopt(long)]
     peer_list: Vec<SocketAddr>,
 }
 
-#[derive(Debug, Clone)]
-pub struct Context {
-    peer_list: Vec<SocketAddr>,
-    netbench_path: PathBuf,
-    driver: String,
-    scenario: String,
+#[derive(StructOpt, Debug, Clone)]
+pub struct ServerContext {
+    #[structopt(long)]
     testing: bool,
+
+    // The path to the netbench utility and scenario file.
+    #[structopt(long, default_value = "/home/ec2-user/bin")]
+    netbench_path: PathBuf,
+
+    #[structopt(long)]
+    driver: String,
+
+    // The name of the scenario file.
+    //
+    // https://github.com/aws/s2n-netbench/tree/main/netbench-scenarios
+    #[structopt(long, default_value = "request_response.json")]
+    scenario: String,
 }
 
-impl Context {
-    pub fn new(ctx: &ContextArgs) -> Self {
-        Context {
-            peer_list: ctx.peer_list.clone(),
-            netbench_path: ctx.netbench_path.clone(),
-            driver: ctx.driver.clone(),
-            scenario: ctx.scenario.clone(),
-            testing: ctx.testing,
-        }
-    }
-
+impl ServerContext {
     #[cfg(test)]
     pub fn testing() -> Self {
-        Context {
+        ServerContext {
+            netbench_path: "".into(),
+            driver: "".to_string(),
+            scenario: "".to_string(),
+            testing: true,
+        }
+    }
+}
+
+impl ClientContext {
+    #[cfg(test)]
+    pub fn testing() -> Self {
+        ClientContext {
             peer_list: vec![],
             netbench_path: "".into(),
             driver: "".to_string(),

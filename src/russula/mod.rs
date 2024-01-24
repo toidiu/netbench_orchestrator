@@ -22,13 +22,6 @@ use states::{StateApi, TransitionStep};
 //   - match on TransitionStep?
 // - convert prints to tracing events
 //
-// D- track peer state for reporting
-// D- make notify_peer_done part of the protocol impl
-// D- read all queued msg
-// D- len for msg
-// D- r.transition_step // what is the next step one should take
-// D- r.poll_state // take steps to go to next step if possible
-// D- handle coord retry on connect
 // - should poll current step until all peers are on next step
 //   - need api to ask peer state and track peer state
 //
@@ -37,7 +30,10 @@ use states::{StateApi, TransitionStep};
 // halting problem https://en.wikipedia.org/wiki/Halting_problem
 
 pub struct Russula<P: Protocol> {
-    // Instance part of this protocol.
+    // Protocol instances part of this Russula Coordinator/Worker.
+    //
+    // The Coord should be a list of size 1
+    // The Worker can be list of size >=1
     instance_list: Vec<ProtocolInstance<P>>,
     poll_delay: Duration,
     protocol: P,
@@ -188,7 +184,7 @@ mod tests {
             let worker = RussulaBuilder::new(
                 BTreeSet::from_iter([w1_sock]),
                 // netbench::Context::new(true, peer_list, ctx)
-                server::WorkerProtocol::new(w1_sock.port(), netbench::Context::testing()),
+                server::WorkerProtocol::new(w1_sock.port(), netbench::ServerContext::testing()),
                 POLL_DELAY_DURATION,
             );
             let mut worker = worker.build().await.unwrap();
@@ -201,7 +197,7 @@ mod tests {
         let w2 = tokio::spawn(async move {
             let worker = RussulaBuilder::new(
                 BTreeSet::from_iter([w2_sock]),
-                server::WorkerProtocol::new(w2_sock.port(), netbench::Context::testing()),
+                server::WorkerProtocol::new(w2_sock.port(), netbench::ServerContext::testing()),
                 POLL_DELAY_DURATION,
             );
             let mut worker = worker.build().await.unwrap();
@@ -266,7 +262,7 @@ mod tests {
         let w1 = tokio::spawn(async move {
             let worker = RussulaBuilder::new(
                 BTreeSet::from_iter([w1_sock]),
-                client::WorkerProtocol::new(w1_sock.port(), netbench::Context::testing()),
+                client::WorkerProtocol::new(w1_sock.port(), netbench::ClientContext::testing()),
                 POLL_DELAY_DURATION,
             );
             let mut worker = worker.build().await.unwrap();
@@ -279,7 +275,7 @@ mod tests {
         let w2 = tokio::spawn(async move {
             let worker = RussulaBuilder::new(
                 BTreeSet::from_iter([w2_sock]),
-                client::WorkerProtocol::new(w2_sock.port(), netbench::Context::testing()),
+                client::WorkerProtocol::new(w2_sock.port(), netbench::ClientContext::testing()),
                 POLL_DELAY_DURATION,
             );
             let mut worker = worker.build().await.unwrap();

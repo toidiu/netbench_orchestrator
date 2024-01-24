@@ -3,7 +3,7 @@
 
 use crate::russula::{
     error::{RussulaError, RussulaResult},
-    netbench::{client::WorkerState, Context},
+    netbench::client::WorkerState,
     network_utils::Msg,
     protocol::Protocol,
     StateApi, TransitionStep,

@@ -1,7 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-use super::Context;
+use super::ServerContext;
 use crate::russula::{
     error::{RussulaError, RussulaResult},
     netbench::server_coord::CoordState,
@@ -40,11 +40,11 @@ pub struct WorkerProtocol {
     id: u16,
     state: WorkerState,
     coord_state: CoordState,
-    netbench_ctx: Context,
+    netbench_ctx: ServerContext,
 }
 
 impl WorkerProtocol {
-    pub fn new(id: u16, netbench_ctx: Context) -> Self {
+    pub fn new(id: u16, netbench_ctx: ServerContext) -> Self {
         WorkerProtocol {
             id,
             state: WorkerState::WaitCoordInit,
