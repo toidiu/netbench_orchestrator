@@ -4,7 +4,7 @@
 use super::ServerContext;
 use crate::russula::{
     error::{RussulaError, RussulaResult},
-    setbench::server_coord::CoordState,
+    netbench::server_coord::CoordState,
     network_utils::Msg,
     protocol::Protocol,
     StateApi, TransitionStep,
