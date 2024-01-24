@@ -162,7 +162,6 @@ pub async fn run(
             &ssm_client,
             &infra,
             server_ids.clone(),
-            &clients_ips,
             &scenario,
             // quic_server_driver,
             // dc_quic_server_driver,

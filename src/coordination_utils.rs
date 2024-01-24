@@ -26,21 +26,15 @@ impl ServerNetbenchRussula {
         ssm_client: &aws_sdk_ssm::Client,
         infra: &InfraDetail,
         instance_ids: Vec<String>,
-        client_ips: &[String],
         scenario: &Scenario,
         driver: NetbenchDriver,
     ) -> Self {
         // server run commands
         debug!("starting server worker");
 
-        let peer_sock_addr: Vec<SocketAddr> = client_ips
-            .iter()
-            .map(|ip| SocketAddr::from_str(&format!("{}:4433", ip)).unwrap())
-            .collect();
         let worker = ssm_utils::server::run_russula_worker(
             ssm_client,
             instance_ids,
-            peer_sock_addr,
             driver.driver_name,
             scenario,
         )

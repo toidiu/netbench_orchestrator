@@ -29,7 +29,7 @@ pub struct ClientContext {
 
     // The list of Server to connect to
     #[structopt(long)]
-    peer_list: Vec<SocketAddr>,
+    netbench_servers: Vec<SocketAddr>,
 }
 
 #[derive(StructOpt, Debug, Clone)]
@@ -67,7 +67,7 @@ impl ClientContext {
     #[cfg(test)]
     pub fn testing() -> Self {
         ClientContext {
-            peer_list: vec![],
+            netbench_servers: vec![],
             netbench_path: "".into(),
             driver: "".to_string(),
             scenario: "".to_string(),

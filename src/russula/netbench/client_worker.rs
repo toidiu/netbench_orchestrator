@@ -119,7 +119,8 @@ impl Protocol for WorkerProtocol {
                         let mut cmd = Command::new(collector);
 
                         // SCENARIO=request_response.json SERVER_0=127.0.0.1:8888 SERVER_1=127.0.0.1:9999 s2n-netbench-collector s2n-netbench-driver-client-s2n-quic
-                        for (i, peer_list) in self.netbench_ctx.peer_list.iter().enumerate() {
+                        for (i, peer_list) in self.netbench_ctx.netbench_servers.iter().enumerate()
+                        {
                             let server_idx = format!("SERVER_{}", i);
                             cmd.env(server_idx, peer_list.to_string());
                         }

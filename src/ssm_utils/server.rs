@@ -4,8 +4,6 @@
 use super::{send_command, Step};
 use crate::{state::STATE, Scenario};
 use aws_sdk_ssm::operation::send_command::SendCommandOutput;
-use std::net::SocketAddr;
-use tracing::debug;
 
 pub async fn copy_netbench_data(
     ssm_client: &aws_sdk_ssm::Client,
@@ -40,19 +38,16 @@ pub async fn copy_netbench_data(
 pub async fn run_russula_worker(
     ssm_client: &aws_sdk_ssm::Client,
     instance_ids: Vec<String>,
-    peer_sock_addr: Vec<SocketAddr>,
     netbench_driver: String,
     scenario: &Scenario,
 ) -> SendCommandOutput {
-    debug!("{:?}", peer_sock_addr);
-    let peer_sock_addr = peer_sock_addr.first().unwrap();
     send_command(
         vec![Step::BuildDriver("".to_string()), Step::BuildRussula],
         Step::RunRussula,
         "server", "run_server_russula", ssm_client, instance_ids,
         vec![
         "cd netbench_orchestrator",
-        format!("env RUST_LOG=debug ./target/debug/russula_cli --russula-port {} netbench-server-worker --peer-list {peer_sock_addr} --driver {netbench_driver} --scenario {}",
+        format!("env RUST_LOG=debug ./target/debug/russula_cli netbench-server-worker --russula-port {} --driver {netbench_driver} --scenario {}",
             STATE.russula_port, scenario.name).as_str(),
     ].into_iter().map(String::from).collect()).await.expect("Timed out")
 }
