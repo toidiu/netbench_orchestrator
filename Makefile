@@ -77,9 +77,9 @@ test_client_worker2:
 					 --driver unused \
 
 # -------------------- test russula
-test_server:
+unit_test_server:
 	RUST_LOG=none,orchestrator=debug cargo test --bin orchestrator -- server --nocapture
-test_client:
+unit_test_client:
 	RUST_LOG=none,orchestrator=debug cargo test --bin orchestrator -- client --nocapture
 
 # -------------------- util to generate netbench report

@@ -32,13 +32,10 @@ use ssm_utils::*;
 use state::*;
 
 // TODO
-// W- clap app
-// W- upload request_response.json
-// D- get host count from scenario.json
-// W- pass scenario file down to russula
-// -- test above --
-// - run russula on multiple hosts
+// - provide incast scenario.. possibly rename??
+// - attempt to launch 2 server and 1 client remotely
 //
+// - run russula on multiple hosts
 // - save netbench output to different named files instead of server.json/client.json
 //
 // # Expanding Russula/Cli

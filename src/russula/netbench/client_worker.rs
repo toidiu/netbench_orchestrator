@@ -135,7 +135,7 @@ impl Protocol for WorkerProtocol {
                     true => {
                         info!("{} run sim_netbench_client", self.name());
                         Command::new("sh")
-                            .args(["sim_netbench_client.sh", &self.name()])
+                            .args(["scripts/sim_netbench_client.sh", &self.name()])
                             .spawn()
                             .expect("Failed to start sim_netbench_client process")
                     }

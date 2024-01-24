@@ -150,7 +150,7 @@ async fn run_local_server_coordinator(opt: Opt, worker_addrs: Vec<SocketAddr>) {
     println!("Waiting for user input to continue ... WorkersRunning");
     let mut s = String::new();
     let _ = std::io::stdin().read_line(&mut s);
-    println!("Continuing ... Running till Done");
+    println!("Stopping workers ...");
 
     coord
         .run_till_state(server::CoordState::Done)
