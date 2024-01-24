@@ -53,7 +53,7 @@ use state::*;
 #[derive(Parser, Debug)]
 pub struct Args {
     /// Path the scenario file
-    #[arg(long, default_value = "request_response.json")]
+    #[arg(long, default_value = "scripts/request_response.json")]
     scenario_file: PathBuf,
 }
 
@@ -83,7 +83,7 @@ async fn check_requirements(
         })?
         .to_string();
     let scenario_file = File::open(path).map_err(|_err| OrchError::Init {
-        dbg: "Scenario file not specified".to_string(),
+        dbg: format!("Scenario file not found: {:?}", path),
     })?;
     let scenario: NetbenchScenario = serde_json::from_reader(scenario_file).unwrap();
 
