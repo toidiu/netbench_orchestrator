@@ -206,12 +206,12 @@ pub async fn run(
     // Copy results back
     orch_generate_report(&s3_client, &unique_id).await;
 
-    // // Cleanup
-    // infra
-    //     .cleanup(&ec2_client)
-    //     .await
-    //     .map_err(|err| eprintln!("Failed to cleanup resources. {}", err))
-    //     .unwrap();
+    // Cleanup
+    infra
+        .cleanup(&ec2_client)
+        .await
+        .map_err(|err| eprintln!("Failed to cleanup resources. {}", err))
+        .unwrap();
 
     Ok(())
 }
