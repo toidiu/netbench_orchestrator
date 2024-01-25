@@ -43,7 +43,7 @@ impl CoordProtocol {
 impl Protocol for CoordProtocol {
     type State = CoordState;
     fn name(&self) -> String {
-        format!("client-coord-{}", 0)
+        format!("client-c-{}", 0)
     }
 
     async fn connect(&self, addr: &SocketAddr) -> RussulaResult<TcpStream> {

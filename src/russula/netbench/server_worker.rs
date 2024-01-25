@@ -59,7 +59,7 @@ impl Protocol for WorkerProtocol {
     type State = WorkerState;
 
     fn name(&self) -> String {
-        format!("server-worker-{}", self.id)
+        format!("server-w-{}", self.id)
     }
 
     async fn connect(&self, addr: &SocketAddr) -> RussulaResult<TcpStream> {
@@ -108,9 +108,9 @@ impl Protocol for WorkerProtocol {
             WorkerState::Run => {
                 let child = match &self.netbench_ctx.testing {
                     false => {
-                        // TODO use unique id
-                        let output_log_file = "server.json";
-                        let output_log_file = File::create(output_log_file).expect("failed to open log");
+                        let output_log_file = format!("{}.json", self.name());
+                        let output_log_file =
+                            File::create(output_log_file).expect("failed to open log");
 
                         // sudo SCENARIO=./target/netbench/connect.json ./target/release/netbench-collector
                         //   ./target/release/netbench-driver-s2n-quic-server

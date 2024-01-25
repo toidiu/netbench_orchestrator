@@ -39,7 +39,11 @@ fn local_upload_source_to_s3(local_path_to_proj: &PathBuf, proj_name: &str, uniq
             local_path_to_proj.to_str().unwrap(),
             proj_name
         ))
-        .arg(format!("{}/{}/", STATE.s3_path(unique_id), proj_name));
+        .arg(format!(
+            "{}/{}/",
+            STATE.s3_private_path(unique_id),
+            proj_name
+        ));
     local_to_s3_cmd.args(["--exclude", "target/*", "--exclude", ".git/*"]);
     debug!("{:?}", local_to_s3_cmd);
     let status = local_to_s3_cmd.status().unwrap();

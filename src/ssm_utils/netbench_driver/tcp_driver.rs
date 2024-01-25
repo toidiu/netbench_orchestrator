@@ -1,7 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-use super::{local_upload_source_to_s3, NetbenchDriver};
+use super::NetbenchDriver;
 use crate::{Scenario, STATE};
 
 pub fn tcp_server_driver(unique_id: &str, scenario: &Scenario) -> NetbenchDriver {
@@ -37,10 +37,6 @@ pub fn tcp_server_driver(unique_id: &str, scenario: &Scenario) -> NetbenchDriver
         local_path_to_proj: None,
     };
 
-    if let Some(local_path_to_proj) = &driver.local_path_to_proj {
-        local_upload_source_to_s3(local_path_to_proj, &driver.proj_name, unique_id);
-    }
-
     driver
 }
 
@@ -74,10 +70,6 @@ pub fn tcp_client_driver(unique_id: &str, scenario: &Scenario) -> NetbenchDriver
         proj_name,
         local_path_to_proj: None,
     };
-
-    if let Some(local_path_to_proj) = &driver.local_path_to_proj {
-        local_upload_source_to_s3(local_path_to_proj, &driver.proj_name, unique_id);
-    }
 
     driver
 }

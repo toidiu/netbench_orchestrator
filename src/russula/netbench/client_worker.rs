@@ -55,7 +55,7 @@ impl Protocol for WorkerProtocol {
     type State = WorkerState;
 
     fn name(&self) -> String {
-        format!("client-worker-{}", self.id)
+        format!("client-w-{}", self.id)
     }
 
     async fn connect(&self, addr: &SocketAddr) -> RussulaResult<TcpStream> {
@@ -104,8 +104,9 @@ impl Protocol for WorkerProtocol {
             WorkerState::Run => {
                 let child = match &self.netbench_ctx.testing {
                     false => {
-                        let output_log_file = "client.json";
-                        let output_log_file = File::create(output_log_file).expect("failed to open log");
+                        let output_log_file = format!("{}.json", self.name());
+                        let output_log_file =
+                            File::create(output_log_file).expect("failed to open log");
 
                         info!("{} run netbench process", self.name());
                         println!("{} run netbench process", self.name());

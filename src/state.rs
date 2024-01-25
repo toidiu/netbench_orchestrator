@@ -31,6 +31,7 @@ pub const STATE: State = State {
     poll_delay_russula: Duration::from_secs(10),
 
     // aws
+    s3_private_log_bucket: "netbenchrunnerlogs-source",
     s3_log_bucket: "netbenchrunnerlogs",
     s3_resource_folder: "TS",
     cloudfront_url: "http://d2jusruq1ilhjs.cloudfront.net",
@@ -75,6 +76,7 @@ pub struct State {
     pub poll_delay_russula: Duration,
 
     // aws
+    pub s3_private_log_bucket: &'static str,
     pub s3_log_bucket: &'static str,
     pub s3_resource_folder: &'static str,
     pub cloudfront_url: &'static str,
@@ -91,6 +93,10 @@ impl State {
 
     pub fn s3_path(&self, unique_id: &str) -> String {
         format!("s3://{}/{}", self.s3_log_bucket, unique_id)
+    }
+
+    pub fn s3_private_path(&self, unique_id: &str) -> String {
+        format!("s3://{}/{}", self.s3_private_log_bucket, unique_id)
     }
 
     pub fn host_bin_path(&self) -> String {
