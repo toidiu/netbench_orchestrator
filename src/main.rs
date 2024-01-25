@@ -32,27 +32,25 @@ use ssm_utils::*;
 use state::*;
 
 // TODO
-// D- verify orch works with new russula api
-// D- see if orch works with different scenario file names
-// D- provide incast scenario: 2 server and 1 client remotely
-//   D- incast scenario and russula in testing mode
-//   D- incast scenario and russulas
-// D- run russula on multiple hosts
-// D- save netbench output to different named files instead of server.json/client.json
+// - install netbench drivers from crates.io
+// - save hash of private source
+//   - get private src exec from s3
+// - cleanup dashboard
+// - enum for orch steps
+//   - add timing data
 //
 // # Expanding Russula/Cli
-// D- pass netbench_path to russula_cli
-// D- pass scenario to russula_cli
-// D- replace russula_cli russula_port with russula_pair_addr_list
-// - pass scenario and path from coord -> worker?
 //
 // # Optimization
+// - tar.gz private source
+// - enum for driver build type (git, source, crates.io)
+//
 // - use release build instead of debug
 // - experiment with uploading and downloading netbench exec
 
 #[derive(Parser, Debug)]
 pub struct Args {
-    /// Path the scenario file
+    /// Path to the scenario file
     #[arg(long, default_value = "scripts/request_response.json")]
     scenario_file: PathBuf,
 }
