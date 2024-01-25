@@ -125,6 +125,11 @@ pub trait Protocol: Clone {
                 self.state_mut().transition_next(stream).await?;
                 break;
             } else {
+                // TODO avoid sending when receiving because it could trigger the peer
+                // sending more messages and an infinite loop.
+                //
+                // Why was this added? It shouldnt be necessary if the user correctly polls
+                // Russula.
                 // let fut = self.state().notify_peer(stream);
                 // fut.await?;
             }
