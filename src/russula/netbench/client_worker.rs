@@ -33,14 +33,14 @@ pub enum WorkerState {
 
 #[derive(Clone)]
 pub struct WorkerProtocol {
-    id: u16,
+    id: String,
     state: WorkerState,
     coord_state: CoordState,
     netbench_ctx: ClientContext,
 }
 
 impl WorkerProtocol {
-    pub fn new(id: u16, netbench_ctx: ClientContext) -> Self {
+    pub fn new(id: String, netbench_ctx: ClientContext) -> Self {
         WorkerProtocol {
             id,
             state: WorkerState::WaitCoordInit,
