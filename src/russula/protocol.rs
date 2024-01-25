@@ -112,7 +112,7 @@ pub trait Protocol: Clone {
         // loop until we receive a transition msg from peer or drain all msg from queue.
         // recv_msg aborts if the read queue is empty
         let mut last_msg;
-        loop {
+        let did_transition = loop {
             last_msg = network_utils::recv_msg(stream).await?;
             debug!(
                 "{} <---- recv msg {}",
@@ -123,7 +123,7 @@ pub trait Protocol: Clone {
             let state = self.state();
             if state.matches_transition_msg(stream, &mut last_msg).await? {
                 self.state_mut().transition_next(stream).await?;
-                break;
+                break true;
             } else {
                 // TODO avoid sending when receiving because it could trigger the peer
                 // sending more messages and an infinite loop.
@@ -133,6 +133,12 @@ pub trait Protocol: Clone {
                 // let fut = self.state().notify_peer(stream);
                 // fut.await?;
             }
+        };
+
+        // if the peer didn't send a transition msg then send our current state to
+        // continue to make progress and avoid deadlocks
+        if !did_transition {
+            self.state().notify_peer(stream).await?;
         }
 
         Ok(last_msg)
