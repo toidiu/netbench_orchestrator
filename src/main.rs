@@ -34,19 +34,17 @@ use state::*;
 // TODO
 // D- verify orch works with new russula api
 // D- see if orch works with different scenario file names
-//
-// - provide incast scenario: 2 server and 1 client remotely
-//   - incast scenario and russula in testing mode
-//   - incast scenario and russulas
-//
-// - run russula on multiple hosts
-// - save netbench output to different named files instead of server.json/client.json
+// D- provide incast scenario: 2 server and 1 client remotely
+//   D- incast scenario and russula in testing mode
+//   D- incast scenario and russulas
+// D- run russula on multiple hosts
+// D- save netbench output to different named files instead of server.json/client.json
 //
 // # Expanding Russula/Cli
-// - pass netbench_path to russula_cli
-// - pass scenario to russula_cli
+// D- pass netbench_path to russula_cli
+// D- pass scenario to russula_cli
+// D- replace russula_cli russula_port with russula_pair_addr_list
 // - pass scenario and path from coord -> worker?
-// - replace russula_cli russula_port with russula_pair_addr_list
 //
 // # Optimization
 // - use release build instead of debug
