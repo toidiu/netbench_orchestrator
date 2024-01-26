@@ -69,7 +69,7 @@ impl InfraDetail {
 
         let mut retries = 10;
         while deleted_sec_group.is_err() && retries > 0 {
-            tokio::time::sleep(Duration::from_secs(5)).await;
+            tokio::time::sleep(Duration::from_secs(10)).await;
             deleted_sec_group = ec2_client
                 .delete_security_group()
                 .group_id(self.security_group_id.to_string())

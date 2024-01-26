@@ -10,7 +10,7 @@ use aws_sdk_ssm::{
     types::{CloudWatchOutputConfig, CommandInvocationStatus},
 };
 use core::{task::Poll, time::Duration};
-use tracing::{debug, trace};
+use tracing::{error, trace};
 
 pub mod client;
 pub mod common;
@@ -144,14 +144,12 @@ pub async fn send_command(
             }
             Err(err) => {
                 if remaining_try_count > 0 {
-                    debug!(
-                        "Send command failed: remaining: {} err: {}",
-                        remaining_try_count, err
-                    );
-                    tokio::time::sleep(Duration::from_secs(2)).await;
+                    trace!("Send command failed: remaining: {remaining_try_count} err: {err}",);
+                    tokio::time::sleep(Duration::from_secs(5)).await;
                     remaining_try_count -= 1;
                     continue;
                 } else {
+                    error!("Send command failed: err: {err}",);
                     return None;
                 }
             }
