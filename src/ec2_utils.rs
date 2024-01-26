@@ -6,7 +6,7 @@ use crate::{
     ec2_utils::instance::delete_instance,
     error::{OrchError, OrchResult},
 };
-use std::{net::IpAddr, str::FromStr, thread::sleep, time::Duration};
+use std::{net::IpAddr, str::FromStr, time::Duration};
 use tracing::info;
 
 mod cluster;
@@ -65,11 +65,11 @@ impl InfraDetail {
             .group_id(self.security_group_id.to_string())
             .send()
             .await;
-        sleep(Duration::from_secs(30));
+        tokio::time::sleep(Duration::from_secs(5)).await;
 
         let mut retries = 10;
         while deleted_sec_group.is_err() && retries > 0 {
-            sleep(Duration::from_secs(20));
+            tokio::time::sleep(Duration::from_secs(5)).await;
             deleted_sec_group = ec2_client
                 .delete_security_group()
                 .group_id(self.security_group_id.to_string())

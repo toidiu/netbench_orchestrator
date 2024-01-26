@@ -114,8 +114,8 @@ impl Protocol for WorkerProtocol {
 
                         // sudo SCENARIO=./target/netbench/connect.json ./target/release/netbench-collector
                         //   ./target/release/netbench-driver-s2n-quic-server
-                        info!("{} run task netbench", self.state().name(stream));
-                        println!("{} run task netbench", self.state().name(stream));
+                        info!("{} run task netbench", self.name());
+                        println!("{} run task netbench", self.name());
 
                         let netbench_path = self.netbench_ctx.netbench_path.to_str().unwrap();
                         let collector = format!("{}/s2n-netbench-collector", netbench_path);

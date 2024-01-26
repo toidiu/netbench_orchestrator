@@ -22,13 +22,13 @@ pub const STATE: State = State {
     host_home_path: "/home/ec2-user",
     workspace_dir: "./target/netbench",
     shutdown_min: 120, // 1 hour
-    poll_delay_ssm: Duration::from_secs(10),
+    poll_delay_ssm: Duration::from_secs(5),
 
     // russula
     russula_repo: "https://github.com/toidiu/netbench_orchestrator.git",
     russula_branch: "ak-main",
     russula_port: 9000,
-    poll_delay_russula: Duration::from_secs(10),
+    poll_delay_russula: Duration::from_secs(5),
 
     // aws
     s3_private_log_bucket: "netbenchrunnerlogs-source",

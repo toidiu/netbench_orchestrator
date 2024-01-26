@@ -168,7 +168,7 @@ pub(crate) async fn wait_for_ssm_results(
         match poll_ssm_results(endpoint, ssm_client, command_id).await {
             Ok(Poll::Ready(_)) => break true,
             Ok(Poll::Pending) => {
-                tokio::time::sleep(Duration::from_secs(10)).await;
+                tokio::time::sleep(STATE.poll_delay_ssm).await;
                 continue;
             }
             Err(_err) => break false,

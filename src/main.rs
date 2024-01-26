@@ -32,6 +32,8 @@ use ssm_utils::*;
 use state::*;
 
 // TODO
+// - instance::poll_state should take multiple instance_ids
+//
 // - install netbench drivers from crates.io
 // - save hash of private source
 //   - get private src exec from s3

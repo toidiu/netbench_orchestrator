@@ -12,7 +12,7 @@ use aws_sdk_ec2::types::{
     ShutdownBehavior, Tag, TagSpecification,
 };
 use base64::{engine::general_purpose, Engine as _};
-use std::{thread::sleep, time::Duration};
+use std::time::Duration;
 use tracing::info;
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
@@ -154,7 +154,7 @@ pub async fn poll_state(
     let mut actual_state = InstanceStateName::Pending;
     let mut ip = None;
     while actual_state != desired_state {
-        sleep(Duration::from_secs(1));
+        tokio::time::sleep(Duration::from_secs(1)).await;
         let result = ec2_client
             .describe_instances()
             .instance_ids(instance.instance_id().unwrap())

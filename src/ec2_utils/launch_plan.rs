@@ -12,7 +12,7 @@ use crate::{
 use aws_sdk_ec2::types::{
     Filter, InstanceStateName, IpPermission, IpRange, ResourceType, TagSpecification,
 };
-use std::{thread::sleep, time::Duration};
+use std::time::Duration;
 use tracing::info;
 
 #[derive(Clone)]
@@ -103,7 +103,7 @@ impl<'a> LaunchPlan<'a> {
         configure_networking(ec2_client, &infra).await?;
 
         // wait for instance to spawn
-        sleep(Duration::from_secs(50));
+        tokio::time::sleep(Duration::from_secs(10)).await;
 
         Ok(infra)
     }
