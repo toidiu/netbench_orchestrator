@@ -102,7 +102,7 @@ pub trait Protocol: Clone {
         matches!(self.state().transition_step(), TransitionStep::Finished)
     }
 
-    async fn await_next_msg(&mut self, stream: &TcpStream) -> RussulaResult<Msg> {
+    async fn await_next_msg(&mut self, stream: &TcpStream) -> RussulaResult<Option<Msg>> {
         if !matches!(self.state().transition_step(), TransitionStep::AwaitNext(_)) {
             panic!(
                 "expected AwaitNext but found: {:?}",
@@ -111,34 +111,34 @@ pub trait Protocol: Clone {
         }
         // loop until we receive a transition msg from peer or drain all msg from queue.
         // recv_msg aborts if the read queue is empty
-        let mut last_msg;
-        let did_transition = loop {
-            last_msg = network_utils::recv_msg(stream).await?;
-            debug!(
-                "{} <---- recv msg {}",
-                self.name(),
-                std::str::from_utf8(&last_msg.data).unwrap()
-            );
+        let mut last_msg = None;
+        // Continue to read from stream until:
+        // - the msg results in a transition
+        // - there is no more data available (drained all messages)
+        // - there is a error while reading
+        loop {
+            match network_utils::recv_msg(stream).await {
+                Ok(msg) => {
+                    debug!(
+                        "{} <---- recv msg {}",
+                        self.name(),
+                        std::str::from_utf8(&msg.data).unwrap()
+                    );
 
-            let state = self.state();
-            if state.matches_transition_msg(stream, &mut last_msg).await? {
-                self.state_mut().transition_next(stream).await?;
-                break true;
-            } else {
-                // TODO avoid sending when receiving because it could trigger the peer
-                // sending more messages and an infinite loop.
-                //
-                // Why was this added? It shouldnt be necessary if the user correctly polls
-                // Russula.
-                // let fut = self.state().notify_peer(stream);
-                // fut.await?;
+                    let state = self.state();
+                    let should_transition = state.matches_transition_msg(stream, &msg).await?;
+                    last_msg = Some(msg);
+                    if should_transition {
+                        self.state_mut().transition_next(stream).await?;
+                        break;
+                    }
+                }
+                Err(RussulaError::NetworkBlocked { dbg }) => {
+                    self.state().notify_peer(stream).await?;
+                    break;
+                }
+                Err(err) => return Err(err),
             }
-        };
-
-        // if the peer didn't send a transition msg then send our current state to
-        // continue to make progress and avoid deadlocks
-        if !did_transition {
-            self.state().notify_peer(stream).await?;
         }
 
         Ok(last_msg)

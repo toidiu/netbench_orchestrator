@@ -71,7 +71,7 @@ pub trait StateApi: Sized + Send + Sync + Debug + Serialize + for<'a> Deserializ
     async fn matches_transition_msg(
         &self,
         stream: &TcpStream,
-        recv_msg: &mut Msg,
+        recv_msg: &Msg,
     ) -> RussulaResult<bool> {
         if let TransitionStep::AwaitNext(expected_msg) = self.transition_step() {
             let should_transition_to_next = expected_msg == recv_msg.as_bytes();

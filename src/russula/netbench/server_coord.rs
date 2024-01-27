@@ -82,7 +82,7 @@ impl Protocol for CoordProtocol {
         match self.state_mut() {
             CoordState::CheckWorker => {
                 self.state().notify_peer(stream).await?;
-                self.await_next_msg(stream).await.map(Some)
+                self.await_next_msg(stream).await
             }
             CoordState::Ready => {
                 self.state_mut()
@@ -92,7 +92,7 @@ impl Protocol for CoordProtocol {
             }
             CoordState::RunWorker => {
                 self.state().notify_peer(stream).await?;
-                self.await_next_msg(stream).await.map(Some)
+                self.await_next_msg(stream).await
             }
             CoordState::WorkersRunning => {
                 self.state_mut()
@@ -102,7 +102,7 @@ impl Protocol for CoordProtocol {
             }
             CoordState::KillWorker => {
                 self.state().notify_peer(stream).await?;
-                self.await_next_msg(stream).await.map(Some)
+                self.await_next_msg(stream).await
             }
             CoordState::WorkerKilled => {
                 self.state_mut()

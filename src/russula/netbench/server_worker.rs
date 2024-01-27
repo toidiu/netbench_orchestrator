@@ -99,11 +99,11 @@ impl Protocol for WorkerProtocol {
         match self.state_mut() {
             WorkerState::WaitCoordInit => {
                 // self.notify_peer(stream).await?;
-                self.await_next_msg(stream).await.map(Some)
+                self.await_next_msg(stream).await
             }
             WorkerState::Ready => {
                 self.state().notify_peer(stream).await?;
-                self.await_next_msg(stream).await.map(Some)
+                self.await_next_msg(stream).await
             }
             WorkerState::Run => {
                 let child = match &self.netbench_ctx.testing {
@@ -156,7 +156,7 @@ impl Protocol for WorkerProtocol {
             }
             WorkerState::RunningAwaitKill(_pid) => {
                 self.state().notify_peer(stream).await?;
-                self.await_next_msg(stream).await.map(Some)
+                self.await_next_msg(stream).await
             }
             WorkerState::Killing(pid) => {
                 let pid = Pid::from_u32(*pid);
@@ -174,7 +174,7 @@ impl Protocol for WorkerProtocol {
             }
             WorkerState::Stopped => {
                 self.state().notify_peer(stream).await?;
-                self.await_next_msg(stream).await.map(Some)
+                self.await_next_msg(stream).await
             }
             WorkerState::Done => {
                 self.state().notify_peer(stream).await?;
