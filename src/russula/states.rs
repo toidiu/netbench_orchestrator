@@ -28,7 +28,7 @@ pub trait StateApi: Sized + Send + Sync + Debug + Serialize + for<'a> Deserializ
     fn name_prefix(&self) -> String;
 
     fn name(&self, stream: &TcpStream) -> String {
-        format!("{}", self.name_prefix(),)
+        self.name_prefix().to_string()
     }
 
     fn transition_step(&self) -> TransitionStep;

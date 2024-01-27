@@ -208,7 +208,7 @@ mod tests {
         let c1 = tokio::spawn(async move {
             let addr = BTreeSet::from_iter(worker_addrs);
             let protocol = server::CoordProtocol::new();
-            let coord = RussulaBuilder::new(addr, protocol, POLL_DELAY_DURATION);
+            let coord = RussulaBuilder::new(addr, protocol, POLL_DELAY_DURATION * 2);
             let mut coord = coord.build().await.unwrap();
             coord.run_till_ready().await.unwrap();
             coord

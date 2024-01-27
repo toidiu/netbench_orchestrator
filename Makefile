@@ -79,9 +79,9 @@ test_client_worker2:
 
 # -------------------- test russula
 unit_test_server:
-	RUST_LOG=none,orchestrator=debug cargo test --bin orchestrator -- server --nocapture
+	RUST_LOG=none,orchestrator=info cargo test --bin orchestrator -- server --nocapture
 unit_test_client:
-	RUST_LOG=none,orchestrator=debug cargo test --bin orchestrator -- client --nocapture
+	RUST_LOG=none,orchestrator=info cargo test --bin orchestrator -- client --nocapture
 
 # -------------------- util to generate netbench report
 report:
