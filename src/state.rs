@@ -22,7 +22,7 @@ pub const STATE: State = State {
     host_home_path: "/home/ec2-user",
     workspace_dir: "./target/netbench",
     shutdown_min: 120, // 1 hour
-    poll_delay_ssm: Duration::from_secs(5),
+    poll_delay_ssm: Duration::from_secs(10),
 
     // russula
     russula_repo: "https://github.com/toidiu/netbench_orchestrator.git",

@@ -63,8 +63,9 @@ pub async fn launch_instance(
     ec2_client: &aws_sdk_ec2::Client,
     launch_plan: &LaunchPlan<'_>,
     unique_id: &str,
+    count: usize,
     endpoint_type: EndpointType,
-) -> OrchResult<Instance> {
+) -> OrchResult<Vec<Instance>> {
     let instance_type = InstanceType::from(STATE.instance_type);
     let run_result = ec2_client
         .run_instances()
@@ -112,8 +113,8 @@ pub async fn launch_instance(
                 .groups(&launch_plan.security_group_id)
                 .build(),
         )
-        .min_count(1)
-        .max_count(1)
+        .min_count(count as i32)
+        .max_count(count as i32)
         .dry_run(false)
         .send()
         .await
@@ -123,12 +124,8 @@ pub async fn launch_instance(
     let instances = run_result.instances().ok_or(OrchError::Ec2 {
         dbg: "Couldn't find instances in run result".to_string(),
     })?;
-    Ok(instances
-        .get(0)
-        .ok_or(OrchError::Ec2 {
-            dbg: "Didn't launch an instance?".to_string(),
-        })?
-        .clone())
+
+    Ok(instances.to_vec())
 }
 
 pub async fn delete_instance(ec2_client: &aws_sdk_ec2::Client, ids: Vec<String>) -> OrchResult<()> {

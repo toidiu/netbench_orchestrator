@@ -54,16 +54,23 @@ impl<'a> LaunchPlan<'a> {
         ec2_client: &aws_sdk_ec2::Client,
         unique_id: &str,
     ) -> OrchResult<InfraDetail> {
-        let mut servers = Vec::new();
-        let mut clients = Vec::new();
-        for _i in 0..self.scenario.servers {
-            let server = launch_instance(ec2_client, self, unique_id, EndpointType::Server).await?;
-            servers.push(server);
-        }
-        for _i in 0..self.scenario.clients {
-            let client = launch_instance(ec2_client, self, unique_id, EndpointType::Client).await?;
-            clients.push(client);
-        }
+        let servers = launch_instance(
+            ec2_client,
+            self,
+            unique_id,
+            self.scenario.servers,
+            EndpointType::Server,
+        )
+        .await?;
+
+        let clients = launch_instance(
+            ec2_client,
+            self,
+            unique_id,
+            self.scenario.clients,
+            EndpointType::Client,
+        )
+        .await?;
 
         let mut infra = InfraDetail {
             security_group_id: self.security_group_id.clone(),
@@ -103,7 +110,7 @@ impl<'a> LaunchPlan<'a> {
         configure_networking(ec2_client, &infra).await?;
 
         // wait for instance to spawn
-        tokio::time::sleep(Duration::from_secs(10)).await;
+        tokio::time::sleep(Duration::from_secs(50)).await;
 
         Ok(infra)
     }
