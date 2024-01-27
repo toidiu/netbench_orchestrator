@@ -184,8 +184,10 @@ mod tests {
         let w1 = tokio::spawn(async move {
             let worker = RussulaBuilder::new(
                 BTreeSet::from_iter([w1_sock]),
-                // netbench::Context::new(true, peer_list, ctx)
-                server::WorkerProtocol::new(w1_sock.port(), netbench::ServerContext::testing()),
+                server::WorkerProtocol::new(
+                    w1_sock.port().to_string(),
+                    netbench::ServerContext::testing(),
+                ),
                 POLL_DELAY_DURATION,
             );
             let mut worker = worker.build().await.unwrap();
@@ -198,7 +200,10 @@ mod tests {
         let w2 = tokio::spawn(async move {
             let worker = RussulaBuilder::new(
                 BTreeSet::from_iter([w2_sock]),
-                server::WorkerProtocol::new(w2_sock.port(), netbench::ServerContext::testing()),
+                server::WorkerProtocol::new(
+                    w2_sock.port().to_string(),
+                    netbench::ServerContext::testing(),
+                ),
                 POLL_DELAY_DURATION,
             );
             let mut worker = worker.build().await.unwrap();
@@ -263,7 +268,10 @@ mod tests {
         let w1 = tokio::spawn(async move {
             let worker = RussulaBuilder::new(
                 BTreeSet::from_iter([w1_sock]),
-                client::WorkerProtocol::new(w1_sock.port(), netbench::ClientContext::testing()),
+                client::WorkerProtocol::new(
+                    w1_sock.port().to_string(),
+                    netbench::ClientContext::testing(),
+                ),
                 POLL_DELAY_DURATION,
             );
             let mut worker = worker.build().await.unwrap();
@@ -276,7 +284,10 @@ mod tests {
         let w2 = tokio::spawn(async move {
             let worker = RussulaBuilder::new(
                 BTreeSet::from_iter([w2_sock]),
-                client::WorkerProtocol::new(w2_sock.port(), netbench::ClientContext::testing()),
+                client::WorkerProtocol::new(
+                    w2_sock.port().to_string(),
+                    netbench::ClientContext::testing(),
+                ),
                 POLL_DELAY_DURATION,
             );
             let mut worker = worker.build().await.unwrap();
