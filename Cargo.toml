@@ -40,3 +40,4 @@ uuid = { version = "1", features = ["v4"] }
 
 [dev-dependencies]
 env_logger = "*"
+futures = "0.3"
