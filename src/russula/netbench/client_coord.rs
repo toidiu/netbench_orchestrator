@@ -42,7 +42,11 @@ impl CoordProtocol {
     }
 }
 
-impl private::Protocol for CoordProtocol {}
+impl private::Protocol for CoordProtocol {
+    fn event(&mut self, event: EventType) {
+        self.event_recorder.process(event);
+    }
+}
 
 #[async_trait]
 impl Protocol for CoordProtocol {
@@ -106,10 +110,6 @@ impl Protocol for CoordProtocol {
                 Ok(None)
             }
         }
-    }
-
-    fn event(&mut self, event: EventType) {
-        self.event_recorder.process(event);
     }
 }
 

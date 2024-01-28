@@ -53,7 +53,11 @@ impl WorkerProtocol {
     }
 }
 
-impl private::Protocol for WorkerProtocol {}
+impl private::Protocol for WorkerProtocol {
+    fn event(&mut self, event: EventType) {
+        self.event_recorder.process(event);
+    }
+}
 
 #[async_trait]
 impl Protocol for WorkerProtocol {
@@ -219,10 +223,6 @@ impl Protocol for WorkerProtocol {
                 Ok(None)
             }
         }
-    }
-
-    fn event(&mut self, event: EventType) {
-        self.event_recorder.process(event);
     }
 }
 

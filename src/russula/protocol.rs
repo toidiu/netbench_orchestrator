@@ -150,10 +150,12 @@ pub trait Protocol: private::Protocol + Clone {
 
         Ok(last_msg)
     }
-
-    fn event(&mut self, event: EventType);
 }
 
 pub(crate) mod private {
-    pub trait Protocol {}
+    use crate::russula::protocol::EventType;
+
+    pub trait Protocol {
+        fn event(&mut self, event: EventType);
+    }
 }
