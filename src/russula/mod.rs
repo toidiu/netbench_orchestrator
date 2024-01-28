@@ -228,12 +228,13 @@ mod tests {
                 .run_till_state(server::CoordState::WorkersRunning)
                 .await
                 .unwrap();
+            let simulate_run_time = Duration::from_secs(5);
+            tokio::time::sleep(simulate_run_time).await;
         }
 
         println!("\nSTEP 3 --------------- : wait till done");
         while coord.poll_done().await.unwrap().is_pending() {
             println!("\npoll state: Done");
-            tokio::time::sleep(POLL_DELAY_DURATION).await;
         }
 
         println!("\nSTEP 20 --------------- : confirm worker done");
@@ -316,7 +317,6 @@ mod tests {
         println!("\nSTEP 3 --------------- : wait till done");
         while coord.poll_done().await.unwrap().is_pending() {
             println!("\npoll state: Done");
-            tokio::time::sleep(POLL_DELAY_DURATION).await;
         }
 
         println!("\nclient-STEP 20 --------------- : confirm worker done");
