@@ -3,6 +3,7 @@
 
 use super::{
     error::RussulaError,
+    event::EventType,
     network_utils,
     network_utils::Msg,
     states::{StateApi, TransitionStep},
@@ -27,7 +28,7 @@ pub(crate) struct ProtocolInstance<P: Protocol> {
 }
 
 #[async_trait]
-pub trait Protocol: Clone {
+pub trait Protocol: private::Protocol + Clone {
     type State: StateApi + Debug + Copy;
 
     // TODO use version and app to negotiate version
@@ -91,10 +92,11 @@ pub trait Protocol: Clone {
     }
 
     async fn run_current(&mut self, stream: &TcpStream) -> RussulaResult<()> {
-        let name = self.name();
         if let Some(msg) = self.run(stream).await? {
             self.update_peer_state(msg)?;
         }
+        // FIXME
+        // self.event(event)
         Ok(())
     }
 
@@ -148,4 +150,10 @@ pub trait Protocol: Clone {
 
         Ok(last_msg)
     }
+
+    fn event(&mut self, event: EventType);
+}
+
+pub(crate) mod private {
+    pub trait Protocol {}
 }

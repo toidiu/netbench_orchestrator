@@ -8,6 +8,7 @@ use std::{collections::BTreeSet, net::SocketAddr};
 use tracing::{debug, error, info, warn};
 
 mod error;
+mod event;
 pub mod netbench;
 mod network_utils;
 mod protocol;

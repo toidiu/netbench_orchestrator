@@ -4,9 +4,10 @@
 use super::ClientContext;
 use crate::russula::{
     error::{RussulaError, RussulaResult},
+    event::{EventRecorder, EventType},
     netbench::client::CoordState,
     network_utils::Msg,
-    protocol::Protocol,
+    protocol::{private, Protocol},
     StateApi, TransitionStep,
 };
 use async_trait::async_trait;
@@ -37,6 +38,7 @@ pub struct WorkerProtocol {
     state: WorkerState,
     coord_state: CoordState,
     netbench_ctx: ClientContext,
+    event_recorder: EventRecorder,
 }
 
 impl WorkerProtocol {
@@ -46,9 +48,12 @@ impl WorkerProtocol {
             state: WorkerState::WaitCoordInit,
             coord_state: CoordState::CheckWorker,
             netbench_ctx,
+            event_recorder: EventRecorder::default(),
         }
     }
 }
+
+impl private::Protocol for WorkerProtocol {}
 
 #[async_trait]
 impl Protocol for WorkerProtocol {
@@ -214,6 +219,10 @@ impl Protocol for WorkerProtocol {
                 Ok(None)
             }
         }
+    }
+
+    fn event(&mut self, event: EventType) {
+        self.event_recorder.process(event);
     }
 }
 

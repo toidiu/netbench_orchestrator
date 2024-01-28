@@ -3,9 +3,10 @@
 
 use crate::russula::{
     error::{RussulaError, RussulaResult},
+    event::{EventRecorder, EventType},
     netbench::server_worker::WorkerState,
     network_utils::Msg,
-    protocol::Protocol,
+    protocol::{private, Protocol},
     StateApi, TransitionStep,
 };
 use async_trait::async_trait;
@@ -26,10 +27,11 @@ pub enum CoordState {
     Done,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Debug)]
 pub struct CoordProtocol {
     state: CoordState,
     worker_state: WorkerState,
+    event_recorder: EventRecorder,
 }
 
 impl CoordProtocol {
@@ -37,9 +39,12 @@ impl CoordProtocol {
         CoordProtocol {
             state: CoordState::CheckWorker,
             worker_state: WorkerState::WaitCoordInit,
+            event_recorder: EventRecorder::default(),
         }
     }
 }
+
+impl private::Protocol for CoordProtocol {}
 
 #[async_trait]
 impl Protocol for CoordProtocol {
@@ -116,6 +121,10 @@ impl Protocol for CoordProtocol {
                 Ok(None)
             }
         }
+    }
+
+    fn event(&mut self, event: EventType) {
+        self.event_recorder.process(event);
     }
 }
 
