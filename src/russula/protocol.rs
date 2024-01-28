@@ -65,6 +65,8 @@ pub trait Protocol: private::Protocol + Clone {
         }
         // Notify the peer that the protocol has reached a terminal state
         if self.is_done_state() {
+            tracing::info!("{}", self.event_recorder());
+
             // Notify 3 time in case of packet loss.. this is best effort
             for _i in 0..3 {
                 match self.run_current(stream).await {
@@ -95,7 +97,6 @@ pub trait Protocol: private::Protocol + Clone {
         if let Some(msg) = self.run(stream).await? {
             self.update_peer_state(msg)?;
         }
-        tracing::error!("{}", self.event_recorder());
         Ok(())
     }
 
