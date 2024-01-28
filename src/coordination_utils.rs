@@ -60,7 +60,7 @@ impl ServerNetbenchRussula {
 
             let poll_coord_worker_running = self
                 .coord
-                .poll_state(server::CoordState::WorkersRunning)
+                .poll_state(&server::CoordState::WorkersRunning)
                 .await
                 .unwrap();
 

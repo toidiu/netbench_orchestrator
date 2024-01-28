@@ -29,7 +29,7 @@ pub(crate) struct ProtocolInstance<P: Protocol> {
 
 #[async_trait]
 pub trait Protocol: private::Protocol + Clone {
-    type State: StateApi + Debug + Copy;
+    type State: StateApi;
 
     // TODO use version and app to negotiate version
     fn name(&self) -> String;
@@ -54,7 +54,7 @@ pub trait Protocol: private::Protocol + Clone {
         state: &Self::State,
     ) -> RussulaResult<Poll<()>> {
         if !self.state().eq(state) {
-            let prev = *self.state();
+            let prev = self.state().clone();
             self.run_current(stream).await?;
             debug!(
                 "{} poll_state--------{:?} -> {:?}",

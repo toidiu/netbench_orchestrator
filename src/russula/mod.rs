@@ -43,15 +43,15 @@ pub struct Russula<P: Protocol> {
 impl<P: Protocol + Send> Russula<P> {
     pub async fn run_till_ready(&mut self) -> RussulaResult<()> {
         let ready_state = self.protocol.ready_state();
-        self.run_till_state(ready_state).await
+        self.run_till_state(&ready_state).await
     }
 
     pub async fn poll_done(&mut self) -> RussulaResult<Poll<()>> {
         let done_state = self.protocol.done_state();
-        self.poll_state(done_state).await
+        self.poll_state(&done_state).await
     }
 
-    pub async fn poll_state(&mut self, state: P::State) -> RussulaResult<Poll<()>> {
+    pub async fn poll_state(&mut self, state: &P::State) -> RussulaResult<Poll<()>> {
         for peer in self.instance_list.iter_mut() {
             if let Err(err) = peer.protocol.poll_state(&peer.stream, &state).await {
                 if err.is_fatal() {
@@ -68,7 +68,7 @@ impl<P: Protocol + Send> Russula<P> {
         Ok(poll)
     }
 
-    pub(crate) async fn run_till_state(&mut self, state: P::State) -> RussulaResult<()> {
+    pub(crate) async fn run_till_state(&mut self, state: &P::State) -> RussulaResult<()> {
         while self.poll_state(state).await?.is_pending() {
             tokio::time::sleep(self.poll_delay).await;
         }
@@ -76,7 +76,7 @@ impl<P: Protocol + Send> Russula<P> {
         Ok(())
     }
 
-    fn self_state_matches(&self, state: P::State) -> bool {
+    fn self_state_matches(&self, state: &P::State) -> bool {
         for peer in self.instance_list.iter() {
             let protocol_state = peer.protocol.state();
             if !state.eq(protocol_state) {
@@ -185,7 +185,7 @@ mod tests {
                     );
                     let mut worker = worker.build().await.unwrap();
                     worker
-                        .run_till_state(server::WorkerState::Done)
+                        .run_till_state(&server::WorkerState::Done)
                         .await
                         .unwrap();
                     worker
@@ -220,13 +220,13 @@ mod tests {
 
         println!("\nSTEP 1 --------------- : confirm current ready state");
         {
-            assert!(coord.self_state_matches(server::CoordState::Ready));
+            assert!(coord.self_state_matches(&server::CoordState::Ready));
         }
 
         println!("\nSTEP 2 --------------- : poll next coord step");
         {
             coord
-                .run_till_state(server::CoordState::WorkersRunning)
+                .run_till_state(&server::CoordState::WorkersRunning)
                 .await
                 .unwrap();
             let simulate_run_time = Duration::from_secs(5);
@@ -242,7 +242,7 @@ mod tests {
         {
             let worker_join = join_all(workers).await;
             for w in worker_join {
-                assert!(w.unwrap().self_state_matches(server::WorkerState::Done));
+                assert!(w.unwrap().self_state_matches(&server::WorkerState::Done));
             }
         }
     }
@@ -277,7 +277,7 @@ mod tests {
             );
             let mut worker = worker.build().await.unwrap();
             worker
-                .run_till_state(client::WorkerState::Done)
+                .run_till_state(&client::WorkerState::Done)
                 .await
                 .unwrap();
             worker
@@ -293,7 +293,7 @@ mod tests {
             );
             let mut worker = worker.build().await.unwrap();
             worker
-                .run_till_state(client::WorkerState::Done)
+                .run_till_state(&client::WorkerState::Done)
                 .await
                 .unwrap();
             worker
@@ -304,13 +304,13 @@ mod tests {
 
         println!("\nclient-STEP 1 --------------- : confirm current ready state");
         {
-            assert!(coord.self_state_matches(client::CoordState::Ready));
+            assert!(coord.self_state_matches(&client::CoordState::Ready));
         }
 
         println!("\nclient-STEP 2 --------------- : wait for workers to run");
         {
             coord
-                .run_till_state(client::CoordState::WorkersRunning)
+                .run_till_state(&client::CoordState::WorkersRunning)
                 .await
                 .unwrap();
         }
@@ -325,8 +325,8 @@ mod tests {
             let (worker1, worker2) = tokio::join!(w1, w2);
             let worker1 = worker1.unwrap();
             let worker2 = worker2.unwrap();
-            assert!(worker1.self_state_matches(client::WorkerState::Done));
-            assert!(worker2.self_state_matches(client::WorkerState::Done));
+            assert!(worker1.self_state_matches(&client::WorkerState::Done));
+            assert!(worker2.self_state_matches(&client::WorkerState::Done));
         }
     }
 }

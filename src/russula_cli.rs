@@ -114,7 +114,7 @@ async fn run_server_worker(opt: Opt, netbench_ctx: netbench::ServerContext, russ
     worker.run_till_ready().await.unwrap();
 
     worker
-        .run_till_state(server::WorkerState::Done)
+        .run_till_state(&server::WorkerState::Done)
         .await
         .unwrap();
 }
@@ -131,7 +131,7 @@ async fn run_client_worker(opt: Opt, netbench_ctx: netbench::ClientContext, russ
     worker.run_till_ready().await.unwrap();
 
     worker
-        .run_till_state(client::WorkerState::Done)
+        .run_till_state(&client::WorkerState::Done)
         .await
         .unwrap();
 }
@@ -147,7 +147,7 @@ async fn run_local_server_coordinator(opt: Opt, russula_worker_addrs: Vec<Socket
     let mut coord = coord.build().await.unwrap();
 
     coord
-        .run_till_state(server::CoordState::WorkersRunning)
+        .run_till_state(&server::CoordState::WorkersRunning)
         .await
         .unwrap();
 
@@ -157,7 +157,7 @@ async fn run_local_server_coordinator(opt: Opt, russula_worker_addrs: Vec<Socket
     println!("Stopping workers ...");
 
     coord
-        .run_till_state(server::CoordState::Done)
+        .run_till_state(&server::CoordState::Done)
         .await
         .unwrap();
 }
@@ -173,12 +173,12 @@ async fn run_local_client_coordinator(opt: Opt, russula_worker_addrs: Vec<Socket
     let mut coord = coord.build().await.unwrap();
 
     coord
-        .run_till_state(client::CoordState::WorkersRunning)
+        .run_till_state(&client::CoordState::WorkersRunning)
         .await
         .unwrap();
 
     coord
-        .run_till_state(client::CoordState::Done)
+        .run_till_state(&client::CoordState::Done)
         .await
         .unwrap();
 }

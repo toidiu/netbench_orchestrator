@@ -24,7 +24,9 @@ pub enum TransitionStep {
 }
 
 #[async_trait]
-pub trait StateApi: Sized + Send + Sync + Debug + Serialize + for<'a> Deserialize<'a> {
+pub trait StateApi:
+    Sized + Send + Sync + Clone + Debug + Serialize + for<'a> Deserialize<'a>
+{
     fn name_prefix(&self) -> String;
 
     fn name(&self, stream: &TcpStream) -> String {
@@ -41,7 +43,6 @@ pub trait StateApi: Sized + Send + Sync + Debug + Serialize + for<'a> Deserializ
             self.name(stream),
             std::str::from_utf8(&msg.data).unwrap()
         );
-        // self.on_event(EventType::SendMsg);
         network_utils::send_msg(stream, msg).await
     }
 
