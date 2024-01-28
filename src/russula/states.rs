@@ -24,9 +24,7 @@ pub enum TransitionStep {
 }
 
 #[async_trait]
-pub trait StateApi:
-    Sized + Send + Sync + Clone + Debug + Serialize + for<'a> Deserialize<'a>
-{
+pub trait StateApi: Send + Sync + Clone + Debug + Serialize + for<'a> Deserialize<'a> {
     fn name_prefix(&self) -> String;
 
     fn name(&self, stream: &TcpStream) -> String {

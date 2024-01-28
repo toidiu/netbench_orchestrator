@@ -19,12 +19,7 @@ use protocol::Protocol;
 use states::{StateApi, TransitionStep};
 
 // TODO
-// - make state transitions nicer
-//   - match on TransitionStep?
-// - convert prints to tracing events
-//
-// - should poll current step until all peers are on next step
-//   - need api to ask peer state and track peer state
+// - hide State from russula API.. and remove StateApi from Protocol::State associated type
 //
 // - look at NTP for synchronization: start_at(time)
 // https://statecharts.dev/
@@ -53,7 +48,7 @@ impl<P: Protocol + Send> Russula<P> {
 
     pub async fn poll_state(&mut self, state: &P::State) -> RussulaResult<Poll<()>> {
         for peer in self.instance_list.iter_mut() {
-            if let Err(err) = peer.protocol.poll_state(&peer.stream, &state).await {
+            if let Err(err) = peer.protocol.poll_state(&peer.stream, state).await {
                 if err.is_fatal() {
                     error!("{}", err);
                     panic!("{}", err);
