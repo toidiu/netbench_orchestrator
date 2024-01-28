@@ -12,13 +12,13 @@ use async_trait::async_trait;
 use bytes::Bytes;
 use core::{fmt::Debug, task::Poll, time::Duration};
 use serde::{Deserialize, Serialize};
-use std::net::SocketAddr;
+use std::{fmt::Display, net::SocketAddr};
 use tokio::net::TcpStream;
 use tracing::{debug, info};
 
 pub enum EventType {
-    SendMsg(Msg),
-    RecvMsg(Msg),
+    SendMsg,
+    RecvMsg,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -30,8 +30,19 @@ pub struct EventRecorder {
 impl EventRecorder {
     pub fn process(&mut self, event: EventType) {
         match event {
-            EventType::SendMsg(_) => self.send_msg += 1,
-            EventType::RecvMsg(_) => self.recv_msg += 1,
+            EventType::SendMsg => self.send_msg += 1,
+            EventType::RecvMsg => self.recv_msg += 1,
         }
+    }
+}
+
+impl Display for EventRecorder {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "send_cnt: {}, recv_cnt: {}",
+            self.send_msg, self.recv_msg
+        );
+        Ok(())
     }
 }

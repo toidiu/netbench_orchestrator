@@ -45,8 +45,8 @@ impl CoordProtocol {
 }
 
 impl private::Protocol for CoordProtocol {
-    fn event(&mut self, event: EventType) {
-        self.event_recorder.process(event);
+    fn event_recorder(&mut self) -> &mut EventRecorder {
+        &mut self.event_recorder
     }
 }
 

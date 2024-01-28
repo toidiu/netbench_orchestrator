@@ -95,8 +95,7 @@ pub trait Protocol: private::Protocol + Clone {
         if let Some(msg) = self.run(stream).await? {
             self.update_peer_state(msg)?;
         }
-        // FIXME
-        // self.event(event)
+        tracing::error!("{}", self.event_recorder());
         Ok(())
     }
 
@@ -121,6 +120,7 @@ pub trait Protocol: private::Protocol + Clone {
         loop {
             match network_utils::recv_msg(stream).await {
                 Ok(msg) => {
+                    self.on_event(EventType::SendMsg);
                     debug!(
                         "{} <---- recv msg {}",
                         self.name(),
@@ -153,9 +153,13 @@ pub trait Protocol: private::Protocol + Clone {
 }
 
 pub(crate) mod private {
-    use crate::russula::protocol::EventType;
+    use crate::russula::{event::EventRecorder, protocol::EventType};
 
     pub trait Protocol {
-        fn event(&mut self, event: EventType);
+        fn event_recorder(&mut self) -> &mut EventRecorder;
+
+        fn on_event(&mut self, event: EventType) {
+            self.event_recorder().process(event);
+        }
     }
 }

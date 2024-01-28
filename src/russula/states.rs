@@ -41,6 +41,7 @@ pub trait StateApi: Sized + Send + Sync + Debug + Serialize + for<'a> Deserializ
             self.name(stream),
             std::str::from_utf8(&msg.data).unwrap()
         );
+        // self.on_event(EventType::SendMsg);
         network_utils::send_msg(stream, msg).await
     }
 
