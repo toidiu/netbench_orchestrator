@@ -35,14 +35,17 @@ async fn write_msg(stream: &TcpStream, msg: Msg) -> RussulaResult<usize> {
 
 async fn read_msg(stream: &TcpStream) -> RussulaResult<Msg> {
     let mut len_buf = [0; 2];
-    stream.try_read(&mut len_buf).map_err(|err| {
+    let o = stream.try_read(&mut len_buf).map_err(|err| {
         error!("{}", err);
         RussulaError::from(err)
     })?;
-    let len = u16::from_be_bytes(len_buf);
-    if len == 0 {
-        error!("read len 0: {}", len);
+    if o == 0 {
+        error!("read len 0");
+        return Err(RussulaError::NetworkBlocked {
+            dbg: format!("read 0 data.. read socket closed?"),
+        });
     }
+    let len = u16::from_be_bytes(len_buf);
 
     let mut data = Vec::with_capacity(len.into());
     let read_bytes = stream.try_read_buf(&mut data).map_err(|err| {
