@@ -174,7 +174,7 @@ pub trait Protocol: private::Protocol + Clone {
                 Err(RussulaError::NetworkBlocked { dbg }) => {
                     // TODO this might not be necessary but is nice way to confirm the
                     // system makes progress. Test and figure out if its possible to
-                    // remome this.
+                    // rename this.
                     //
                     // notify the peer to that we continue to make progress
                     self.state().notify_peer(stream).await?;

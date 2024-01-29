@@ -4,14 +4,21 @@
 use crate::russula::{RussulaError, RussulaResult};
 use bytes::Bytes;
 use tokio::net::TcpStream;
+use tracing::error;
 
 pub async fn recv_msg(stream: &TcpStream) -> RussulaResult<Msg> {
-    stream.readable().await.map_err(RussulaError::from)?;
+    stream.readable().await.map_err(|err| {
+        error!("{}", err);
+        RussulaError::from(err)
+    })?;
     read_msg(stream).await
 }
 
 pub async fn send_msg(stream: &TcpStream, msg: Msg) -> RussulaResult<usize> {
-    stream.writable().await.map_err(RussulaError::from)?;
+    stream.writable().await.map_err(|err| {
+        error!("{}", err);
+        RussulaError::from(err)
+    })?;
     write_msg(stream, msg).await
 }
 
@@ -20,16 +27,25 @@ async fn write_msg(stream: &TcpStream, msg: Msg) -> RussulaResult<usize> {
     data.push(msg.len);
     data.extend(msg.data);
 
-    stream.try_write(&data).map_err(RussulaError::from)
+    stream.try_write(&data).map_err(|err| {
+        error!("{}", err);
+        RussulaError::from(err)
+    })
 }
 
 async fn read_msg(stream: &TcpStream) -> RussulaResult<Msg> {
     let mut len_buf = [0; 1];
-    stream.try_read(&mut len_buf).map_err(RussulaError::from)?;
+    stream.try_read(&mut len_buf).map_err(|err| {
+        error!("{}", err);
+        RussulaError::from(err)
+    })?;
     let len = u8::from_be_bytes(len_buf);
 
     let mut data = Vec::with_capacity(len.into());
-    let read_bytes = stream.try_read_buf(&mut data).map_err(RussulaError::from)?;
+    let read_bytes = stream.try_read_buf(&mut data).map_err(|err| {
+        error!("{}", err);
+        RussulaError::from(err)
+    })?;
 
     if read_bytes == len as usize {
         Ok(Msg::new(data.into()))

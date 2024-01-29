@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use tokio::io::ErrorKind;
-use tracing::error;
 
 pub type RussulaResult<T, E = RussulaError> = Result<T, E>;
 
@@ -47,18 +46,12 @@ impl From<tokio::io::Error> for RussulaError {
             ErrorKind::WouldBlock => RussulaError::NetworkBlocked {
                 dbg: err.to_string(),
             },
-            ErrorKind::ConnectionRefused => {
-                error!("{}", err);
-                RussulaError::NetworkConnectionRefused {
-                    dbg: err.to_string(),
-                }
-            }
-            _ => {
-                error!("{}", err);
-                RussulaError::NetworkFail {
-                    dbg: err.to_string(),
-                }
-            }
+            ErrorKind::ConnectionRefused => RussulaError::NetworkConnectionRefused {
+                dbg: err.to_string(),
+            },
+            _ => RussulaError::NetworkFail {
+                dbg: err.to_string(),
+            },
         }
     }
 }
