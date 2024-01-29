@@ -87,6 +87,10 @@ impl Protocol for CoordProtocol {
         CoordState::Done
     }
 
+    fn worker_running_state(&self) -> Self::State {
+        CoordState::WorkersRunning
+    }
+
     async fn run(&mut self, stream: &TcpStream) -> RussulaResult<Option<Msg>> {
         match self.state_mut() {
             CoordState::CheckWorker => {

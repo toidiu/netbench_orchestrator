@@ -40,6 +40,7 @@ pub trait Protocol: private::Protocol + Clone {
     fn state_mut(&mut self) -> &mut Self::State;
     fn ready_state(&self) -> Self::State;
     fn done_state(&self) -> Self::State;
+    fn worker_running_state(&self) -> Self::State;
 
     async fn poll_ready(&mut self, stream: &TcpStream) -> RussulaResult<Poll<()>> {
         let ready_state = self.ready_state();

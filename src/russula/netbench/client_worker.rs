@@ -100,6 +100,10 @@ impl Protocol for WorkerProtocol {
         WorkerState::Done
     }
 
+    fn worker_running_state(&self) -> Self::State {
+        unimplemented!()
+    }
+
     async fn run(&mut self, stream: &TcpStream) -> RussulaResult<Option<Msg>> {
         match self.state_mut() {
             WorkerState::WaitCoordInit => {

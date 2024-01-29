@@ -113,10 +113,7 @@ async fn run_server_worker(opt: Opt, netbench_ctx: netbench::ServerContext, russ
     let mut worker = worker.build().await.unwrap();
     worker.run_till_ready().await.unwrap();
 
-    worker
-        .run_till_state(&server::WorkerState::Done)
-        .await
-        .unwrap();
+    worker.run_till_done().await.unwrap();
 }
 
 async fn run_client_worker(opt: Opt, netbench_ctx: netbench::ClientContext, russula_port: u16) {
@@ -130,10 +127,7 @@ async fn run_client_worker(opt: Opt, netbench_ctx: netbench::ClientContext, russ
     let mut worker = worker.build().await.unwrap();
     worker.run_till_ready().await.unwrap();
 
-    worker
-        .run_till_state(&client::WorkerState::Done)
-        .await
-        .unwrap();
+    worker.run_till_done().await.unwrap();
 }
 
 async fn run_local_server_coordinator(opt: Opt, russula_worker_addrs: Vec<SocketAddr>) {
@@ -146,20 +140,14 @@ async fn run_local_server_coordinator(opt: Opt, russula_worker_addrs: Vec<Socket
     );
     let mut coord = coord.build().await.unwrap();
 
-    coord
-        .run_till_state(&server::CoordState::WorkersRunning)
-        .await
-        .unwrap();
+    coord.run_till_worker_running().await.unwrap();
 
     println!("Waiting for user input to continue ... WorkersRunning");
     let mut s = String::new();
     let _ = std::io::stdin().read_line(&mut s);
     println!("Stopping workers ...");
 
-    coord
-        .run_till_state(&server::CoordState::Done)
-        .await
-        .unwrap();
+    coord.run_till_done().await.unwrap();
 }
 
 async fn run_local_client_coordinator(opt: Opt, russula_worker_addrs: Vec<SocketAddr>) {
@@ -172,15 +160,9 @@ async fn run_local_client_coordinator(opt: Opt, russula_worker_addrs: Vec<Socket
     );
     let mut coord = coord.build().await.unwrap();
 
-    coord
-        .run_till_state(&client::CoordState::WorkersRunning)
-        .await
-        .unwrap();
+    coord.run_till_worker_running().await.unwrap();
 
-    coord
-        .run_till_state(&client::CoordState::Done)
-        .await
-        .unwrap();
+    coord.run_till_done().await.unwrap();
 }
 
 fn local_listen_addr(russula_port: u16) -> SocketAddr {
