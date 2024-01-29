@@ -42,9 +42,16 @@ pub trait Protocol: private::Protocol + Clone {
     fn done_state(&self) -> Self::State;
     fn worker_running_state(&self) -> Self::State;
 
+    // Ready ==============
     async fn poll_ready(&mut self, stream: &TcpStream) -> RussulaResult<Poll<()>> {
         let ready_state = self.ready_state();
         self.poll_state(stream, &ready_state).await
+    }
+
+    // Done ==============
+    async fn poll_done(&mut self, stream: &TcpStream) -> RussulaResult<Poll<()>> {
+        let done_state = self.done_state();
+        self.poll_state(stream, &done_state).await
     }
 
     // If the peer is not at the desired state then attempt to make progress by invoking the
@@ -101,6 +108,7 @@ pub trait Protocol: private::Protocol + Clone {
         Ok(())
     }
 
+    /// Done is the only State with TransitionStep::Finished
     fn is_done_state(&self) -> bool {
         matches!(self.state().transition_step(), TransitionStep::Finished)
     }

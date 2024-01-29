@@ -20,6 +20,7 @@ use states::{StateApi, TransitionStep};
 
 // TODO
 // - hide State from russula API.. and remove StateApi from Protocol::State associated type
+// - seperate struct for Coord and Worker
 //
 // - look at NTP for synchronization: start_at(time)
 // https://statecharts.dev/
@@ -32,24 +33,27 @@ pub struct Russula<P: Protocol> {
     // The Worker can be list of size >=1
     instance_list: Vec<ProtocolInstance<P>>,
     poll_delay: Duration,
+    // get rid of this and get from instance_list instead
     protocol: P,
 }
 
 impl<P: Protocol + Send> Russula<P> {
+    // Ready ==============
     pub async fn run_till_ready(&mut self) -> RussulaResult<()> {
         let ready_state = self.protocol.ready_state();
         self.run_till_state(&ready_state).await
+
+        // while self.poll_ready().await?.is_pending() {
+        //     tokio::time::sleep(self.poll_delay).await;
+        // }
+
+        // Ok(())
     }
 
+    // Done ==============
     pub async fn run_till_done(&mut self) -> RussulaResult<()> {
         let done_state = self.protocol.done_state();
         self.run_till_state(&done_state).await
-    }
-
-    /// Should only be called by Coordinators
-    pub async fn run_till_worker_running(&mut self) -> RussulaResult<()> {
-        let worker_running_state = self.protocol.worker_running_state();
-        self.run_till_state(&worker_running_state).await
     }
 
     pub async fn poll_done(&mut self) -> RussulaResult<Poll<()>> {
@@ -68,6 +72,13 @@ impl<P: Protocol + Send> Russula<P> {
             Poll::Pending
         };
         Ok(poll)
+    }
+
+    // Running ==============
+    /// Should only be called by Coordinators
+    pub async fn run_till_worker_running(&mut self) -> RussulaResult<()> {
+        let worker_running_state = self.protocol.worker_running_state();
+        self.run_till_state(&worker_running_state).await
     }
 
     pub async fn poll_state(&mut self, state: &P::State) -> RussulaResult<Poll<()>> {
