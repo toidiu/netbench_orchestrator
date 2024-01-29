@@ -4,6 +4,7 @@
 #![allow(unused)]
 use crate::russula::protocol::{ProtocolInstance, SockProtocol};
 use core::{task::Poll, time::Duration};
+use paste::paste;
 use std::{collections::BTreeSet, net::SocketAddr};
 use tracing::{debug, error, info, warn};
 
@@ -37,6 +38,48 @@ pub struct Russula<P: Protocol> {
     protocol: P,
 }
 
+macro_rules! state_api {
+{$state:ident} => {paste!{
+    pub async fn [<run_till_ $state>](&mut self) -> RussulaResult<()> {
+        while self.[<poll_ $state>]().await?.is_pending() {
+            tokio::time::sleep(self.poll_delay).await;
+        }
+
+        Ok(())
+    }
+
+    pub async fn [<poll_ $state>](&mut self) -> RussulaResult<Poll<()>> {
+        for peer in self.instance_list.iter_mut() {
+            if let Err(err) = peer.protocol.[<poll_ $state>](&peer.stream).await {
+                if err.is_fatal() {
+                    error!("{}", err);
+                    panic!("{}", err);
+                }
+            }
+        }
+        let poll = if self.[<is_ $state _state>]() {
+            Poll::Ready(())
+        } else {
+            Poll::Pending
+        };
+        Ok(poll)
+    }
+
+    /// Check if all instances are at the desired state
+    fn [< is_ $state _state>](&self) -> bool {
+        for peer in self.instance_list.iter() {
+            let protocol_state = peer.protocol.state();
+            // All instance must be at the desired state
+            if !peer.protocol.[< is_ $state _state>]() {
+                return false;
+            }
+            // info!("{:?} {:?} {}", protocol_state, state, matches);
+        }
+        true
+    }
+}};
+}
+
 impl<P: Protocol + Send> Russula<P> {
     // Ready ==============
     pub async fn run_till_ready(&mut self) -> RussulaResult<()> {
@@ -51,40 +94,7 @@ impl<P: Protocol + Send> Russula<P> {
     }
 
     // Done ==============
-    pub async fn run_till_done(&mut self) -> RussulaResult<()> {
-        let done_state = self.protocol.done_state();
-        self.run_till_state(&done_state).await
-    }
-
-    pub async fn poll_done(&mut self) -> RussulaResult<Poll<()>> {
-        for peer in self.instance_list.iter_mut() {
-            if let Err(err) = peer.protocol.poll_done(&peer.stream).await {
-                if err.is_fatal() {
-                    error!("{}", err);
-                    panic!("{}", err);
-                }
-            }
-        }
-        let poll = if self.is_done_state() {
-            Poll::Ready(())
-        } else {
-            Poll::Pending
-        };
-        Ok(poll)
-    }
-
-    /// Check if all instances are done
-    fn is_done_state(&self) -> bool {
-        for peer in self.instance_list.iter() {
-            let protocol_state = peer.protocol.state();
-            // All instance must be done
-            if !peer.protocol.is_done_state() {
-                return false;
-            }
-            // info!("{:?} {:?} {}", protocol_state, state, matches);
-        }
-        true
-    }
+    state_api!(done);
 
     // Running ==============
     /// Should only be called by Coordinators
