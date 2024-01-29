@@ -12,6 +12,7 @@ use std::{
     path::{Path, PathBuf},
     process::Command,
 };
+use tracing_subscriber::EnvFilter;
 
 mod coordination_utils;
 mod dashboard;
@@ -59,7 +60,20 @@ pub struct Args {
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> OrchResult<()> {
-    tracing_subscriber::fmt::init();
+    let unique_id = format!(
+        "{}-{}",
+        humantime::format_rfc3339_seconds(std::time::SystemTime::now()),
+        STATE.version
+    );
+
+    // tracing_subscriber::fmt::init();
+    let file_appender =
+        tracing_appender::rolling::daily("./target", format!("russula_{}.log", unique_id));
+    let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
+    tracing_subscriber::fmt()
+        .with_env_filter(EnvFilter::from_default_env())
+        .with_writer(non_blocking)
+        .init();
 
     let args = Args::parse();
 
@@ -67,7 +81,7 @@ async fn main() -> OrchResult<()> {
     let aws_config = aws_config::from_env().region(region).load().await;
     let scenario = check_requirements(&args, &aws_config).await?;
 
-    orchestrator::run(args, scenario, &aws_config).await
+    orchestrator::run(unique_id, args, scenario, &aws_config).await
 }
 
 async fn check_requirements(

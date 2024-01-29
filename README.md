@@ -49,9 +49,9 @@ remotely. This sections describes how to go about debugging each component.
 #### Local
 **Orchestrator**
 The Orchestrator is Rust code and ships with [tracing](https://docs.rs/tracing/latest/tracing/)
-support. Tracing supports various output formats and by default the Orchestrator is configured
-to output to the terminal since it likely to be used as a CLI utility. The `make run_orchestrator`
-command enables sane log levels via `RUST_LOG=...` but these can be changed as desired.
+support. Logs are written to a file `orch_proj/target/russula.log*` file on the host. The
+`make run_orchestrator` command enables sane log levels via `RUST_LOG=...` but these can be
+changed as desired.
 
 #### Remote
 **SSH access**
@@ -66,7 +66,7 @@ watch -n 1 "ls -xm; echo ===; ls -xm bin; echo ===; tail netbench_orchestrator/t
 
 **Russula**
 The Worker component of Russula executes on the remote hosts. Russula is Rust code and also
-ships with [tracing](https://docs.rs/tracing/latest/tracing/) support. By default logs are
+ships with [tracing](https://docs.rs/tracing/latest/tracing/) support. Logs are
 written to a file `orch_proj/target/russula.log*` file on the host. It can be quite useful
 to disable host cleanup when trying to debug issues on the remote hosts. See the SSH access
 section for how to access remote hosts.

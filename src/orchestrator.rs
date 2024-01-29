@@ -29,6 +29,7 @@ use tracing::info;
 // - experiment with uploading and downloading netbench exec
 
 pub async fn run(
+    unique_id: String,
     _args: Args,
     scenario: Scenario,
     aws_config: &aws_types::SdkConfig,
@@ -42,12 +43,6 @@ pub async fn run(
         .await;
     let ec2_client = aws_sdk_ec2::Client::new(&shared_config_vpc);
     let ssm_client = aws_sdk_ssm::Client::new(&shared_config_vpc);
-
-    let unique_id = format!(
-        "{}-{}",
-        humantime::format_rfc3339_seconds(std::time::SystemTime::now()),
-        STATE.version
-    );
 
     let scenario_file = ByteStream::from_path(scenario.path.as_path())
         .await
