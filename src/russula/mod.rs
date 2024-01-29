@@ -20,7 +20,8 @@ use protocol::Protocol;
 use states::{StateApi, TransitionStep};
 
 // TODO
-// - hide State from russula API.. and remove StateApi from Protocol::State associated type
+// D- hide State from russula API..
+//   - remove StateApi from Protocol::State associated type
 // - seperate struct for Coord and Worker
 //
 // - look at NTP for synchronization: start_at(time)
