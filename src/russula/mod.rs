@@ -49,8 +49,8 @@ macro_rules! state_api {
         for peer in self.instance_list.iter_mut() {
             if let Err(err) = peer.protocol.[<poll_ $state>](&peer.stream).await {
                 if err.is_fatal() {
-                    error!("{}", err);
-                    panic!("{}", err);
+                    error!("{} {}", err, peer.addr);
+                    panic!("{} {}", err, peer.addr);
                 }
             }
         }

@@ -156,7 +156,7 @@ pub trait Protocol: private::Protocol + Clone {
         loop {
             match network_utils::recv_msg(stream).await {
                 Ok(msg) => {
-                    self.on_event(EventType::SendMsg);
+                    self.on_event(EventType::RecvMsg);
                     debug!(
                         "{} <---- recv msg {}",
                         self.name(),
