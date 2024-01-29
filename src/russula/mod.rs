@@ -22,11 +22,9 @@ use states::{StateApi, TransitionStep};
 // TODO
 // D- hide State from russula API..
 //   - remove StateApi from Protocol::State associated type
-// - seperate struct for Coord and Worker
+// - separate struct for Coord and Worker
 //
 // - look at NTP for synchronization: start_at(time)
-// https://statecharts.dev/
-// halting problem https://en.wikipedia.org/wiki/Halting_problem
 
 pub struct Russula<P: Protocol> {
     // Protocol instances part of this Russula Coordinator/Worker.
@@ -35,8 +33,6 @@ pub struct Russula<P: Protocol> {
     // The Worker can be list of size >=1
     instance_list: Vec<ProtocolInstance<P>>,
     poll_delay: Duration,
-    // get rid of this and get from instance_list instead
-    protocol: P,
 }
 
 macro_rules! state_api {
@@ -86,19 +82,6 @@ impl<P: Protocol + Send> Russula<P> {
     state_api!(done);
     /// Should only be called by Coordinators
     state_api!(worker_running);
-
-    #[cfg(test)]
-    fn is_self_state_done(&self) -> bool {
-        let done_state = self.protocol.done_state();
-        for peer in self.instance_list.iter() {
-            let protocol_state = peer.protocol.state();
-            if !done_state.eq(protocol_state) {
-                return false;
-            }
-            // info!("{:?} {:?} {}", protocol_state, state, matches);
-        }
-        true
-    }
 }
 
 pub struct RussulaBuilder<P: Protocol> {
@@ -164,7 +147,6 @@ impl<P: Protocol> RussulaBuilder<P> {
         Ok(Russula {
             instance_list: stream_protocol_list,
             poll_delay: self.poll_delay,
-            protocol: self.protocol,
         })
     }
 }
@@ -185,13 +167,13 @@ mod tests {
         let mut worker_addrs = Vec::new();
         let mut workers = Vec::new();
         macro_rules! worker {
-            {$worker:ident, $sock:ident, $port:literal} => {
-                let $sock = SocketAddr::from_str(&format!("127.0.0.1:{}", $port)).unwrap();
-                let $worker = tokio::spawn(async move {
+            {$port:literal} => {
+                let sock = SocketAddr::from_str(&format!("127.0.0.1:{}", $port)).unwrap();
+                let worker = tokio::spawn(async move {
                     let worker = RussulaBuilder::new(
-                        BTreeSet::from_iter([$sock]),
+                        BTreeSet::from_iter([sock]),
                         server::WorkerProtocol::new(
-                            $sock.port().to_string(),
+                            sock.port().to_string(),
                             netbench::ServerContext::testing(),
                         ),
                         POLL_DELAY_DURATION,
@@ -204,18 +186,18 @@ mod tests {
                     worker
                 });
 
-                workers.push($worker);
-                worker_addrs.push($sock);
+                workers.push(worker);
+                worker_addrs.push(sock);
             };
         }
 
-        worker!(w1, w1_sock, 9001);
-        worker!(w2, w2_sock, 9002);
-        worker!(w3, w3_sock, 9003);
-        worker!(w4, w4_sock, 9004);
-        worker!(w5, w5_sock, 9005);
-        worker!(w6, w6_sock, 9006);
-        worker!(w7, w7_sock, 9007);
+        worker!(9001);
+        worker!(9002);
+        worker!(9003);
+        worker!(9004);
+        worker!(9005);
+        worker!(9006);
+        worker!(9007);
 
         // start the coordinator first and test that the initial `protocol.connect`
         // attempt is retried
@@ -250,7 +232,7 @@ mod tests {
         {
             let worker_join = join_all(workers).await;
             for w in worker_join {
-                assert!(w.unwrap().is_self_state_done());
+                assert!(w.unwrap().is_done_state());
             }
         }
     }
@@ -258,47 +240,49 @@ mod tests {
     #[tokio::test]
     async fn netbench_client_protocol() {
         env_logger::init();
-        let w1_sock = SocketAddr::from_str("127.0.0.1:9991").unwrap();
-        let w2_sock = SocketAddr::from_str("127.0.0.1:9992").unwrap();
-        let worker_list = [w1_sock, w2_sock];
+        let mut worker_addrs = Vec::new();
+        let mut workers = Vec::new();
+
+        macro_rules! worker {
+            {$port:literal} => {
+                let sock = SocketAddr::from_str(&format!("127.0.0.1:{}", $port)).unwrap();
+                let worker = tokio::spawn(async move {
+                    let worker = RussulaBuilder::new(
+                        BTreeSet::from_iter([sock]),
+                        client::WorkerProtocol::new(
+                            sock.port().to_string(),
+                            netbench::ClientContext::testing(),
+                        ),
+                        POLL_DELAY_DURATION,
+                    );
+                    let mut worker = worker.build().await.unwrap();
+                    worker
+                        .run_till_done()
+                        .await
+                        .unwrap();
+                    worker
+                });
+
+                workers.push(worker);
+                worker_addrs.push(sock);
+            };
+        }
+
+        worker!(9001);
+        worker!(9002);
+        worker!(9003);
+        worker!(9004);
 
         // start the coordinator first and test that the initial `protocol.connect`
         // attempt is retried
         let c1 = tokio::spawn(async move {
-            let addr = BTreeSet::from_iter(worker_list);
+            let addr = BTreeSet::from_iter(worker_addrs);
 
             let protocol = client::CoordProtocol::new();
             let coord = RussulaBuilder::new(addr, protocol, POLL_DELAY_DURATION);
             let mut coord = coord.build().await.unwrap();
             coord.run_till_ready().await.unwrap();
             coord
-        });
-
-        let w1 = tokio::spawn(async move {
-            let worker = RussulaBuilder::new(
-                BTreeSet::from_iter([w1_sock]),
-                client::WorkerProtocol::new(
-                    w1_sock.port().to_string(),
-                    netbench::ClientContext::testing(),
-                ),
-                POLL_DELAY_DURATION,
-            );
-            let mut worker = worker.build().await.unwrap();
-            worker.run_till_done().await.unwrap();
-            worker
-        });
-        let w2 = tokio::spawn(async move {
-            let worker = RussulaBuilder::new(
-                BTreeSet::from_iter([w2_sock]),
-                client::WorkerProtocol::new(
-                    w2_sock.port().to_string(),
-                    netbench::ClientContext::testing(),
-                ),
-                POLL_DELAY_DURATION,
-            );
-            let mut worker = worker.build().await.unwrap();
-            worker.run_till_done().await.unwrap();
-            worker
         });
 
         let join = tokio::join!(c1);
@@ -319,11 +303,10 @@ mod tests {
 
         println!("\nclient-STEP 20 --------------- : confirm worker done");
         {
-            let (worker1, worker2) = tokio::join!(w1, w2);
-            let worker1 = worker1.unwrap();
-            let worker2 = worker2.unwrap();
-            assert!(worker1.is_self_state_done());
-            assert!(worker2.is_self_state_done());
+            let worker_join = join_all(workers).await;
+            for w in worker_join {
+                assert!(w.unwrap().is_done_state());
+            }
         }
     }
 }
