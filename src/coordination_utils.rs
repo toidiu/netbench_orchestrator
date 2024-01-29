@@ -36,8 +36,7 @@ impl ServerNetbenchRussula {
         debug!("starting server worker");
 
         let worker =
-            ssm_utils::server::run_russula_worker(ssm_client, instance_ids, &driver, scenario)
-                .await;
+            ssm_utils::server::run_russula_worker(ssm_client, instance_ids, driver, scenario).await;
 
         // wait for worker to start
         tokio::time::sleep(Duration::from_secs(5)).await;
@@ -58,11 +57,7 @@ impl ServerNetbenchRussula {
             .await
             .unwrap();
 
-            let poll_coord_worker_running = self
-                .coord
-                .poll_state(&server::CoordState::WorkersRunning)
-                .await
-                .unwrap();
+            let poll_coord_worker_running = self.coord.poll_worker_running().await.unwrap();
 
             debug!(
                 "Server Russula!: poll worker_running. Coordinator: {:?} Worker {:?}",
@@ -135,7 +130,7 @@ impl ClientNetbenchRussula {
             ssm_client,
             instance_ids,
             &infra.server_ips(),
-            &driver,
+            driver,
             scenario,
         )
         .await;

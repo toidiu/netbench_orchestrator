@@ -12,6 +12,7 @@ use super::{
 use async_trait::async_trait;
 use bytes::Bytes;
 use core::{fmt::Debug, task::Poll, time::Duration};
+use paste::paste;
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 use tokio::net::TcpStream;
@@ -27,6 +28,18 @@ pub(crate) struct ProtocolInstance<P: Protocol> {
     pub protocol: P,
 }
 
+macro_rules! state_api {
+{$state:ident} => {paste!{
+    fn [<$state _state>](&self) -> Self::State;
+
+    /// Check if the Instance is at the desired state
+    fn [<is_ $state _state>](&self) -> bool {
+        let state = self.[<$state _state>]();
+        matches!(self.state(), state)
+    }
+}};
+}
+
 #[async_trait]
 pub trait Protocol: private::Protocol + Clone {
     type State: StateApi;
@@ -38,20 +51,38 @@ pub trait Protocol: private::Protocol + Clone {
     fn update_peer_state(&mut self, msg: Msg) -> RussulaResult<()>;
     fn state(&self) -> &Self::State;
     fn state_mut(&mut self) -> &mut Self::State;
-    fn ready_state(&self) -> Self::State;
-    fn done_state(&self) -> Self::State;
-    fn worker_running_state(&self) -> Self::State;
 
     // Ready ==============
+    state_api!(ready);
     async fn poll_ready(&mut self, stream: &TcpStream) -> RussulaResult<Poll<()>> {
-        let ready_state = self.ready_state();
-        self.poll_state(stream, &ready_state).await
+        let state = self.ready_state();
+        self.poll_state(stream, &state).await
     }
 
     // Done ==============
+    // state_api!(done);
+    fn done_state(&self) -> Self::State;
     async fn poll_done(&mut self, stream: &TcpStream) -> RussulaResult<Poll<()>> {
-        let done_state = self.done_state();
-        self.poll_state(stream, &done_state).await
+        let state = self.done_state();
+        self.poll_state(stream, &state).await
+    }
+
+    /// Done is the only State with TransitionStep::Finished
+    fn is_done_state(&self) -> bool {
+        // TODO figure out why doesnt this work
+        // let state = self.done_state();
+        // matches!(self.state(), state)
+
+        matches!(self.state().transition_step(), TransitionStep::Finished)
+    }
+
+    // Running ==============
+    /// Should only be called by Coordinators
+    state_api!(worker_running);
+    /// Check if worker the Instance is Running
+    async fn poll_worker_running(&mut self, stream: &TcpStream) -> RussulaResult<Poll<()>> {
+        let state = self.worker_running_state();
+        self.poll_state(stream, &state).await
     }
 
     // If the peer is not at the desired state then attempt to make progress by invoking the
@@ -106,11 +137,6 @@ pub trait Protocol: private::Protocol + Clone {
             self.update_peer_state(msg)?;
         }
         Ok(())
-    }
-
-    /// Done is the only State with TransitionStep::Finished
-    fn is_done_state(&self) -> bool {
-        matches!(self.state().transition_step(), TransitionStep::Finished)
     }
 
     async fn await_next_msg(&mut self, stream: &TcpStream) -> RussulaResult<Option<Msg>> {

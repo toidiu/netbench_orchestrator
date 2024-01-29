@@ -81,64 +81,12 @@ macro_rules! state_api {
 }
 
 impl<P: Protocol + Send> Russula<P> {
-    // Ready ==============
-    pub async fn run_till_ready(&mut self) -> RussulaResult<()> {
-        let ready_state = self.protocol.ready_state();
-        self.run_till_state(&ready_state).await
-
-        // while self.poll_ready().await?.is_pending() {
-        //     tokio::time::sleep(self.poll_delay).await;
-        // }
-
-        // Ok(())
-    }
-
-    // Done ==============
+    state_api!(ready);
     state_api!(done);
-
-    // Running ==============
     /// Should only be called by Coordinators
-    pub async fn run_till_worker_running(&mut self) -> RussulaResult<()> {
-        let worker_running_state = self.protocol.worker_running_state();
-        self.run_till_state(&worker_running_state).await
-    }
+    state_api!(worker_running);
 
-    pub async fn poll_state(&mut self, state: &P::State) -> RussulaResult<Poll<()>> {
-        for peer in self.instance_list.iter_mut() {
-            if let Err(err) = peer.protocol.poll_state(&peer.stream, state).await {
-                if err.is_fatal() {
-                    error!("{}", err);
-                    panic!("{}", err);
-                }
-            }
-        }
-        let poll = if self.self_state_matches(state) {
-            Poll::Ready(())
-        } else {
-            Poll::Pending
-        };
-        Ok(poll)
-    }
-
-    async fn run_till_state(&mut self, state: &P::State) -> RussulaResult<()> {
-        while self.poll_state(state).await?.is_pending() {
-            tokio::time::sleep(self.poll_delay).await;
-        }
-
-        Ok(())
-    }
-
-    fn self_state_matches(&self, state: &P::State) -> bool {
-        for peer in self.instance_list.iter() {
-            let protocol_state = peer.protocol.state();
-            if !state.eq(protocol_state) {
-                return false;
-            }
-            // info!("{:?} {:?} {}", protocol_state, state, matches);
-        }
-        true
-    }
-
+    #[cfg(test)]
     fn is_self_state_done(&self) -> bool {
         let done_state = self.protocol.done_state();
         for peer in self.instance_list.iter() {
