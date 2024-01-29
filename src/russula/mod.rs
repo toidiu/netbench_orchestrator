@@ -57,21 +57,33 @@ impl<P: Protocol + Send> Russula<P> {
     }
 
     pub async fn poll_done(&mut self) -> RussulaResult<Poll<()>> {
-        let done_state = self.protocol.done_state();
         for peer in self.instance_list.iter_mut() {
-            if let Err(err) = peer.protocol.poll_state(&peer.stream, &done_state).await {
+            if let Err(err) = peer.protocol.poll_done(&peer.stream).await {
                 if err.is_fatal() {
                     error!("{}", err);
                     panic!("{}", err);
                 }
             }
         }
-        let poll = if self.self_state_matches(&done_state) {
+        let poll = if self.is_done_state() {
             Poll::Ready(())
         } else {
             Poll::Pending
         };
         Ok(poll)
+    }
+
+    /// Check if all instances are done
+    fn is_done_state(&self) -> bool {
+        for peer in self.instance_list.iter() {
+            let protocol_state = peer.protocol.state();
+            // All instance must be done
+            if !peer.protocol.is_done_state() {
+                return false;
+            }
+            // info!("{:?} {:?} {}", protocol_state, state, matches);
+        }
+        true
     }
 
     // Running ==============
