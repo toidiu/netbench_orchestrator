@@ -55,7 +55,6 @@ impl From<tokio::io::Error> for RussulaError {
             }
             _ => {
                 error!("{}", err);
-
                 RussulaError::NetworkFail {
                     dbg: err.to_string(),
                 }
