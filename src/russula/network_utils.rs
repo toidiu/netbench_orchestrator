@@ -24,7 +24,7 @@ pub async fn send_msg(stream: &TcpStream, msg: Msg) -> RussulaResult<usize> {
 
 async fn write_msg(stream: &TcpStream, msg: Msg) -> RussulaResult<usize> {
     let mut data: Vec<u8> = Vec::with_capacity((msg.len + 1).into());
-    data.push(msg.len);
+    data.extend(msg.len.to_be_bytes());
     data.extend(msg.data);
 
     stream.try_write(&data).map_err(|err| {
@@ -34,12 +34,15 @@ async fn write_msg(stream: &TcpStream, msg: Msg) -> RussulaResult<usize> {
 }
 
 async fn read_msg(stream: &TcpStream) -> RussulaResult<Msg> {
-    let mut len_buf = [0; 1];
+    let mut len_buf = [0; 2];
     stream.try_read(&mut len_buf).map_err(|err| {
         error!("{}", err);
         RussulaError::from(err)
     })?;
-    let len = u8::from_be_bytes(len_buf);
+    let len = u16::from_be_bytes(len_buf);
+    if len == 0 {
+        error!("read len 0: {}", len);
+    }
 
     let mut data = Vec::with_capacity(len.into());
     let read_bytes = stream.try_read_buf(&mut data).map_err(|err| {
@@ -59,14 +62,14 @@ async fn read_msg(stream: &TcpStream) -> RussulaResult<Msg> {
 
 #[derive(Debug)]
 pub struct Msg {
-    pub len: u8,
+    pub len: u16,
     pub data: Bytes,
 }
 
 impl Msg {
     pub fn new(data: Bytes) -> Msg {
         Msg {
-            len: data.len() as u8,
+            len: data.len() as u16,
             data,
         }
     }
