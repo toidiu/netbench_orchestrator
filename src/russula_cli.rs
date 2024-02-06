@@ -104,9 +104,8 @@ async fn main() -> OrchResult<()> {
 }
 
 async fn run_server_worker(opt: Opt, netbench_ctx: netbench::ServerContext, russula_port: u16) {
-    // let uuid = uuid::Uuid::new_v4().to_string();
-    // let id = format!("{}-{}", netbench_ctx.trim_driver_name(), uuid);
-    let id = netbench_ctx.trim_driver_name();
+    let uuid = uuid::Uuid::new_v4().to_string();
+    let id = format!("{}-{}", netbench_ctx.trim_driver_name(), uuid);
     let protocol = server::WorkerProtocol::new(id, netbench_ctx);
     let worker = RussulaBuilder::new(
         BTreeSet::from_iter([local_listen_addr(russula_port)]),
@@ -120,9 +119,8 @@ async fn run_server_worker(opt: Opt, netbench_ctx: netbench::ServerContext, russ
 }
 
 async fn run_client_worker(opt: Opt, netbench_ctx: netbench::ClientContext, russula_port: u16) {
-    // let uuid = uuid::Uuid::new_v4().to_string();
-    // let id = format!("{}-{}", netbench_ctx.trim_driver_name(), uuid);
-    let id = netbench_ctx.trim_driver_name();
+    let uuid = uuid::Uuid::new_v4().to_string();
+    let id = format!("{}-{}", netbench_ctx.trim_driver_name(), uuid);
     let protocol = client::WorkerProtocol::new(id, netbench_ctx);
     let worker = RussulaBuilder::new(
         BTreeSet::from_iter([local_listen_addr(russula_port)]),

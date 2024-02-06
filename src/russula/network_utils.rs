@@ -6,18 +6,31 @@ use bytes::Bytes;
 use tokio::net::TcpStream;
 use tracing::error;
 
+macro_rules! log_err {
+    {$error:ident} => {{
+        let russula_err = RussulaError::from($error);
+        match &russula_err {
+            RussulaError::NetworkBlocked{ dbg } => (),
+            dbg => tracing::error!("{}", dbg),
+        }
+        russula_err
+    }}
+}
+
 pub async fn recv_msg(stream: &TcpStream) -> RussulaResult<Msg> {
     stream.readable().await.map_err(|err| {
-        error!("{}", err);
-        RussulaError::from(err)
+        // error!("{}", err);
+        // RussulaError::from(err)
+        log_err!(err)
     })?;
     read_msg(stream).await
 }
 
 pub async fn send_msg(stream: &TcpStream, msg: Msg) -> RussulaResult<usize> {
     stream.writable().await.map_err(|err| {
-        error!("{}", err);
-        RussulaError::from(err)
+        // error!("{}", err);
+        // RussulaError::from(err)
+        log_err!(err)
     })?;
     write_msg(stream, msg).await
 }
@@ -28,16 +41,18 @@ async fn write_msg(stream: &TcpStream, msg: Msg) -> RussulaResult<usize> {
     data.extend(msg.data);
 
     stream.try_write(&data).map_err(|err| {
-        error!("{}", err);
-        RussulaError::from(err)
+        // error!("{}", err);
+        // RussulaError::from(err)
+        log_err!(err)
     })
 }
 
 async fn read_msg(stream: &TcpStream) -> RussulaResult<Msg> {
     let mut len_buf = [0; 2];
     let o = stream.try_read(&mut len_buf).map_err(|err| {
-        error!("{}", err);
-        RussulaError::from(err)
+        // error!("{}", err);
+        // RussulaError::from(err)
+        log_err!(err)
     })?;
     if o == 0 {
         error!("read len 0");
@@ -49,8 +64,10 @@ async fn read_msg(stream: &TcpStream) -> RussulaResult<Msg> {
 
     let mut data = Vec::with_capacity(len.into());
     let read_bytes = stream.try_read_buf(&mut data).map_err(|err| {
-        error!("{}", err);
-        RussulaError::from(err)
+        // error!("{}", err);
+        // RussulaError::from(err)
+
+        log_err!(err)
     })?;
 
     if read_bytes == len as usize {
