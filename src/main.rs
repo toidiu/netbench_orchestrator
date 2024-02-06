@@ -32,25 +32,6 @@ use s3_utils::*;
 use ssm_utils::*;
 use state::*;
 
-// TODO
-// - instance::poll_state should take multiple instance_ids
-//
-// - install netbench drivers from crates.io
-// - save hash of private source
-//   - get private src exec from s3
-// - cleanup dashboard
-// - enum for orch steps
-//   - add timing data
-//
-// # Expanding Russula/Cli
-//
-// # Optimization
-// - tar.gz private source
-// - enum for driver build type (git, source, crates.io)
-//
-// - use release build instead of debug
-// - experiment with uploading and downloading netbench exec
-
 #[derive(Parser, Debug)]
 pub struct Args {
     /// Path to the scenario file

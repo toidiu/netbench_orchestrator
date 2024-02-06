@@ -14,15 +14,30 @@ use tracing::info;
 
 // TODO
 // D- categorize drive source (source, crates, github)
-// - run two drivers as part of single run
+// D- run two drivers as part of single run
+// - add tls drivers
+//
+// # Russula/Cli
+//
+// # Features
 // - capture driver to run as part of Scenario
-//
-//
-// # Expanding Russula/Cli
 //
 // # Optimization
 // - use release build instead of debug
 // - experiment with uploading and downloading netbench exec
+// - tar.gz private source
+//   - save hash of private source
+//   - get private src exec from s3
+// - enum for orch steps
+//   - add timing data
+// - use release build instead of debug
+// - experiment with uploading and downloading netbench exec
+//
+// # Cleanup
+// - instance::poll_state should take multiple instance_ids
+// - install netbench drivers from crates.io
+// - cleanup dashboard
+//
 
 pub async fn run(
     unique_id: String,
@@ -205,11 +220,11 @@ pub async fn run(
     orch_generate_report(&s3_client, &unique_id).await;
 
     // Cleanup
-    // infra
-    //     .cleanup(&ec2_client)
-    //     .await
-    //     .map_err(|err| eprintln!("Failed to cleanup resources. {}", err))
-    //     .unwrap();
+    infra
+        .cleanup(&ec2_client)
+        .await
+        .map_err(|err| eprintln!("Failed to cleanup resources. {}", err))
+        .unwrap();
 
     Ok(())
 }
