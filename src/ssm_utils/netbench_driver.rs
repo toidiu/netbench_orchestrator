@@ -17,14 +17,17 @@ pub use s2n_quic_driver::*;
 pub use tcp_driver::*;
 
 pub enum NetbenchDriverType {
-    Github(GithubSource),
+    GithubRustProj(GithubSource),
     Local(LocalSource),
 }
 
 pub struct GithubSource {
     pub driver_name: String,
-    pub ssm_build_cmd: Vec<String>,
     pub repo_name: String,
+
+    unique_id: String,
+    // TODO remove by uploading scenario file separately
+    netbench_scenario_filename: String,
 }
 
 pub struct LocalSource {
@@ -35,12 +38,15 @@ pub struct LocalSource {
     //
     // upload to s3 locally and download form s3 in ssm_build_cmd
     local_path_to_proj: PathBuf,
+    unique_id: String,
+    // TODO remove by uploading scenario file separately
+    netbench_scenario_filename: String,
 }
 
 impl NetbenchDriverType {
     pub fn driver_name(&self) -> &String {
         match self {
-            NetbenchDriverType::Github(source) => &source.driver_name,
+            NetbenchDriverType::GithubRustProj(source) => &source.driver_name,
             NetbenchDriverType::Local(source) => &source.driver_name,
         }
     }
@@ -48,16 +54,57 @@ impl NetbenchDriverType {
     // Base project name
     pub fn proj_name(&self) -> &String {
         match self {
-            NetbenchDriverType::Github(source) => &source.repo_name,
+            NetbenchDriverType::GithubRustProj(source) => &source.repo_name,
             NetbenchDriverType::Local(source) => &source.proj_name,
         }
     }
 
     pub fn ssm_build_cmd(&self) -> &Vec<String> {
         match self {
-            NetbenchDriverType::Github(source) => &source.ssm_build_cmd,
+            NetbenchDriverType::GithubRustProj(_source) => &self.ssm_build_cmd(),
             NetbenchDriverType::Local(source) => &source.ssm_build_cmd,
         }
+    }
+
+    fn unique_id(&self) -> &str {
+        match self {
+            NetbenchDriverType::GithubRustProj(source) => &source.unique_id,
+            NetbenchDriverType::Local(source) => &source.unique_id,
+        }
+    }
+
+    fn netbench_scenario_filename(&self) -> &str {
+        match self {
+            NetbenchDriverType::GithubRustProj(source) => &source.netbench_scenario_filename,
+            NetbenchDriverType::Local(source) => &source.netbench_scenario_filename,
+        }
+    }
+
+    pub fn ssm_build_rust_proj(&self) -> Vec<String> {
+        let unique_id = self.unique_id();
+        vec![
+            format!(
+                "git clone --branch {} {}",
+                STATE.netbench_branch, STATE.netbench_repo
+            ),
+            format!("cd {}", self.proj_name()),
+            format!("{}/cargo build --release", STATE.host_bin_path()),
+            // copy netbench executables to ~/bin folder
+            format!(
+                "find target/release -maxdepth 1 -type f -perm /a+x -exec cp {{}} {} \\;",
+                STATE.host_bin_path()
+            ),
+            // copy scenario file to host
+            format!(
+                "aws s3 cp s3://{}/{unique_id}/{} {}/{}",
+                // from
+                STATE.s3_log_bucket,
+                self.netbench_scenario_filename(),
+                // to
+                STATE.host_bin_path(),
+                self.netbench_scenario_filename()
+            ),
+        ]
     }
 }
 
