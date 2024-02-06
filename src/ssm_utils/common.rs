@@ -149,7 +149,7 @@ async fn build_netbench_driver_cmd(
             ),
         ]
         .into_iter()
-        .chain(driver.ssm_build_cmd().clone().into_iter())
+        .chain(driver.ssm_build_cmd().into_iter())
         .map(String::from)
         .collect(),
     )

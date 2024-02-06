@@ -59,10 +59,10 @@ impl NetbenchDriverType {
         }
     }
 
-    pub fn ssm_build_cmd(&self) -> &Vec<String> {
+    pub fn ssm_build_cmd(&self) -> Vec<String> {
         match self {
-            NetbenchDriverType::GithubRustProj(_source) => &self.ssm_build_cmd(),
-            NetbenchDriverType::Local(source) => &source.ssm_build_cmd,
+            NetbenchDriverType::GithubRustProj(source) => source.ssm_build_rust_proj(),
+            NetbenchDriverType::Local(source) => source.ssm_build_cmd.clone(),
         }
     }
 
@@ -79,15 +79,17 @@ impl NetbenchDriverType {
             NetbenchDriverType::Local(source) => &source.netbench_scenario_filename,
         }
     }
+}
 
+impl GithubSource {
     pub fn ssm_build_rust_proj(&self) -> Vec<String> {
-        let unique_id = self.unique_id();
+        let unique_id = &self.unique_id;
         vec![
             format!(
                 "git clone --branch {} {}",
                 STATE.netbench_branch, STATE.netbench_repo
             ),
-            format!("cd {}", self.proj_name()),
+            format!("cd {}", self.repo_name),
             format!("{}/cargo build --release", STATE.host_bin_path()),
             // copy netbench executables to ~/bin folder
             format!(
@@ -99,10 +101,10 @@ impl NetbenchDriverType {
                 "aws s3 cp s3://{}/{unique_id}/{} {}/{}",
                 // from
                 STATE.s3_log_bucket,
-                self.netbench_scenario_filename(),
+                self.netbench_scenario_filename,
                 // to
                 STATE.host_bin_path(),
-                self.netbench_scenario_filename()
+                self.netbench_scenario_filename
             ),
         ]
     }
