@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::{send_command, Step};
-use crate::{poll_ssm_results, state::STATE, NetbenchDriver};
+use crate::{poll_ssm_results, state::STATE, NetbenchDriverType};
 use aws_sdk_ssm::operation::send_command::SendCommandOutput;
 use core::time::Duration;
 use indicatif::{ProgressBar, ProgressStyle};
@@ -61,7 +61,7 @@ pub async fn collect_config_cmds(
     host_group: &str,
     ssm_client: &aws_sdk_ssm::Client,
     instance_ids: Vec<String>,
-    netbench_drivers: &[&NetbenchDriver],
+    netbench_drivers: &[&NetbenchDriverType],
     unique_id: &str,
 ) -> Vec<SendCommandOutput> {
     // configure and build
@@ -125,16 +125,16 @@ async fn install_deps_cmd(
 
 async fn build_netbench_driver_cmd(
     host_group: &str,
-    driver: &NetbenchDriver,
+    driver: &NetbenchDriverType,
     ssm_client: &aws_sdk_ssm::Client,
     instance_ids: Vec<String>,
     unique_id: &str,
 ) -> SendCommandOutput {
     send_command(
         vec![Step::Configure],
-        Step::BuildDriver(driver.driver_name.clone()),
+        Step::BuildDriver(driver.driver_name().clone()),
         host_group,
-        &format!("build_driver_{}", driver.proj_name),
+        &format!("build_driver_{}", driver.proj_name()),
         ssm_client,
         instance_ids,
         vec![
@@ -143,13 +143,13 @@ async fn build_netbench_driver_cmd(
             format!(
                 "aws s3 sync {}/{}/ {}/{}",
                 STATE.s3_path(unique_id),
-                driver.proj_name,
+                driver.proj_name(),
                 STATE.host_home_path,
-                driver.proj_name
+                driver.proj_name()
             ),
         ]
         .into_iter()
-        .chain(driver.ssm_build_cmd.clone().into_iter())
+        .chain(driver.ssm_build_cmd().clone().into_iter())
         .map(String::from)
         .collect(),
     )

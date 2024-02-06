@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::{send_command, Step};
-use crate::{state::STATE, NetbenchDriver, OrchestratorScenario};
+use crate::{state::STATE, NetbenchDriverType, OrchestratorScenario};
 use aws_sdk_ssm::operation::send_command::SendCommandOutput;
 use std::net::{IpAddr, SocketAddr};
 use tracing::debug;
@@ -12,10 +12,10 @@ pub async fn upload_netbench_data(
     instance_ids: Vec<String>,
     unique_id: &str,
     scenario: &OrchestratorScenario,
-    driver: &NetbenchDriver,
+    driver: &NetbenchDriverType,
 ) -> SendCommandOutput {
     let driver_name = driver
-        .driver_name
+        .driver_name()
         .trim_start_matches("s2n-netbench-driver-")
         .trim_start_matches("netbench-driver-")
         .trim_end_matches(".json");
@@ -48,7 +48,7 @@ pub async fn run_russula_worker(
     ssm_client: &aws_sdk_ssm::Client,
     instance_ids: Vec<String>,
     server_ips: &Vec<IpAddr>,
-    driver: &NetbenchDriver,
+    driver: &NetbenchDriverType,
     scenario: &OrchestratorScenario,
 ) -> SendCommandOutput {
     let netbench_server_addr = server_ips
@@ -63,7 +63,7 @@ pub async fn run_russula_worker(
 
     let netbench_cmd =
         format!("env RUST_LOG=debug ./target/debug/russula_cli netbench-client-worker --russula-port {} --driver {} --scenario {} --netbench-servers {netbench_server_addr}",
-            STATE.russula_port, driver.driver_name, scenario.netbench_scenario_filename);
+            STATE.russula_port, driver.driver_name(), scenario.netbench_scenario_filename);
     debug!("{}", netbench_cmd);
 
     send_command(

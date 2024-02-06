@@ -1,12 +1,13 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-use super::NetbenchDriver;
+use super::{GithubSource, NetbenchDriverType};
 use crate::{OrchestratorScenario, STATE};
 
-pub fn tcp_server_driver(unique_id: &str, scenario: &OrchestratorScenario) -> NetbenchDriver {
+pub fn tcp_server_driver(unique_id: &str, scenario: &OrchestratorScenario) -> NetbenchDriverType {
     let proj_name = "s2n-netbench".to_string();
-    let driver = NetbenchDriver {
+
+    let source = GithubSource {
         driver_name: "s2n-netbench-driver-server-tcp".to_string(),
         ssm_build_cmd: vec![
             // FIXME this completes immediately.. possibly because it contends with the s2n-quic
@@ -33,23 +34,22 @@ pub fn tcp_server_driver(unique_id: &str, scenario: &OrchestratorScenario) -> Ne
                 scenario.netbench_scenario_filename
             ),
         ],
-        proj_name,
-        local_path_to_proj: None,
+        repo_name: proj_name.clone(),
     };
-
-    driver
+    NetbenchDriverType::Github(source)
 }
 
-pub fn tcp_client_driver(unique_id: &str, scenario: &OrchestratorScenario) -> NetbenchDriver {
-    let proj_name = "s2n-netbench".to_string();
-    let driver = NetbenchDriver {
+pub fn tcp_client_driver(unique_id: &str, scenario: &OrchestratorScenario) -> NetbenchDriverType {
+    let repo_name = "s2n-netbench".to_string();
+
+    let source = GithubSource {
         driver_name: "s2n-netbench-driver-client-tcp".to_string(),
         ssm_build_cmd: vec![
             format!(
                 "git clone --branch {} {}",
                 STATE.netbench_branch, STATE.netbench_repo
             ),
-            format!("cd {}", proj_name),
+            format!("cd {}", repo_name),
             format!("{}/cargo build --release", STATE.host_bin_path()),
             // copy netbench executables to ~/bin folder
             format!(
@@ -67,9 +67,8 @@ pub fn tcp_client_driver(unique_id: &str, scenario: &OrchestratorScenario) -> Ne
                 scenario.netbench_scenario_filename
             ),
         ],
-        proj_name,
-        local_path_to_proj: None,
+        repo_name: repo_name.clone(),
     };
 
-    driver
+    NetbenchDriverType::Github(source)
 }

@@ -16,15 +16,49 @@ pub use s2n_quic_dc_driver::*;
 pub use s2n_quic_driver::*;
 pub use tcp_driver::*;
 
-pub struct NetbenchDriver {
+pub enum NetbenchDriverType {
+    Github(GithubSource),
+    Local(LocalSource),
+}
+
+pub struct GithubSource {
     pub driver_name: String,
     pub ssm_build_cmd: Vec<String>,
-    // Usually the Github repo name
+    pub repo_name: String,
+}
+
+pub struct LocalSource {
+    pub driver_name: String,
+    pub ssm_build_cmd: Vec<String>,
     pub proj_name: String,
-    // used to copy local driver source to hosts
+    // Used to copy local driver source to hosts
     //
     // upload to s3 locally and download form s3 in ssm_build_cmd
-    local_path_to_proj: Option<PathBuf>,
+    local_path_to_proj: PathBuf,
+}
+
+impl NetbenchDriverType {
+    pub fn driver_name(&self) -> &String {
+        match self {
+            NetbenchDriverType::Github(source) => &source.driver_name,
+            NetbenchDriverType::Local(source) => &source.driver_name,
+        }
+    }
+
+    // Base project name
+    pub fn proj_name(&self) -> &String {
+        match self {
+            NetbenchDriverType::Github(source) => &source.repo_name,
+            NetbenchDriverType::Local(source) => &source.proj_name,
+        }
+    }
+
+    pub fn ssm_build_cmd(&self) -> &Vec<String> {
+        match self {
+            NetbenchDriverType::Github(source) => &source.ssm_build_cmd,
+            NetbenchDriverType::Local(source) => &source.ssm_build_cmd,
+        }
+    }
 }
 
 // This local command runs twice; once for server and once for client.

@@ -9,7 +9,7 @@ use crate::{
         netbench::{client, server},
         RussulaBuilder,
     },
-    ssm_utils, NetbenchDriver, OrchestratorScenario, STATE,
+    ssm_utils, NetbenchDriverType, OrchestratorScenario, STATE,
 };
 use aws_sdk_ssm::operation::send_command::SendCommandOutput;
 use core::time::Duration;
@@ -30,7 +30,7 @@ impl ServerNetbenchRussula {
         infra: &InfraDetail,
         instance_ids: Vec<String>,
         scenario: &OrchestratorScenario,
-        driver: &NetbenchDriver,
+        driver: &NetbenchDriverType,
     ) -> Self {
         // server run commands
         debug!("starting server worker");
@@ -122,7 +122,7 @@ impl ClientNetbenchRussula {
         infra: &InfraDetail,
         instance_ids: Vec<String>,
         scenario: &OrchestratorScenario,
-        driver: &NetbenchDriver,
+        driver: &NetbenchDriverType,
     ) -> Self {
         // client run commands
         debug!("starting client worker");
