@@ -61,7 +61,7 @@ pub async fn collect_config_cmds(
     host_group: &str,
     ssm_client: &aws_sdk_ssm::Client,
     instance_ids: Vec<String>,
-    netbench_drivers: &[&NetbenchDriverType],
+    netbench_drivers: &Vec<NetbenchDriverType>,
     unique_id: &str,
 ) -> Vec<SendCommandOutput> {
     // configure and build

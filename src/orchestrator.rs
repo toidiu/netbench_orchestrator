@@ -13,7 +13,7 @@ use aws_types::region::Region;
 use tracing::info;
 
 // TODO
-// - categorize drive source (source, crates, github)
+// D- categorize drive source (source, crates, github)
 // - run two drivers as part of single run
 // - capture driver to run as part of Scenario
 //
@@ -100,9 +100,8 @@ pub async fn run(
     let quic_client_driver = ssm_utils::quic_client_driver(&unique_id, &scenario);
     let tcp_server_driver = ssm_utils::tcp_server_driver(&unique_id, &scenario);
     let tcp_client_driver = ssm_utils::tcp_client_driver(&unique_id, &scenario);
-
-    let client_driver_to_run = &tcp_client_driver;
-    let server_driver_to_run = &tcp_server_driver;
+    let server_drivers = vec![dc_quic_server_driver, quic_server_driver, tcp_server_driver];
+    let client_drivers = vec![dc_quic_client_driver, quic_client_driver, tcp_client_driver];
 
     // configure and build
     {
@@ -110,11 +109,7 @@ pub async fn run(
             "server",
             &ssm_client,
             server_ids.clone(),
-            &[
-                &dc_quic_server_driver,
-                &quic_server_driver,
-                &tcp_server_driver,
-            ],
+            &server_drivers,
             &unique_id,
         )
         .await;
@@ -122,11 +117,7 @@ pub async fn run(
             "client",
             &ssm_client,
             client_ids.clone(),
-            &[
-                &dc_quic_client_driver,
-                &quic_client_driver,
-                &tcp_client_driver,
-            ],
+            &client_drivers,
             &unique_id,
         )
         .await;
@@ -141,57 +132,60 @@ pub async fn run(
         info!("Host setup Successful");
     }
 
-    // run russula
-    {
-        let mut server_russula = coordination_utils::ServerNetbenchRussula::new(
-            &ssm_client,
-            &infra,
-            server_ids.clone(),
-            &scenario,
-            server_driver_to_run,
-        )
-        .await;
+    let driver_pairs = client_drivers.into_iter().zip(server_drivers);
+    for (client_driver, server_driver) in driver_pairs {
+        // run russula
+        {
+            let mut server_russula = coordination_utils::ServerNetbenchRussula::new(
+                &ssm_client,
+                &infra,
+                server_ids.clone(),
+                &scenario,
+                &server_driver,
+            )
+            .await;
 
-        let mut client_russula = coordination_utils::ClientNetbenchRussula::new(
-            &ssm_client,
-            &infra,
-            client_ids.clone(),
-            &scenario,
-            client_driver_to_run,
-        )
-        .await;
+            let mut client_russula = coordination_utils::ClientNetbenchRussula::new(
+                &ssm_client,
+                &infra,
+                client_ids.clone(),
+                &scenario,
+                &client_driver,
+            )
+            .await;
 
-        // run client/server
-        server_russula.wait_workers_running(&ssm_client).await;
-        client_russula.wait_done(&ssm_client).await;
-        server_russula.wait_done(&ssm_client).await;
-    }
+            // run client/server
+            server_russula.wait_workers_running(&ssm_client).await;
+            client_russula.wait_done(&ssm_client).await;
+            server_russula.wait_done(&ssm_client).await;
+        }
 
-    // copy netbench results
-    {
-        let copy_server_netbench = ssm_utils::server::upload_netbench_data(
-            &ssm_client,
-            server_ids.clone(),
-            &unique_id,
-            &scenario,
-            server_driver_to_run,
-        )
-        .await;
-        let copy_client_netbench = ssm_utils::client::upload_netbench_data(
-            &ssm_client,
-            client_ids.clone(),
-            &unique_id,
-            &scenario,
-            client_driver_to_run,
-        )
-        .await;
-        ssm_utils::common::wait_complete(
-            "client_server_netbench_copy_results",
-            &ssm_client,
-            vec![copy_server_netbench, copy_client_netbench],
-        )
-        .await;
-        info!("client_server netbench copy results!: Successful");
+        // copy netbench results
+        {
+            let copy_server_netbench = ssm_utils::server::upload_netbench_data(
+                &ssm_client,
+                server_ids.clone(),
+                &unique_id,
+                &scenario,
+                &server_driver,
+            )
+            .await;
+            let copy_client_netbench = ssm_utils::client::upload_netbench_data(
+                &ssm_client,
+                client_ids.clone(),
+                &unique_id,
+                &scenario,
+                &client_driver,
+            )
+            .await;
+            ssm_utils::common::wait_complete(
+                "client_server_netbench_copy_results",
+                &ssm_client,
+                vec![copy_server_netbench, copy_client_netbench],
+            )
+            .await;
+            info!("client_server netbench copy results!: Successful");
+        }
     }
 
     // Copy results back

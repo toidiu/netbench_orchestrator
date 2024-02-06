@@ -171,8 +171,4 @@ impl OrchestratorScenario {
             .to_str()
             .unwrap()
     }
-
-    // pub fn netbench_scenario_filepath(&self) -> &Path {
-    //     self.netbench_scenario_filepath.as_path()
-    // }
 }
