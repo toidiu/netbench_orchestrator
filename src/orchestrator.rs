@@ -101,13 +101,13 @@ pub async fn run(
     // let tcp_server_driver = ssm_utils::tcp_server_driver(&unique_id, &scenario);
     // let tcp_client_driver = ssm_utils::tcp_client_driver(&unique_id, &scenario);
     let server_drivers = vec![
-        ssm_utils::dc_quic_server_driver(&unique_id, &scenario),
+        // ssm_utils::dc_quic_server_driver(&unique_id, &scenario),
         ssm_utils::quic_server_driver(&unique_id, &scenario),
         ssm_utils::tcp_server_driver(&unique_id, &scenario),
         // dc_quic_server_driver, quic_server_driver, tcp_server_driver
     ];
     let client_drivers = vec![
-        ssm_utils::dc_quic_client_driver(&unique_id, &scenario),
+        // ssm_utils::dc_quic_client_driver(&unique_id, &scenario),
         ssm_utils::quic_client_driver(&unique_id, &scenario),
         ssm_utils::tcp_client_driver(&unique_id, &scenario),
         // dc_quic_client_driver, quic_client_driver, tcp_client_driver
@@ -207,11 +207,11 @@ pub async fn run(
     orch_generate_report(&s3_client, &unique_id).await;
 
     // Cleanup
-    infra
-        .cleanup(&ec2_client)
-        .await
-        .map_err(|err| eprintln!("Failed to cleanup resources. {}", err))
-        .unwrap();
+    // infra
+    //     .cleanup(&ec2_client)
+    //     .await
+    //     .map_err(|err| eprintln!("Failed to cleanup resources. {}", err))
+    //     .unwrap();
 
     Ok(())
 }

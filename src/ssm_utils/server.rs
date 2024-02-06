@@ -20,7 +20,7 @@ pub async fn upload_netbench_data(
         .trim_end_matches(".json");
 
     let s3_command = format!(
-        "aws s3 cp server* {}/results/{}/{driver_name}/",
+        "aws s3 cp server-{driver_name}* {}/results/{}/{driver_name}/",
         STATE.s3_path(unique_id),
         scenario.netbench_scenario_file_stem()
     );

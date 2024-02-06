@@ -64,7 +64,7 @@ impl Protocol for WorkerProtocol {
     type State = WorkerState;
 
     fn name(&self) -> String {
-        format!("client-w-{}", self.id)
+        format!("client-{}", self.id)
     }
 
     async fn connect(&self, addr: &SocketAddr) -> RussulaResult<TcpStream> {
