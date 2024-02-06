@@ -87,7 +87,7 @@ async fn main() -> OrchResult<()> {
 async fn check_requirements(
     args: &Args,
     aws_config: &aws_types::SdkConfig,
-) -> OrchResult<Scenario> {
+) -> OrchResult<OrchestratorScenario> {
     let path = Path::new(&args.scenario_file);
     let name = path
         .file_name()
@@ -101,9 +101,9 @@ async fn check_requirements(
     })?;
     let scenario: NetbenchScenario = serde_json::from_reader(scenario_file).unwrap();
 
-    let ctx = Scenario {
-        name,
-        path: args.scenario_file.clone(),
+    let ctx = OrchestratorScenario {
+        netbench_scenario_filename: name,
+        netbench_scenario_filepath: args.scenario_file.clone(),
         clients: scenario.clients.len(),
         servers: scenario.servers.len(),
     };
@@ -153,21 +153,26 @@ struct NetbenchScenario {
     // pub certificates: Vec<Arc<Certificate>>,
 }
 
+/// Captures
 #[derive(Clone, Debug)]
-pub struct Scenario {
-    name: String,
-    path: PathBuf,
+pub struct OrchestratorScenario {
+    netbench_scenario_filename: String,
+    netbench_scenario_filepath: PathBuf,
     clients: usize,
     servers: usize,
 }
 
-impl Scenario {
-    pub fn file_stem(&self) -> &str {
-        self.path
+impl OrchestratorScenario {
+    pub fn netbench_scenario_file_stem(&self) -> &str {
+        self.netbench_scenario_filepath
             .as_path()
             .file_stem()
             .expect("expect scenario file")
             .to_str()
             .unwrap()
     }
+
+    // pub fn netbench_scenario_filepath(&self) -> &Path {
+    //     self.netbench_scenario_filepath.as_path()
+    // }
 }

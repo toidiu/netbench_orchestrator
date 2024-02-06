@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::NetbenchDriver;
-use crate::{Scenario, STATE};
+use crate::{OrchestratorScenario, STATE};
 use std::{
     path::PathBuf,
     process::{Command, Stdio},
 };
 use tracing::debug;
 
-pub fn quic_server_driver(unique_id: &str, scenario: &Scenario) -> NetbenchDriver {
+pub fn quic_server_driver(unique_id: &str, scenario: &OrchestratorScenario) -> NetbenchDriver {
     let proj_name = "s2n-netbench".to_string();
     let driver = NetbenchDriver {
         driver_name: "s2n-netbench-driver-server-s2n-quic".to_string(),
@@ -30,10 +30,10 @@ pub fn quic_server_driver(unique_id: &str, scenario: &Scenario) -> NetbenchDrive
                 "aws s3 cp s3://{}/{unique_id}/{} {}/{}",
                 // from
                 STATE.s3_log_bucket,
-                scenario.name,
+                scenario.netbench_scenario_filename,
                 // to
                 STATE.host_bin_path(),
-                scenario.name
+                scenario.netbench_scenario_filename
             ),
         ],
         proj_name,
@@ -47,7 +47,7 @@ pub fn quic_server_driver(unique_id: &str, scenario: &Scenario) -> NetbenchDrive
     driver
 }
 
-pub fn quic_client_driver(unique_id: &str, scenario: &Scenario) -> NetbenchDriver {
+pub fn quic_client_driver(unique_id: &str, scenario: &OrchestratorScenario) -> NetbenchDriver {
     let proj_name = "s2n-netbench".to_string();
     let driver = NetbenchDriver {
         driver_name: "s2n-netbench-driver-client-s2n-quic".to_string(),
@@ -68,10 +68,10 @@ pub fn quic_client_driver(unique_id: &str, scenario: &Scenario) -> NetbenchDrive
                 "aws s3 cp s3://{}/{unique_id}/{} {}/{}",
                 // from
                 STATE.s3_log_bucket,
-                scenario.name,
+                scenario.netbench_scenario_filename,
                 // to
                 STATE.host_bin_path(),
-                scenario.name
+                scenario.netbench_scenario_filename
             ),
         ],
         proj_name,

@@ -6,23 +6,19 @@ use crate::{
     ec2_utils::LaunchPlan,
     error::{OrchError, OrchResult},
     report::orch_generate_report,
-    ssm_utils, update_dashboard, upload_object, Args, Scenario, STATE,
+    ssm_utils, update_dashboard, upload_object, Args, OrchestratorScenario, STATE,
 };
 use aws_sdk_s3::primitives::ByteStream;
 use aws_types::region::Region;
 use tracing::info;
 
 // TODO
-// D- clap app
-// D- upload request_response.json
-// D- get STATE config from scenario.json
-// - save netbench output to different named files instead of server.json/client.json
+// - categorize drive source (source, crates, github)
+// - run two drivers as part of single run
+// - capture driver to run as part of Scenario
+//
 //
 // # Expanding Russula/Cli
-// D- pass scenario to russula_cli
-// - pass netbench_path to russula_cli
-// - pass scenario and path from coord -> worker?
-// - replace russula_cli russula_port with russula_pair_addr_list
 //
 // # Optimization
 // - use release build instead of debug
@@ -31,7 +27,7 @@ use tracing::info;
 pub async fn run(
     unique_id: String,
     _args: Args,
-    scenario: Scenario,
+    scenario: OrchestratorScenario,
     aws_config: &aws_types::SdkConfig,
 ) -> OrchResult<()> {
     let iam_client = aws_sdk_iam::Client::new(aws_config);
@@ -44,7 +40,7 @@ pub async fn run(
     let ec2_client = aws_sdk_ec2::Client::new(&shared_config_vpc);
     let ssm_client = aws_sdk_ssm::Client::new(&shared_config_vpc);
 
-    let scenario_file = ByteStream::from_path(scenario.path.as_path())
+    let scenario_file = ByteStream::from_path(&scenario.netbench_scenario_filepath)
         .await
         .map_err(|err| OrchError::Init {
             dbg: err.to_string(),
@@ -53,7 +49,7 @@ pub async fn run(
         &s3_client,
         STATE.s3_log_bucket,
         scenario_file,
-        &format!("{unique_id}/{}", scenario.name),
+        &format!("{unique_id}/{}", scenario.netbench_scenario_filename),
     )
     .await
     .unwrap();

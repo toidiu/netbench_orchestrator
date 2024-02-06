@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::NetbenchDriver;
-use crate::{ssm_utils::netbench_driver::local_upload_source_to_s3, Scenario, STATE};
+use crate::{ssm_utils::netbench_driver::local_upload_source_to_s3, OrchestratorScenario, STATE};
 
-pub fn dc_quic_server_driver(unique_id: &str, scenario: &Scenario) -> NetbenchDriver {
+pub fn dc_quic_server_driver(unique_id: &str, scenario: &OrchestratorScenario) -> NetbenchDriver {
     let proj_name = "SaltyLib-Rust".to_string();
     let driver = NetbenchDriver {
         driver_name: "s2n-netbench-driver-server-s2n-quic-dc".to_string(),
@@ -32,10 +32,10 @@ pub fn dc_quic_server_driver(unique_id: &str, scenario: &Scenario) -> NetbenchDr
                 "aws s3 cp s3://{}/{unique_id}/{} {}/{}",
                 // from
                 STATE.s3_log_bucket,
-                scenario.name,
+                scenario.netbench_scenario_filename,
                 // to
                 STATE.host_bin_path(),
-                scenario.name
+                scenario.netbench_scenario_filename
             ),
         ],
         proj_name: proj_name.clone(),
@@ -50,7 +50,7 @@ pub fn dc_quic_server_driver(unique_id: &str, scenario: &Scenario) -> NetbenchDr
     driver
 }
 
-pub fn dc_quic_client_driver(unique_id: &str, scenario: &Scenario) -> NetbenchDriver {
+pub fn dc_quic_client_driver(unique_id: &str, scenario: &OrchestratorScenario) -> NetbenchDriver {
     let proj_name = "SaltyLib-Rust".to_string();
     let driver = NetbenchDriver {
         driver_name: "s2n-netbench-driver-client-s2n-quic-dc".to_string(),
@@ -79,10 +79,10 @@ pub fn dc_quic_client_driver(unique_id: &str, scenario: &Scenario) -> NetbenchDr
                 "aws s3 cp s3://{}/{unique_id}/{} {}/{}",
                 // from
                 STATE.s3_log_bucket,
-                scenario.name,
+                scenario.netbench_scenario_filename,
                 // to
                 STATE.host_bin_path(),
-                scenario.name
+                scenario.netbench_scenario_filename
             ),
         ],
         proj_name: proj_name.clone(),

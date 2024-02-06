@@ -7,7 +7,7 @@ use crate::{
         poll_state,
     },
     error::{OrchError, OrchResult},
-    InfraDetail, Scenario, STATE,
+    InfraDetail, OrchestratorScenario, STATE,
 };
 use aws_sdk_ec2::types::{
     Filter, InstanceStateName, IpPermission, IpRange, ResourceType, TagSpecification,
@@ -21,7 +21,7 @@ pub struct LaunchPlan<'a> {
     pub security_group_id: String,
     pub ami_id: String,
     pub instance_profile_arn: String,
-    pub scenario: &'a Scenario,
+    pub scenario: &'a OrchestratorScenario,
 }
 
 impl<'a> LaunchPlan<'a> {
@@ -30,7 +30,7 @@ impl<'a> LaunchPlan<'a> {
         ec2_client: &aws_sdk_ec2::Client,
         iam_client: &aws_sdk_iam::Client,
         ssm_client: &aws_sdk_ssm::Client,
-        scenario: &'a Scenario,
+        scenario: &'a OrchestratorScenario,
     ) -> Self {
         let instance_profile_arn = get_instance_profile(iam_client).await.unwrap();
         let (subnet_id, vpc_id) = get_subnet_vpc_ids(ec2_client).await.unwrap();

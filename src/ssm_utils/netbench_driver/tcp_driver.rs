@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::NetbenchDriver;
-use crate::{Scenario, STATE};
+use crate::{OrchestratorScenario, STATE};
 
-pub fn tcp_server_driver(unique_id: &str, scenario: &Scenario) -> NetbenchDriver {
+pub fn tcp_server_driver(unique_id: &str, scenario: &OrchestratorScenario) -> NetbenchDriver {
     let proj_name = "s2n-netbench".to_string();
     let driver = NetbenchDriver {
         driver_name: "s2n-netbench-driver-server-tcp".to_string(),
@@ -27,10 +27,10 @@ pub fn tcp_server_driver(unique_id: &str, scenario: &Scenario) -> NetbenchDriver
                 "aws s3 cp s3://{}/{unique_id}/{} {}/{}",
                 // from
                 STATE.s3_log_bucket,
-                scenario.name,
+                scenario.netbench_scenario_filename,
                 // to
                 STATE.host_bin_path(),
-                scenario.name
+                scenario.netbench_scenario_filename
             ),
         ],
         proj_name,
@@ -40,7 +40,7 @@ pub fn tcp_server_driver(unique_id: &str, scenario: &Scenario) -> NetbenchDriver
     driver
 }
 
-pub fn tcp_client_driver(unique_id: &str, scenario: &Scenario) -> NetbenchDriver {
+pub fn tcp_client_driver(unique_id: &str, scenario: &OrchestratorScenario) -> NetbenchDriver {
     let proj_name = "s2n-netbench".to_string();
     let driver = NetbenchDriver {
         driver_name: "s2n-netbench-driver-client-tcp".to_string(),
@@ -61,10 +61,10 @@ pub fn tcp_client_driver(unique_id: &str, scenario: &Scenario) -> NetbenchDriver
                 "aws s3 cp s3://{}/{unique_id}/{} {}/{}",
                 // from
                 STATE.s3_log_bucket,
-                scenario.name,
+                scenario.netbench_scenario_filename,
                 // to
                 STATE.host_bin_path(),
-                scenario.name
+                scenario.netbench_scenario_filename
             ),
         ],
         proj_name,
