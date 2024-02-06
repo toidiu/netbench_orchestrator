@@ -101,14 +101,14 @@ pub async fn run(
     // let tcp_server_driver = ssm_utils::tcp_server_driver(&unique_id, &scenario);
     // let tcp_client_driver = ssm_utils::tcp_client_driver(&unique_id, &scenario);
     let server_drivers = vec![
-        // ssm_utils::dc_quic_server_driver(&unique_id, &scenario),
-        // ssm_utils::quic_server_driver(&unique_id, &scenario),
+        ssm_utils::dc_quic_server_driver(&unique_id, &scenario),
+        ssm_utils::quic_server_driver(&unique_id, &scenario),
         ssm_utils::tcp_server_driver(&unique_id, &scenario),
         // dc_quic_server_driver, quic_server_driver, tcp_server_driver
     ];
     let client_drivers = vec![
-        // ssm_utils::dc_quic_client_driver(&unique_id, &scenario),
-        // ssm_utils::quic_client_driver(&unique_id, &scenario),
+        ssm_utils::dc_quic_client_driver(&unique_id, &scenario),
+        ssm_utils::quic_client_driver(&unique_id, &scenario),
         ssm_utils::tcp_client_driver(&unique_id, &scenario),
         // dc_quic_client_driver, quic_client_driver, tcp_client_driver
     ];
@@ -144,6 +144,11 @@ pub async fn run(
 
     let driver_pairs = client_drivers.into_iter().zip(server_drivers);
     for (client_driver, server_driver) in driver_pairs {
+        info!(
+            "Running server: {} and client: {}",
+            server_driver.driver_name(),
+            client_driver.driver_name()
+        );
         // run russula
         {
             let mut server_russula = coordination_utils::ServerNetbenchRussula::new(

@@ -4,7 +4,7 @@
 use super::{send_command, Step};
 use crate::{state::STATE, NetbenchDriverType, OrchestratorScenario};
 use aws_sdk_ssm::operation::send_command::SendCommandOutput;
-use tracing::debug;
+use tracing::{debug, info};
 
 pub async fn upload_netbench_data(
     ssm_client: &aws_sdk_ssm::Client,
@@ -19,6 +19,13 @@ pub async fn upload_netbench_data(
         .trim_start_matches("netbench-driver-")
         .trim_end_matches(".json");
 
+    let s3_command = format!(
+        "aws s3 cp server* {}/results/{}/{driver_name}/",
+        STATE.s3_path(unique_id),
+        scenario.netbench_scenario_file_stem()
+    );
+    let cmd = vec!["cd netbench_orchestrator", s3_command.as_str()];
+    info!("Copying server results to s3 for driver: {:?}", cmd);
     send_command(
         vec![Step::RunRussula],
         Step::UploadNetbenchRawData,
@@ -26,18 +33,7 @@ pub async fn upload_netbench_data(
         "upload_netbench_raw_data",
         ssm_client,
         instance_ids,
-        vec![
-            "cd netbench_orchestrator",
-            format!(
-                "aws s3 cp server* {}/results/{}/{driver_name}/",
-                STATE.s3_path(unique_id),
-                scenario.netbench_scenario_file_stem()
-            )
-            .as_str(),
-        ]
-        .into_iter()
-        .map(String::from)
-        .collect(),
+        cmd.into_iter().map(String::from).collect(),
     )
     .await
     .expect("Timed out")
