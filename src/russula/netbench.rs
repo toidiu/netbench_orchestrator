@@ -11,45 +11,50 @@ mod server_worker;
 
 #[derive(StructOpt, Debug, Clone)]
 pub struct ClientContext {
+    /// Run a test program instead of the Netbench process.
     #[structopt(long)]
     testing: bool,
 
-    // The path to the netbench utility and scenario file.
+    /// The path to the netbench utility and scenario file.
     #[structopt(long, default_value = "/home/ec2-user/bin")]
     netbench_path: PathBuf,
 
+    /// Specify the Netbench driver which should be run.
     #[structopt(long)]
     driver: String,
 
-    // The name of the scenario file.
-    //
-    // https://github.com/aws/s2n-netbench/tree/main/netbench-scenarios
+    /// The name of the scenario file.
+    ///
+    /// https://github.com/aws/s2n-netbench/tree/main/netbench-scenarios
     #[structopt(long, default_value = "request_response.json")]
     scenario: String,
 
-    // The list of Server to connect to
+    /// List of Netbench Server the client should connect to.
     #[structopt(long)]
     netbench_servers: Vec<SocketAddr>,
 }
 
 #[derive(StructOpt, Debug, Clone)]
 pub struct ServerContext {
+    /// Run a test program instead of the Netbench process.
     #[structopt(long)]
     testing: bool,
 
-    // The path to the netbench utility and scenario file.
+    /// The path to the netbench utility and scenario file.
     #[structopt(long, default_value = "/home/ec2-user/bin")]
     netbench_path: PathBuf,
 
+    /// Specify the Netbench driver which should be run.
     #[structopt(long)]
     driver: String,
 
-    // The name of the scenario file.
-    //
-    // https://github.com/aws/s2n-netbench/tree/main/netbench-scenarios
+    /// The name of the scenario file.
+    ///
+    /// https://github.com/aws/s2n-netbench/tree/main/netbench-scenarios
     #[structopt(long, default_value = "request_response.json")]
     scenario: String,
 
+    /// The port which the Netbench Server process should accept connections.
     #[structopt(long, default_value = "4433")]
     netbench_port: u16,
 }

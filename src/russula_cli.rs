@@ -35,7 +35,7 @@ struct Opt {
 #[derive(StructOpt, Debug)]
 enum RussulaProtocol {
     NetbenchServerWorker {
-        // The port on which the Worker should 'listen' on.
+        /// The port on which the Worker should 'listen' on.
         #[structopt(long)]
         russula_port: u16,
 
@@ -43,7 +43,7 @@ enum RussulaProtocol {
         ctx: netbench::ServerContext,
     },
     NetbenchClientWorker {
-        // The port on which the Worker should 'listen' on.
+        /// The port on which the Worker should 'listen' on.
         #[structopt(long)]
         russula_port: u16,
 
@@ -51,10 +51,14 @@ enum RussulaProtocol {
         ctx: netbench::ClientContext,
     },
     NetbenchServerCoordinator {
+        /// The list of worker addresses which the Coordinator should
+        /// attempt to connect
         #[structopt(long, required = true)]
         russula_worker_addrs: Vec<SocketAddr>,
     },
     NetbenchClientCoordinator {
+        /// The list of worker addresses which the Coordinator should
+        /// attempt to connect
         #[structopt(long)]
         russula_worker_addrs: Vec<SocketAddr>,
     },
