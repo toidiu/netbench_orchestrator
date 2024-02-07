@@ -44,10 +44,19 @@ pub trait StateApi: Send + Sync + Clone + Debug + Serialize + for<'a> Deserializ
         network_utils::send_msg(stream, msg).await
     }
 
-    async fn transition_self_or_user_driven(&mut self, stream: &TcpStream) -> RussulaResult<()> {
+    async fn transition_self_or_user_driven(
+        &mut self,
+        stream: &TcpStream,
+        id: String,
+    ) -> RussulaResult<()> {
+        // TODO add some extra TransitionStep validation
+        assert!(
+            matches!(self.transition_step(), TransitionStep::SelfDriven)
+                || matches!(self.transition_step(), TransitionStep::UserDriven)
+        );
         info!(
             "{} MOVING TO NEXT STATE. {:?} ===> {:?}",
-            self.name(stream),
+            id,
             self,
             self.next_state()
         );
@@ -56,10 +65,10 @@ pub trait StateApi: Send + Sync + Clone + Debug + Serialize + for<'a> Deserializ
         self.notify_peer(stream).await.map(|_| ())
     }
 
-    async fn transition_next(&mut self, stream: &TcpStream) -> RussulaResult<()> {
+    async fn transition_next(&mut self, stream: &TcpStream, id: String) -> RussulaResult<()> {
         info!(
             "{} MOVING TO NEXT STATE. {:?} ===> {:?}",
-            self.name(stream),
+            id,
             self,
             self.next_state()
         );
