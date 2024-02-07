@@ -180,8 +180,9 @@ impl Protocol for WorkerProtocol {
                     debug!("did KILL pid: {} {}----------------------------", pid, kill);
                 }
 
+                let name = self.name();
                 self.state_mut()
-                    .transition_self_or_user_driven(stream)
+                    .transition_self_or_user_driven(stream, name)
                     .await?;
                 Ok(None)
             }

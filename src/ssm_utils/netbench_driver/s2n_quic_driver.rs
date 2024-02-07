@@ -4,7 +4,10 @@
 use super::{GithubSource, NetbenchDriverType};
 use crate::OrchestratorScenario;
 
-pub fn s2n_quic_server_driver(unique_id: &str, scenario: &OrchestratorScenario) -> NetbenchDriverType {
+pub fn s2n_quic_server_driver(
+    unique_id: &str,
+    scenario: &OrchestratorScenario,
+) -> NetbenchDriverType {
     let proj_name = "s2n-netbench".to_string();
 
     let source = GithubSource {
@@ -16,7 +19,10 @@ pub fn s2n_quic_server_driver(unique_id: &str, scenario: &OrchestratorScenario) 
     NetbenchDriverType::GithubRustProj(source)
 }
 
-pub fn s2n_quic_client_driver(unique_id: &str, scenario: &OrchestratorScenario) -> NetbenchDriverType {
+pub fn s2n_quic_client_driver(
+    unique_id: &str,
+    scenario: &OrchestratorScenario,
+) -> NetbenchDriverType {
     let proj_name = "s2n-netbench".to_string();
 
     let source = GithubSource {

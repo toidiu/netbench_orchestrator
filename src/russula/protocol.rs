@@ -167,7 +167,8 @@ pub trait Protocol: private::Protocol + Clone {
                     let should_transition = state.matches_transition_msg(stream, &msg).await?;
                     last_msg = Some(msg);
                     if should_transition {
-                        self.state_mut().transition_next(stream).await?;
+                        let name = self.name();
+                        self.state_mut().transition_next(stream, name).await?;
                         break;
                     }
                 }

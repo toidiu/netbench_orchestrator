@@ -4,16 +4,16 @@
 use crate::STATE;
 use std::path::PathBuf;
 
+mod native_tls_driver;
 mod s2n_quic_dc_driver;
 mod s2n_quic_driver;
 mod s2n_tls_driver;
-mod native_tls_driver;
 mod tcp_driver;
 
+pub use native_tls_driver::*;
 pub use s2n_quic_dc_driver::*;
 pub use s2n_quic_driver::*;
 pub use s2n_tls_driver::*;
-pub use native_tls_driver::*;
 pub use tcp_driver::*;
 
 pub enum NetbenchDriverType {
@@ -130,15 +130,14 @@ impl CrateIoSource {
     pub fn ssm_build_crates_io_proj(&self) -> Vec<String> {
         let unique_id = &self.unique_id;
         vec![
-
-            format!("runuser -u ec2-user -- {}/cargo install s2n-netbench-collector",
+            format!(
+                "runuser -u ec2-user -- {}/cargo install s2n-netbench-collector",
                 STATE.host_bin_path(),
             ),
             format!(
                 "ln -s /home/ec2-user/.cargo/bin/s2n-netbench-collector {}/s2n-netbench-collector",
                 STATE.host_bin_path(),
             ),
-
             format!(
                 // "runuser -u ec2-user -- ./.cargo/bin/rustup update".to_string(),
                 "runuser -u ec2-user -- {}/cargo install {}",

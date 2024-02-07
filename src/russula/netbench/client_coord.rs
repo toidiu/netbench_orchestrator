@@ -96,8 +96,9 @@ impl Protocol for CoordProtocol {
                 self.await_next_msg(stream).await
             }
             CoordState::Ready => {
+                let name = self.name();
                 self.state_mut()
-                    .transition_self_or_user_driven(stream)
+                    .transition_self_or_user_driven(stream, name)
                     .await?;
                 Ok(None)
             }

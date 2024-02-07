@@ -201,8 +201,9 @@ impl Protocol for WorkerProtocol {
                             "Process pid: {} is a Zombie.. ignoring and continuing",
                             process.pid()
                         );
+                        let name = self.name();
                         self.state_mut()
-                            .transition_self_or_user_driven(stream)
+                            .transition_self_or_user_driven(stream, name)
                             .await?;
                     }
                 } else {
@@ -211,8 +212,9 @@ impl Protocol for WorkerProtocol {
                         pid
                     );
 
+                    let name = self.name();
                     self.state_mut()
-                        .transition_self_or_user_driven(stream)
+                        .transition_self_or_user_driven(stream, name)
                         .await?;
                 }
 
