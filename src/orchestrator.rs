@@ -108,20 +108,15 @@ pub async fn run(
     )
     .await?;
 
-    // custom driver
-    // let dc_quic_server_driver = ssm_utils::dc_quic_server_driver(&unique_id, &scenario);
-    // let dc_quic_client_driver = ssm_utils::dc_quic_client_driver(&unique_id, &scenario);
-    // let quic_server_driver = ssm_utils::quic_server_driver(&unique_id, &scenario);
-    // let quic_client_driver = ssm_utils::quic_client_driver(&unique_id, &scenario);
-    // let tcp_server_driver = ssm_utils::tcp_server_driver(&unique_id, &scenario);
-    // let tcp_client_driver = ssm_utils::tcp_client_driver(&unique_id, &scenario);
     let server_drivers = vec![
         // ssm_utils::dc_quic_server_driver(&unique_id, &scenario),
-        ssm_utils::quic_server_driver(&unique_id, &scenario),
-        ssm_utils::tcp_server_driver(&unique_id, &scenario),
+        ssm_utils::s2n_tls_server_driver(&unique_id, &scenario),
+        // ssm_utils::quic_server_driver(&unique_id, &scenario),
+        // ssm_utils::tcp_server_driver(&unique_id, &scenario),
     ];
     let client_drivers = vec![
         // ssm_utils::dc_quic_client_driver(&unique_id, &scenario),
+        ssm_utils::s2n_tls_client_driver(&unique_id, &scenario),
         ssm_utils::quic_client_driver(&unique_id, &scenario),
         ssm_utils::tcp_client_driver(&unique_id, &scenario),
     ];
