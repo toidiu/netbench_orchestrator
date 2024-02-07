@@ -15,7 +15,10 @@ use tracing::info;
 // TODO
 // D- categorize drive source (source, crates, github)
 // D- run two drivers as part of single run
-// - add tls drivers
+// D- add tls drivers
+//
+// - test with large number of hosts
+// - debug dc-quic driver
 //
 // # Russula/Cli
 //
