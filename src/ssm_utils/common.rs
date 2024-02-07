@@ -137,9 +137,11 @@ async fn build_netbench_driver_cmd(
         &format!("build_driver_{}", driver.driver_name()),
         ssm_client,
         instance_ids,
+        // FIXME can the below be replaced with this?
+        driver.ssm_build_cmd(),
         // vec![
-        //     // // copy s3 to host
-        //     // // `aws s3 sync s3://netbenchrunnerlogs/2024-01-09T05:25:30Z-v2.0.1//SaltyLib-Rust/ /home/ec2-user/SaltyLib-Rust`
+        //     // copy s3 to host
+        //     // `aws s3 sync s3://netbenchrunnerlogs/2024-01-09T05:25:30Z-v2.0.1//SaltyLib-Rust/ /home/ec2-user/SaltyLib-Rust`
         //     // format!(
         //     //     "aws s3 sync {}/{}/ {}/{}",
         //     //     STATE.s3_path(unique_id),
@@ -149,10 +151,9 @@ async fn build_netbench_driver_cmd(
         //     // ),
         // ]
         // .into_iter()
-        // .chain(.into_iter())
+        // .chain(driver.ssm_build_cmd().into_iter())
         // .map(String::from)
         // .collect(),
-        driver.ssm_build_cmd(),
     )
     .await
     .expect("Timed out")

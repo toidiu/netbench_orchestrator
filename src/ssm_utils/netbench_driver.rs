@@ -43,7 +43,7 @@ pub struct LocalSource {
 }
 
 pub struct CrateIoSource {
-    /// Should be the same as the crates io package
+    pub krate: String,
     pub driver_name: String,
     version: String,
     // pub repo_name: String,
@@ -129,8 +129,10 @@ impl CrateIoSource {
         let unique_id = &self.unique_id;
         vec![
             format!(
-                "cargo install {} --version {}",
-                self.driver_name, self.version
+                "{}/cargo install {} --version {}",
+                STATE.host_bin_path(),
+                self.krate,
+                self.version
             ),
             // link this from /bin folder
             format!(

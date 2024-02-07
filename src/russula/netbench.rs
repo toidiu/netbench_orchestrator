@@ -73,9 +73,10 @@ impl ServerContext {
 
     pub fn trim_driver_name(&self) -> String {
         self.driver
-        .trim_start_matches("s2n-netbench-driver-")
-        .trim_start_matches("netbench-driver-")
-        .trim_end_matches(".json").to_owned()
+            .trim_start_matches("s2n-netbench-driver-")
+            .trim_start_matches("netbench-driver-")
+            .trim_end_matches(".json")
+            .to_owned()
     }
 }
 
@@ -93,9 +94,10 @@ impl ClientContext {
 
     pub fn trim_driver_name(&self) -> String {
         self.driver
-        .trim_start_matches("s2n-netbench-driver-")
-        .trim_start_matches("netbench-driver-")
-        .trim_end_matches(".json").to_owned()
+            .trim_start_matches("s2n-netbench-driver-")
+            .trim_start_matches("netbench-driver-")
+            .trim_end_matches(".json")
+            .to_owned()
     }
 }
 
