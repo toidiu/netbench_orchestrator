@@ -110,16 +110,20 @@ pub async fn run(
 
     let server_drivers = vec![
         // ssm_utils::dc_quic_server_driver(&unique_id, &scenario),
+        ssm_utils::native_tls_server_driver(&unique_id, &scenario),
         ssm_utils::s2n_tls_server_driver(&unique_id, &scenario),
-        // ssm_utils::quic_server_driver(&unique_id, &scenario),
-        // ssm_utils::tcp_server_driver(&unique_id, &scenario),
+        ssm_utils::s2n_quic_server_driver(&unique_id, &scenario),
+        ssm_utils::tcp_server_driver(&unique_id, &scenario),
     ];
     let client_drivers = vec![
         // ssm_utils::dc_quic_client_driver(&unique_id, &scenario),
+        ssm_utils::native_tls_client_driver(&unique_id, &scenario),
         ssm_utils::s2n_tls_client_driver(&unique_id, &scenario),
-        ssm_utils::quic_client_driver(&unique_id, &scenario),
+        ssm_utils::s2n_quic_client_driver(&unique_id, &scenario),
         ssm_utils::tcp_client_driver(&unique_id, &scenario),
     ];
+
+    assert_eq!(server_drivers.len(), client_drivers.len());
 
     // configure and build
     {
