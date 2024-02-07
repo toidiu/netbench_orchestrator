@@ -112,7 +112,7 @@ impl<P: Protocol> RussulaBuilder<P> {
         let mut stream_protocol_list = Vec::new();
         for (addr, protocol) in self.russula_pair_addr_list.into_iter() {
             let stream;
-            let mut retry_attempts = 3;
+            let mut retry_attempts = 10;
             loop {
                 if retry_attempts == 0 {
                     return Err(RussulaError::NetworkConnectionRefused {
