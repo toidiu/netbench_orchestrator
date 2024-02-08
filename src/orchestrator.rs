@@ -215,7 +215,7 @@ pub async fn run(
             )
             .await;
             let msg = format!(
-                "copy netbench results to s3: {}, {}",
+                "copy netbench results to s3 for drivers: {}, {}",
                 server_driver.trim_driver_name(),
                 client_driver.trim_driver_name()
             );
