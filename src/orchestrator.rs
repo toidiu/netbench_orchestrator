@@ -164,6 +164,11 @@ pub async fn run(
             server_driver.driver_name(),
             client_driver.driver_name()
         );
+        println!(
+            "Running Netbench with server: {} and client: {}",
+            server_driver.driver_name(),
+            client_driver.driver_name()
+        );
 
         // run russula
         {
