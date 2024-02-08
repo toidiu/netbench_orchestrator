@@ -115,15 +115,15 @@ pub async fn run(
         // ssm_utils::dc_quic_server_driver(&unique_id, &scenario),
         ssm_utils::native_tls_server_driver(&unique_id, &scenario),
         ssm_utils::s2n_tls_server_driver(&unique_id, &scenario),
-        ssm_utils::s2n_quic_server_driver(&unique_id, &scenario),
         ssm_utils::tcp_server_driver(&unique_id, &scenario),
+        ssm_utils::s2n_quic_server_driver(&unique_id, &scenario),
     ];
     let client_drivers = vec![
         // ssm_utils::dc_quic_client_driver(&unique_id, &scenario),
         ssm_utils::native_tls_client_driver(&unique_id, &scenario),
         ssm_utils::s2n_tls_client_driver(&unique_id, &scenario),
-        ssm_utils::s2n_quic_client_driver(&unique_id, &scenario),
         ssm_utils::tcp_client_driver(&unique_id, &scenario),
+        ssm_utils::s2n_quic_client_driver(&unique_id, &scenario),
     ];
 
     assert_eq!(server_drivers.len(), client_drivers.len());
@@ -164,6 +164,7 @@ pub async fn run(
             server_driver.driver_name(),
             client_driver.driver_name()
         );
+
         // run russula
         {
             let mut server_russula = coordination_utils::ServerNetbenchRussula::new(
@@ -208,8 +209,13 @@ pub async fn run(
                 &client_driver,
             )
             .await;
+            let msg = format!(
+                "copy netbench results to s3: {}, {}",
+                server_driver.trim_driver_name(),
+                client_driver.trim_driver_name()
+            );
             ssm_utils::common::wait_complete(
-                "client_server_netbench_copy_results",
+                &msg,
                 &ssm_client,
                 vec![copy_server_netbench, copy_client_netbench],
             )

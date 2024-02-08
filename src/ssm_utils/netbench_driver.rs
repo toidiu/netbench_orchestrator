@@ -63,6 +63,14 @@ impl NetbenchDriverType {
         }
     }
 
+    pub fn trim_driver_name(&self) -> String {
+        self.driver_name()
+            .trim_start_matches("s2n-netbench-driver-")
+            .trim_start_matches("netbench-driver-")
+            .trim_end_matches(".json")
+            .to_owned()
+    }
+
     // Base project name
     // pub fn proj_name(&self) -> &String {
     //     match self {

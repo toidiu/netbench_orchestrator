@@ -13,12 +13,7 @@ pub async fn upload_netbench_data(
     scenario: &OrchestratorScenario,
     driver: &NetbenchDriverType,
 ) -> SendCommandOutput {
-    let driver_name = driver
-        .driver_name()
-        .trim_start_matches("s2n-netbench-driver-")
-        .trim_start_matches("netbench-driver-")
-        .trim_end_matches(".json");
-
+    let driver_name = driver.trim_driver_name();
     let s3_command = format!(
         "aws s3 cp server-{driver_name}* {}/results/{}/{driver_name}/",
         STATE.s3_path(unique_id),
