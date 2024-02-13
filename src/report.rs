@@ -52,6 +52,8 @@ pub async fn orch_generate_report(s3_client: &aws_sdk_s3::Client, unique_id: &st
 
     update_report_url(s3_client, unique_id).await;
 
+    println!("Report Finished!: Successful: true");
+    println!("URL: {}/report/index.html", STATE.cf_url(unique_id));
     info!("Report Finished!: Successful: true");
     info!("URL: {}/report/index.html", STATE.cf_url(unique_id));
 }
