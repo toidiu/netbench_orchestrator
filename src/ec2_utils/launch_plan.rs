@@ -32,13 +32,19 @@ impl<'a> LaunchPlan<'a> {
         ssm_client: &aws_sdk_ssm::Client,
         scenario: &'a OrchestratorScenario,
     ) -> Self {
-        let instance_profile_arn = get_instance_profile(iam_client).await.unwrap();
-        let (subnet_id, vpc_id) = get_subnet_vpc_ids(ec2_client).await.unwrap();
-        let ami_id = get_latest_ami(ssm_client).await.unwrap();
+        let instance_profile_arn = get_instance_profile(iam_client)
+            .await
+            .expect("get_instance_profile failed");
+        let (subnet_id, vpc_id) = get_subnet_vpc_ids(ec2_client)
+            .await
+            .expect("get_subnet_vpc_ids failed");
+        let ami_id = get_latest_ami(ssm_client)
+            .await
+            .expect("get_latest_ami failed");
         // Create a security group
         let security_group_id = create_security_group(ec2_client, &vpc_id, unique_id)
             .await
-            .unwrap();
+            .expect("create_security_group failed");
 
         LaunchPlan {
             ami_id,
@@ -128,7 +134,7 @@ async fn configure_networking(
             info!(
                 "{:?}: {} -- {}",
                 instance_detail.endpoint_type,
-                instance_detail.instance_id().unwrap(),
+                instance_detail.instance_id().expect("instance_id failed"),
                 instance_detail.ip
             );
 
@@ -236,9 +242,9 @@ async fn get_instance_profile(iam_client: &aws_sdk_iam::Client) -> OrchResult<St
             dbg: err.to_string(),
         })?
         .instance_profile()
-        .unwrap()
+        .expect("instance_profile failed")
         .arn()
-        .unwrap()
+        .expect("arn failed")
         .into();
     Ok(instance_profile_arn)
 }
@@ -287,7 +293,7 @@ async fn get_subnet_vpc_ids(ec2_client: &aws_sdk_ec2::Client) -> OrchResult<(Str
         1
     );
 
-    let subnet = &describe_subnet_output.subnets().unwrap()[0];
+    let subnet = &describe_subnet_output.subnets().expect("subnets failed")[0];
     let subnet_id = subnet.subnet_id().ok_or(OrchError::Ec2 {
         dbg: "Couldn't find subnet".into(),
     })?;

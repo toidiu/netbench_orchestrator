@@ -44,7 +44,7 @@ impl InstanceDetail {
             .ok_or(OrchError::Ec2 {
                 dbg: "No instance id".to_string(),
             })
-            .unwrap()
+            .expect("instance_id failed")
             .to_string();
 
         InstanceDetail {
@@ -154,25 +154,26 @@ pub async fn poll_state(
         tokio::time::sleep(Duration::from_secs(1)).await;
         let result = ec2_client
             .describe_instances()
-            .instance_ids(instance.instance_id().unwrap())
+            .instance_ids(instance.instance_id().expect("describe_instances failed"))
             .send()
             .await
-            .unwrap();
-        let res = result.reservations().unwrap();
-        ip = res
+            .expect("ec2 send failed");
+        let res = result.reservations().expect("reservations failed");
+
+        let inst = res
             .get(0)
-            .unwrap()
+            .expect("reservations get(0) failed")
             .instances()
-            .unwrap()
+            .expect("instances failed")
             .get(0)
-            .unwrap()
-            .public_ip_address()
-            .map(String::from);
-        actual_state = res.get(0).unwrap().instances().unwrap()[0]
+            .expect("instances get(0) failed");
+
+        ip = inst.public_ip_address().map(String::from);
+        actual_state = inst
             .state()
-            .unwrap()
+            .expect("state failed")
             .name()
-            .unwrap()
+            .expect("name failed")
             .clone();
 
         info!(
