@@ -3,7 +3,7 @@
 
 use crate::{
     ec2_utils::{
-        instance::{launch_instance, EndpointType, InstanceDetail},
+        instance::{self, EndpointType, InstanceDetail},
         poll_state,
     },
     error::{OrchError, OrchResult},
@@ -13,7 +13,7 @@ use aws_sdk_ec2::types::{
     Filter, InstanceStateName, IpPermission, IpRange, ResourceType, TagSpecification,
 };
 use std::time::Duration;
-use tracing::info;
+use tracing::{debug, info};
 
 #[derive(Clone)]
 pub struct LaunchPlan<'a> {
@@ -60,23 +60,31 @@ impl<'a> LaunchPlan<'a> {
         ec2_client: &aws_sdk_ec2::Client,
         unique_id: &str,
     ) -> OrchResult<InfraDetail> {
-        let servers = launch_instance(
+        let servers = instance::launch_instance(
             ec2_client,
             self,
             unique_id,
             self.scenario.servers,
             EndpointType::Server,
         )
-        .await?;
+        .await
+        .map_err(|err| {
+            debug!("{}", err);
+            err
+        })?;
 
-        let clients = launch_instance(
+        let clients = instance::launch_instance(
             ec2_client,
             self,
             unique_id,
             self.scenario.clients,
             EndpointType::Client,
         )
-        .await?;
+        .await
+        .map_err(|err| {
+            debug!("{}", err);
+            err
+        })?;
 
         let mut infra = InfraDetail {
             security_group_id: self.security_group_id.clone(),
