@@ -35,7 +35,7 @@ use state::*;
 #[derive(Parser, Debug)]
 pub struct Args {
     /// Path to the scenario file
-    #[arg(long, default_value = "scripts/request_response.json")]
+    #[arg(long)]
     scenario_file: PathBuf,
 }
 

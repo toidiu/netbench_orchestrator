@@ -1,13 +1,19 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::InfraDetail;
 use crate::{s3_utils::*, state::*};
 use aws_sdk_s3::primitives::{ByteStream, SdkBody};
+use std::path::Path;
 use std::process::Command;
 use tempdir::TempDir;
 use tracing::{debug, info, trace};
 
-pub async fn orch_generate_report(s3_client: &aws_sdk_s3::Client, unique_id: &str) {
+pub async fn orch_generate_report(
+    s3_client: &aws_sdk_s3::Client,
+    unique_id: &str,
+    infra: &InfraDetail,
+) {
     let tmp_dir = TempDir::new(unique_id).unwrap().into_path();
     let tmp_dir = tmp_dir.to_str().unwrap();
 
@@ -56,6 +62,36 @@ pub async fn orch_generate_report(s3_client: &aws_sdk_s3::Client, unique_id: &st
     println!("URL: {}/report/index.html", STATE.cf_url(unique_id));
     info!("Report Finished!: Successful: true");
     info!("URL: {}/report/index.html", STATE.cf_url(unique_id));
+
+    let get_logs = true;
+    if get_logs {
+        infra.client_ips().iter().for_each(|ip| {
+            let log_folder = format!("./target/logs/{unique_id}/client_{ip}");
+            std::fs::create_dir_all(Path::new(&log_folder)).expect("create log dir");
+            let out = Command::new("scp")
+                .args([
+                    "-oStrictHostKeyChecking=no",
+                    &format!("ec2-user@{ip}:netbench_orchestrator/target/russula*"),
+                    &log_folder,
+                ])
+                .output()
+                .unwrap();
+            debug!("{}", out.status);
+            debug!("{:?}", out.stdout);
+        });
+        infra.server_ips().iter().for_each(|ip| {
+            let log_folder = format!("./target/logs/{unique_id}/server_{ip}");
+            std::fs::create_dir_all(Path::new(&log_folder)).expect("create log dir");
+            Command::new("scp")
+                .args([
+                    "-oStrictHostKeyChecking=no",
+                    &format!("ec2-user@{ip}:netbench_orchestrator/target/russula*"),
+                    &log_folder,
+                ])
+                .output()
+                .unwrap();
+        });
+    }
 }
 
 async fn update_report_url(s3_client: &aws_sdk_s3::Client, unique_id: &str) {

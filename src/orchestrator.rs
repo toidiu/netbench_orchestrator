@@ -13,12 +13,10 @@ use aws_types::region::Region;
 use tracing::info;
 
 // TODO
-// D- categorize drive source (source, crates, github)
-// D- run two drivers as part of single run
-// D- add tls drivers
-//
-// - test with large number of hosts
+// W- test with large number of hosts
 // - debug dc-quic driver
+// - cleanup client if we cant provision servers and vice versa.
+//   - clean up on error..
 //
 // # Russula/Cli
 //
@@ -113,17 +111,17 @@ pub async fn run(
 
     let server_drivers = vec![
         // ssm_utils::dc_quic_server_driver(&unique_id, &scenario),
-        ssm_utils::native_tls_server_driver(&unique_id, &scenario),
-        ssm_utils::s2n_tls_server_driver(&unique_id, &scenario),
         ssm_utils::tcp_server_driver(&unique_id, &scenario),
         ssm_utils::s2n_quic_server_driver(&unique_id, &scenario),
+        // ssm_utils::native_tls_server_driver(&unique_id, &scenario),
+        // ssm_utils::s2n_tls_server_driver(&unique_id, &scenario),
     ];
     let client_drivers = vec![
         // ssm_utils::dc_quic_client_driver(&unique_id, &scenario),
-        ssm_utils::native_tls_client_driver(&unique_id, &scenario),
-        ssm_utils::s2n_tls_client_driver(&unique_id, &scenario),
         ssm_utils::tcp_client_driver(&unique_id, &scenario),
         ssm_utils::s2n_quic_client_driver(&unique_id, &scenario),
+        // ssm_utils::native_tls_client_driver(&unique_id, &scenario),
+        // ssm_utils::s2n_tls_client_driver(&unique_id, &scenario),
     ];
 
     assert_eq!(server_drivers.len(), client_drivers.len());
@@ -230,7 +228,7 @@ pub async fn run(
     }
 
     // Copy results back
-    orch_generate_report(&s3_client, &unique_id).await;
+    orch_generate_report(&s3_client, &unique_id, &infra).await;
 
     // Cleanup
     infra

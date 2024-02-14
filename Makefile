@@ -1,7 +1,13 @@
 # -------------------- bin orchestrator
 run_orchestrator:
 	RUST_LOG=none,orchestrator::russula=info,orchestrator=debug cargo run --bin orchestrator -- \
-					 --scenario-file scripts/request_response_multi_2_incast.json
+					 --scenario-file scripts/request_response_multi_20_incast_1GB_req_resp.json
+					 # --scenario-file scripts/request_response_multi_5_incast_3GB_req_resp.json
+					 # --scenario-file scripts/request_response_multi_20_incast_3GB_req_resp.json
+					 # --scenario-file scripts/request_response_multi_2_incast_3GB_req_resp.json
+					 # --scenario-file scripts/request_response_multi_20_incast_3GB_req_resp.json
+					 # --scenario-file scripts/request_response_multi_25_incast_3GB_req_resp.json
+					 # --scenario-file scripts/request_response_multi_10_incast_3GB_req_resp.json
 
 # -------------------- test russula_cli with netbench
 net_server_coord:
