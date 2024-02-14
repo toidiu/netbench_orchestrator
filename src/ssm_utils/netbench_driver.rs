@@ -48,7 +48,6 @@ pub struct CrateIoSource {
     pub krate: String,
     pub driver_name: String,
     version: String,
-    // pub repo_name: String,
     unique_id: String,
     // TODO remove by uploading scenario file separately
     netbench_scenario_filename: String,

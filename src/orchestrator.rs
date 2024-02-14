@@ -15,7 +15,8 @@ use tracing::info;
 // TODO
 // W- test with large number of hosts
 // - debug dc-quic driver
-// - cleanup client if we cant provision servers and vice versa.
+// - combine client and server host launch.
+//   - cleanup client if we cant provision servers and vice versa.
 //   - clean up on error..
 //
 // # Russula/Cli
@@ -112,15 +113,15 @@ pub async fn run(
     let server_drivers = vec![
         // ssm_utils::dc_quic_server_driver(&unique_id, &scenario),
         ssm_utils::tcp_server_driver(&unique_id, &scenario),
-        ssm_utils::s2n_quic_server_driver(&unique_id, &scenario),
-        // ssm_utils::native_tls_server_driver(&unique_id, &scenario),
+        // ssm_utils::s2n_quic_server_driver(&unique_id, &scenario),
+        ssm_utils::native_tls_server_driver(&unique_id, &scenario),
         // ssm_utils::s2n_tls_server_driver(&unique_id, &scenario),
     ];
     let client_drivers = vec![
         // ssm_utils::dc_quic_client_driver(&unique_id, &scenario),
         ssm_utils::tcp_client_driver(&unique_id, &scenario),
-        ssm_utils::s2n_quic_client_driver(&unique_id, &scenario),
-        // ssm_utils::native_tls_client_driver(&unique_id, &scenario),
+        // ssm_utils::s2n_quic_client_driver(&unique_id, &scenario),
+        ssm_utils::native_tls_client_driver(&unique_id, &scenario),
         // ssm_utils::s2n_tls_client_driver(&unique_id, &scenario),
     ];
 
