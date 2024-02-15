@@ -20,6 +20,7 @@ pub mod server;
 pub use netbench_driver::*;
 
 pub enum Step {
+    UploadScenarioFile,
     Configure,
     BuildDriver(String),
     BuildRussula,
@@ -31,6 +32,7 @@ pub enum Step {
 impl Step {
     fn as_str(&self) -> &str {
         match self {
+            Step::UploadScenarioFile => "upload_scenario_file",
             Step::Configure => "configure",
             Step::BuildDriver(_driver_name) => "build_driver",
             Step::BuildRussula => "build_russula",
@@ -42,6 +44,7 @@ impl Step {
 
     fn task_detail(&self) -> Option<&str> {
         match self {
+            Step::UploadScenarioFile => None,
             Step::Configure => None,
             Step::BuildDriver(driver_name) => Some(driver_name),
             Step::BuildRussula => None,

@@ -12,21 +12,6 @@ pub mod s2n_tls_driver;
 pub mod tcp_driver_crates;
 pub mod tcp_driver_github;
 
-// #[allow(unused)]
-// pub use native_tls_driver;
-// #[allow(unused)]
-// pub use s2n_quic_dc_driver;
-// #[allow(unused)]
-// pub use s2n_quic_driver_crates;
-// #[allow(unused)]
-// pub use s2n_quic_driver_github;
-// #[allow(unused)]
-// pub use s2n_tls_driver;
-// #[allow(unused)]
-// pub use tcp_driver_crates;
-// #[allow(unused)]
-// pub use tcp_driver_github;
-
 pub enum NetbenchDriverType {
     GithubRustProj(GithubSource),
     CratesIo(CrateIoSource),
@@ -36,10 +21,6 @@ pub enum NetbenchDriverType {
 pub struct GithubSource {
     pub driver_name: String,
     pub repo_name: String,
-
-    unique_id: String,
-    // TODO remove by uploading scenario file separately
-    netbench_scenario_filename: String,
 }
 
 pub struct LocalSource {
@@ -50,18 +31,12 @@ pub struct LocalSource {
     //
     // upload to s3 locally and download form s3 in ssm_build_cmd
     local_path_to_proj: PathBuf,
-    unique_id: String,
-    // TODO remove by uploading scenario file separately
-    netbench_scenario_filename: String,
 }
 
 pub struct CrateIoSource {
     pub krate: String,
     pub driver_name: String,
     version: String,
-    unique_id: String,
-    // TODO remove by uploading scenario file separately
-    netbench_scenario_filename: String,
 }
 
 impl NetbenchDriverType {
@@ -81,15 +56,6 @@ impl NetbenchDriverType {
             .to_owned()
     }
 
-    // Base project name
-    // pub fn proj_name(&self) -> &String {
-    //     match self {
-    //         NetbenchDriverType::GithubRustProj(source) => &source.repo_name,
-    //         NetbenchDriverType::Local(source) => &source.proj_name,
-    //         NetbenchDriverType::CratesIo(source) => &source.driver_name,
-    //     }
-    // }
-
     pub fn ssm_build_cmd(&self) -> Vec<String> {
         match self {
             NetbenchDriverType::GithubRustProj(source) => source.ssm_build_rust_proj(),
@@ -97,27 +63,10 @@ impl NetbenchDriverType {
             NetbenchDriverType::CratesIo(source) => source.ssm_build_crates_io_proj(),
         }
     }
-
-    fn unique_id(&self) -> &str {
-        match self {
-            NetbenchDriverType::GithubRustProj(source) => &source.unique_id,
-            NetbenchDriverType::Local(source) => &source.unique_id,
-            NetbenchDriverType::CratesIo(source) => &source.unique_id,
-        }
-    }
-
-    fn netbench_scenario_filename(&self) -> &str {
-        match self {
-            NetbenchDriverType::GithubRustProj(source) => &source.netbench_scenario_filename,
-            NetbenchDriverType::Local(source) => &source.netbench_scenario_filename,
-            NetbenchDriverType::CratesIo(source) => &source.netbench_scenario_filename,
-        }
-    }
 }
 
 impl GithubSource {
     pub fn ssm_build_rust_proj(&self) -> Vec<String> {
-        let unique_id = &self.unique_id;
         vec![
             format!(
                 "git clone --branch {} {}",
@@ -130,23 +79,12 @@ impl GithubSource {
                 "find target/release -maxdepth 1 -type f -perm /a+x -exec cp {{}} {} \\;",
                 STATE.host_bin_path()
             ),
-            // copy scenario file to host
-            format!(
-                "aws s3 cp s3://{}/{unique_id}/{} {}/{}",
-                // from
-                STATE.s3_log_bucket,
-                self.netbench_scenario_filename,
-                // to
-                STATE.host_bin_path(),
-                self.netbench_scenario_filename
-            ),
         ]
     }
 }
 
 impl CrateIoSource {
     pub fn ssm_build_crates_io_proj(&self) -> Vec<String> {
-        let unique_id = &self.unique_id;
         vec![
             format!(
                 "runuser -u ec2-user -- {}/cargo install s2n-netbench-collector",
@@ -169,16 +107,6 @@ impl CrateIoSource {
                 self.driver_name,
                 STATE.host_bin_path(),
                 self.driver_name,
-            ),
-            // copy scenario file to host
-            format!(
-                "aws s3 cp s3://{}/{unique_id}/{} {}/{}",
-                // from
-                STATE.s3_log_bucket,
-                self.netbench_scenario_filename,
-                // to
-                STATE.host_bin_path(),
-                self.netbench_scenario_filename
             ),
         ]
     }

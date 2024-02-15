@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::{LocalSource, NetbenchDriverType};
-use crate::{OrchestratorScenario, STATE};
+use crate::STATE;
 use std::{
     path::PathBuf,
     process::{Command, Stdio},
@@ -11,13 +11,10 @@ use tracing::debug;
 
 pub fn dc_quic_server_driver(
     unique_id: &str,
-    scenario: &OrchestratorScenario,
 ) -> NetbenchDriverType {
     let proj_name = "SaltyLib-Rust".to_string();
 
     let driver = LocalSource {
-        unique_id: unique_id.to_string(),
-        netbench_scenario_filename: scenario.netbench_scenario_filename.clone(),
         driver_name: "s2n-netbench-driver-server-s2n-quic-dc".to_string(),
         ssm_build_cmd: vec![
             // copy s3 to host: `aws s3 sync s3://netbenchrunnerlogs-source/2024-01-09T05:25:30Z-v2.0.1//SaltyLib-Rust/ /home/ec2-user/SaltyLib-Rust`
@@ -38,16 +35,6 @@ pub fn dc_quic_server_driver(
                 "find target/debug -maxdepth 1 -type f -perm /a+x -exec cp {{}} {} \\;",
                 STATE.host_bin_path()
             ),
-            // copy scenario file to host
-            format!(
-                "aws s3 cp s3://{}/{unique_id}/{} {}/{}",
-                // from
-                STATE.s3_log_bucket,
-                scenario.netbench_scenario_filename,
-                // to
-                STATE.host_bin_path(),
-                scenario.netbench_scenario_filename
-            ),
         ],
         proj_name: proj_name.clone(),
         local_path_to_proj: "/Users/apoorvko/projects/ws_SaltyLib/src".into(),
@@ -59,13 +46,10 @@ pub fn dc_quic_server_driver(
 
 pub fn dc_quic_client_driver(
     unique_id: &str,
-    scenario: &OrchestratorScenario,
 ) -> NetbenchDriverType {
     let proj_name = "SaltyLib-Rust".to_string();
 
     let driver = LocalSource {
-        unique_id: unique_id.to_string(),
-        netbench_scenario_filename: scenario.netbench_scenario_filename.clone(),
         driver_name: "s2n-netbench-driver-client-s2n-quic-dc".to_string(),
         ssm_build_cmd: vec![
             // copy s3 to host
@@ -86,16 +70,6 @@ pub fn dc_quic_client_driver(
             format!(
                 "find target/debug -maxdepth 1 -type f -perm /a+x -exec cp {{}} {} \\;",
                 STATE.host_bin_path()
-            ),
-            // copy scenario file to host
-            format!(
-                "aws s3 cp s3://{}/{unique_id}/{} {}/{}",
-                // from
-                STATE.s3_log_bucket,
-                scenario.netbench_scenario_filename,
-                // to
-                STATE.host_bin_path(),
-                scenario.netbench_scenario_filename
             ),
         ],
         proj_name: proj_name.clone(),

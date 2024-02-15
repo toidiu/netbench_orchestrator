@@ -16,7 +16,7 @@ pub async fn upload_netbench_data(
 ) -> SendCommandOutput {
     let driver_name = driver.trim_driver_name();
     let s3_command = format!(
-        "aws s3 cp client-{driver_name}* {}/results/{}/{driver_name}/",
+        "aws s3 cp *{driver_name}.json {}/results/{}/{driver_name}/",
         STATE.s3_path(unique_id),
         scenario.netbench_scenario_file_stem()
     );

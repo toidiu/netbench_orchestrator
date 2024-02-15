@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::{send_command, Step};
+use crate::OrchestratorScenario;
 use crate::{poll_ssm_results, state::STATE, NetbenchDriverType};
 use aws_sdk_ssm::operation::send_command::SendCommandOutput;
 use core::time::Duration;
@@ -61,6 +62,7 @@ pub async fn collect_config_cmds(
     host_group: &str,
     ssm_client: &aws_sdk_ssm::Client,
     instance_ids: Vec<String>,
+    scenario: &OrchestratorScenario,
     netbench_drivers: &Vec<NetbenchDriverType>,
     unique_id: &str,
 ) -> Vec<SendCommandOutput> {
@@ -68,21 +70,25 @@ pub async fn collect_config_cmds(
     let install_deps =
         install_deps_cmd(host_group, ssm_client, instance_ids.clone(), unique_id).await;
 
+    // upload scenario file
+    let upload_scenario_file = upload_netbench_scenario_file(
+        host_group,
+        &ssm_client,
+        instance_ids.clone(),
+        &scenario,
+        &unique_id,
+    )
+    .await;
+
     let mut build_drivers = Vec::new();
     for driver in netbench_drivers {
-        let build_driver_cmd = build_netbench_driver_cmd(
-            host_group,
-            driver,
-            ssm_client,
-            instance_ids.clone(),
-            unique_id,
-        )
-        .await;
+        let build_driver_cmd =
+            build_netbench_driver_cmd(host_group, driver, ssm_client, instance_ids.clone()).await;
         build_drivers.push(build_driver_cmd);
     }
     let build_russula = build_russula_cmd(host_group, ssm_client, instance_ids.clone()).await;
 
-    vec![install_deps, build_russula]
+    vec![install_deps, upload_scenario_file, build_russula]
         .into_iter()
         .chain(build_drivers)
         .collect()
@@ -128,10 +134,9 @@ async fn build_netbench_driver_cmd(
     driver: &NetbenchDriverType,
     ssm_client: &aws_sdk_ssm::Client,
     instance_ids: Vec<String>,
-    unique_id: &str,
 ) -> SendCommandOutput {
     send_command(
-        vec![Step::Configure],
+        vec![Step::UploadScenarioFile, Step::Configure],
         Step::BuildDriver(driver.driver_name().clone()),
         host_group,
         &format!("build_driver_{}", driver.driver_name()),
@@ -165,7 +170,7 @@ async fn build_russula_cmd(
     instance_ids: Vec<String>,
 ) -> SendCommandOutput {
     send_command(
-        vec![Step::Configure],
+        vec![Step::UploadScenarioFile, Step::Configure],
         Step::BuildRussula,
         host_group,
         &format!("build_russula_{}", host_group),
@@ -179,6 +184,40 @@ async fn build_russula_cmd(
             .as_str(),
             "cd netbench_orchestrator",
             format!("{}/cargo build", STATE.host_bin_path()).as_str(),
+        ]
+        .into_iter()
+        .map(String::from)
+        .collect(),
+    )
+    .await
+    .expect("Timed out")
+}
+
+async fn upload_netbench_scenario_file(
+    host_group: &str,
+    ssm_client: &aws_sdk_ssm::Client,
+    instance_ids: Vec<String>,
+    scenario: &OrchestratorScenario,
+    unique_id: &str,
+) -> SendCommandOutput {
+    send_command(
+        vec![],
+        Step::UploadScenarioFile,
+        host_group,
+        &format!("build_russula_{}", host_group),
+        ssm_client,
+        instance_ids,
+        vec![
+            // copy scenario file to host
+            format!(
+                "aws s3 cp s3://{}/{unique_id}/{} {}/{}",
+                // from
+                STATE.s3_log_bucket,
+                scenario.netbench_scenario_filename,
+                // to
+                STATE.host_bin_path(),
+                scenario.netbench_scenario_filename
+            ),
         ]
         .into_iter()
         .map(String::from)

@@ -13,15 +13,30 @@ use crate::{
 };
 use aws_sdk_ssm::operation::send_command::SendCommandOutput;
 use core::time::Duration;
+use indicatif::ProgressBar;
+use indicatif::ProgressStyle;
 use std::{
     collections::BTreeSet,
     net::{IpAddr, SocketAddr},
 };
 use tracing::{debug, info};
 
+fn get_progress_bar(msg: String) -> ProgressBar {
+    // TODO use multi-progress bar https://github.com/console-rs/indicatif/blob/main/examples/multi.rs
+    let bar = ProgressBar::new(0);
+    let style = ProgressStyle::with_template("{spinner} [{elapsed_precise}] {msg}")
+        .unwrap()
+        .tick_chars("⠁⠂⠄⡀⢀⠠⠐⠈ ");
+    bar.set_style(style);
+    bar.enable_steady_tick(Duration::from_secs(1));
+    bar.set_message(msg);
+    bar
+}
+
 pub struct ServerNetbenchRussula {
     worker: SendCommandOutput,
     coord: russula::Russula<server::CoordProtocol>,
+    driver_name: String,
 }
 
 impl ServerNetbenchRussula {
@@ -44,10 +59,16 @@ impl ServerNetbenchRussula {
         // server coord
         debug!("starting server coordinator");
         let coord = server_coord(infra.server_ips()).await;
-        ServerNetbenchRussula { worker, coord }
+        ServerNetbenchRussula {
+            worker,
+            coord,
+            driver_name: driver.trim_driver_name(),
+        }
     }
 
     pub async fn wait_workers_running(&mut self, ssm_client: &aws_sdk_ssm::Client) {
+        let msg = format!("{}: Waiting for server state Running.", self.driver_name);
+        let bar = get_progress_bar(msg);
         loop {
             let poll_worker = poll_ssm_results(
                 "server",
@@ -69,9 +90,12 @@ impl ServerNetbenchRussula {
             }
             tokio::time::sleep(Duration::from_secs(5)).await;
         }
+        bar.finish();
     }
 
     pub async fn wait_done(&mut self, ssm_client: &aws_sdk_ssm::Client) {
+        let msg = format!("{}: Waiting for server state Done.", self.driver_name);
+        let bar = get_progress_bar(msg);
         // poll server russula workers/coord
         loop {
             let poll_worker = poll_ssm_results(
@@ -106,6 +130,7 @@ impl ServerNetbenchRussula {
             }
             tokio::time::sleep(Duration::from_secs(5)).await;
         }
+        bar.finish();
 
         info!("Server Russula!: Successful");
     }
@@ -114,6 +139,7 @@ impl ServerNetbenchRussula {
 pub struct ClientNetbenchRussula {
     worker: SendCommandOutput,
     coord: russula::Russula<client::CoordProtocol>,
+    driver_name: String,
 }
 
 impl ClientNetbenchRussula {
@@ -141,10 +167,16 @@ impl ClientNetbenchRussula {
         // client coord
         debug!("starting client coordinator");
         let coord = client_coord(infra.client_ips()).await;
-        ClientNetbenchRussula { worker, coord }
+        ClientNetbenchRussula {
+            worker,
+            coord,
+            driver_name: driver.trim_driver_name(),
+        }
     }
 
     pub async fn wait_done(&mut self, ssm_client: &aws_sdk_ssm::Client) {
+        let msg = format!("{}: Waiting for client state Done.", self.driver_name);
+        let bar = get_progress_bar(msg);
         // poll client russula workers/coord
         loop {
             let poll_worker = poll_ssm_results(
@@ -168,6 +200,7 @@ impl ClientNetbenchRussula {
             }
             tokio::time::sleep(Duration::from_secs(5)).await;
         }
+        bar.finish();
 
         info!("Client Russula!: Successful");
     }

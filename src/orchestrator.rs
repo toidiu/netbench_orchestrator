@@ -13,10 +13,30 @@ use aws_types::region::Region;
 use tracing::info;
 
 // TODO
+// - CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse
+// - use private ip
+// - configure SG to allow all vpc
+// - release dc-quic
+//
+// - add logging for netbench - 2 days
+// - s2n-quic, tcp, dc-quic
+// - TRACE=stdio
+// - work on dc-quic debug
+// - add pcap captures
+// - work on cluster
+// - work on AZ
+// - prod account integration
+//
 // W- test with large number of hosts
-//   - initial connect from driver fails
+//   - error with 20 hosts
+//      - scenario where client doesnt finish.. presumably it is waiting for data
+//      - openssl hostname mismatch error
+//        - https://gist.github.com/toidiu/a0ff912e1d087608445cf876b9c860cf
+//   - errors with 10 hosts
+//      - s2n-quic driver wasn't installed `ssm: cargo install`
 //   - enable logs on netbench
-//   - use different ports for driveres
+//   x- use different ports for driveres
+//
 // - debug dc-quic driver
 // - combine client and server host launch.
 //   - cleanup client if we cant provision servers and vice versa.
@@ -114,18 +134,18 @@ pub async fn run(
     .await?;
 
     let server_drivers = vec![
-        // ssm_utils::dc_quic_server_driver(&unique_id, &scenario),
-        ssm_utils::tcp_driver_crates::tcp_server_driver(&unique_id, &scenario),
-        ssm_utils::s2n_quic_driver_crates::s2n_quic_server_driver(&unique_id, &scenario),
-        ssm_utils::native_tls_driver::native_tls_server_driver(&unique_id, &scenario),
-        ssm_utils::s2n_tls_driver::s2n_tls_server_driver(&unique_id, &scenario),
+        ssm_utils::s2n_quic_dc_driver::dc_quic_server_driver(&unique_id),
+        ssm_utils::tcp_driver_crates::tcp_server_driver(),
+        ssm_utils::s2n_quic_driver_crates::s2n_quic_server_driver(),
+        ssm_utils::s2n_tls_driver::s2n_tls_server_driver(),
+        // ssm_utils::native_tls_driver::native_tls_server_driver(),
     ];
     let client_drivers = vec![
-        // ssm_utils::dc_quic_client_driver(&unique_id, &scenario),
-        ssm_utils::tcp_driver_crates::tcp_client_driver(&unique_id, &scenario),
-        ssm_utils::s2n_quic_driver_crates::s2n_quic_client_driver(&unique_id, &scenario),
-        ssm_utils::native_tls_driver::native_tls_client_driver(&unique_id, &scenario),
-        ssm_utils::s2n_tls_driver::s2n_tls_client_driver(&unique_id, &scenario),
+        ssm_utils::s2n_quic_dc_driver::dc_quic_client_driver(&unique_id),
+        ssm_utils::tcp_driver_crates::tcp_client_driver(),
+        ssm_utils::s2n_quic_driver_crates::s2n_quic_client_driver(),
+        ssm_utils::s2n_tls_driver::s2n_tls_client_driver(),
+        // ssm_utils::native_tls_driver::native_tls_client_driver(),
     ];
 
     assert_eq!(server_drivers.len(), client_drivers.len());
@@ -136,6 +156,7 @@ pub async fn run(
             "server",
             &ssm_client,
             server_ids.clone(),
+            &scenario,
             &server_drivers,
             &unique_id,
         )
@@ -144,6 +165,7 @@ pub async fn run(
             "client",
             &ssm_client,
             client_ids.clone(),
+            &scenario,
             &client_drivers,
             &unique_id,
         )
