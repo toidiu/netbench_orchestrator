@@ -14,6 +14,9 @@ use tracing::info;
 
 // TODO
 // W- test with large number of hosts
+//   - initial connect from driver fails
+//   - enable logs on netbench
+//   - use different ports for driveres
 // - debug dc-quic driver
 // - combine client and server host launch.
 //   - cleanup client if we cant provision servers and vice versa.
@@ -112,17 +115,17 @@ pub async fn run(
 
     let server_drivers = vec![
         // ssm_utils::dc_quic_server_driver(&unique_id, &scenario),
-        ssm_utils::tcp_server_driver(&unique_id, &scenario),
-        // ssm_utils::s2n_quic_server_driver(&unique_id, &scenario),
-        ssm_utils::native_tls_server_driver(&unique_id, &scenario),
-        // ssm_utils::s2n_tls_server_driver(&unique_id, &scenario),
+        ssm_utils::tcp_driver_crates::tcp_server_driver(&unique_id, &scenario),
+        ssm_utils::s2n_quic_driver_crates::s2n_quic_server_driver(&unique_id, &scenario),
+        ssm_utils::native_tls_driver::native_tls_server_driver(&unique_id, &scenario),
+        ssm_utils::s2n_tls_driver::s2n_tls_server_driver(&unique_id, &scenario),
     ];
     let client_drivers = vec![
         // ssm_utils::dc_quic_client_driver(&unique_id, &scenario),
-        ssm_utils::tcp_client_driver(&unique_id, &scenario),
-        // ssm_utils::s2n_quic_client_driver(&unique_id, &scenario),
-        ssm_utils::native_tls_client_driver(&unique_id, &scenario),
-        // ssm_utils::s2n_tls_client_driver(&unique_id, &scenario),
+        ssm_utils::tcp_driver_crates::tcp_client_driver(&unique_id, &scenario),
+        ssm_utils::s2n_quic_driver_crates::s2n_quic_client_driver(&unique_id, &scenario),
+        ssm_utils::native_tls_driver::native_tls_client_driver(&unique_id, &scenario),
+        ssm_utils::s2n_tls_driver::s2n_tls_client_driver(&unique_id, &scenario),
     ];
 
     assert_eq!(server_drivers.len(), client_drivers.len());

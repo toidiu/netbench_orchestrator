@@ -4,36 +4,6 @@
 use super::{CrateIoSource, NetbenchDriverType};
 use crate::OrchestratorScenario;
 
-// pub fn s2n_quic_server_driver(
-//     unique_id: &str,
-//     scenario: &OrchestratorScenario,
-// ) -> NetbenchDriverType {
-//     let proj_name = "s2n-netbench".to_string();
-
-//     let source = GithubSource {
-//         unique_id: unique_id.to_string(),
-//         netbench_scenario_filename: scenario.netbench_scenario_filename.clone(),
-//         driver_name: "s2n-netbench-driver-server-s2n-quic".to_string(),
-//         repo_name: proj_name.clone(),
-//     };
-//     NetbenchDriverType::GithubRustProj(source)
-// }
-
-// pub fn s2n_quic_client_driver(
-//     unique_id: &str,
-//     scenario: &OrchestratorScenario,
-// ) -> NetbenchDriverType {
-//     let proj_name = "s2n-netbench".to_string();
-
-//     let source = GithubSource {
-//         unique_id: unique_id.to_string(),
-//         netbench_scenario_filename: scenario.netbench_scenario_filename.clone(),
-//         driver_name: "s2n-netbench-driver-client-s2n-quic".to_string(),
-//         repo_name: proj_name.clone(),
-//     };
-//     NetbenchDriverType::GithubRustProj(source)
-// }
-
 pub fn s2n_quic_server_driver(
     unique_id: &str,
     scenario: &OrchestratorScenario,
