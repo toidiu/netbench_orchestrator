@@ -16,14 +16,35 @@ use std::{net::IpAddr, str::FromStr, time::Duration};
 use tracing::info;
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
+pub struct PubIp(pub IpAddr);
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
+pub struct PrivIp(pub IpAddr);
+
+impl std::fmt::Display for PrivIp {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl std::fmt::Display for PubIp {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub struct HostIps {
-    private_ip: IpAddr,
-    public_ip: IpAddr,
+    private_ip: PrivIp,
+    public_ip: PubIp,
 }
 
 impl HostIps {
-    pub fn public_ip(&self) -> IpAddr {
-        self.public_ip
+    pub fn public_ip(&self) -> &PubIp {
+        &self.public_ip
+    }
+
+    pub fn private_ip(&self) -> &PrivIp {
+        &self.private_ip
     }
 }
 
@@ -196,8 +217,8 @@ pub async fn poll_running(
                 inst.public_ip_address()
                     .and_then(|ip| IpAddr::from_str(ip).ok())
                     .map(|public_ip| HostIps {
-                        private_ip,
-                        public_ip,
+                        private_ip: PrivIp(private_ip),
+                        public_ip: PubIp(public_ip),
                     })
             })
             .flatten();

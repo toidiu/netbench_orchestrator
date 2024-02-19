@@ -1,7 +1,6 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-use self::instance::poll_state;
 use crate::{
     ec2_utils::instance::delete_instance,
     error::{OrchError, OrchResult},
@@ -13,7 +12,7 @@ mod cluster;
 mod instance;
 mod launch_plan;
 
-pub use instance::{EndpointType, InstanceDetail};
+pub use instance::{EndpointType, InstanceDetail, PrivIp, PubIp};
 pub use launch_plan::LaunchPlan;
 
 pub struct InfraDetail {
@@ -29,17 +28,24 @@ impl InfraDetail {
         Ok(())
     }
 
-    pub fn server_ips(&self) -> Vec<IpAddr> {
+    pub fn public_server_ips(&self) -> Vec<&PubIp> {
         self.servers
             .iter()
-            .map(|instance| IpAddr::from_str(&instance.ip).unwrap())
+            .map(|instance| instance.host_ips.public_ip())
             .collect()
     }
 
-    pub fn client_ips(&self) -> Vec<IpAddr> {
+    pub fn private_server_ips(&self) -> Vec<&PrivIp> {
+        self.servers
+            .iter()
+            .map(|instance| instance.host_ips.private_ip())
+            .collect()
+    }
+
+    pub fn public_client_ips(&self) -> Vec<&PubIp> {
         self.clients
             .iter()
-            .map(|instance| IpAddr::from_str(&instance.ip).unwrap())
+            .map(|instance| instance.host_ips.public_ip())
             .collect()
     }
 }

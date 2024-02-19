@@ -1,6 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::PubIp;
 use crate::{
     ec2_utils::InfraDetail,
     poll_ssm_results,
@@ -15,10 +16,7 @@ use aws_sdk_ssm::operation::send_command::SendCommandOutput;
 use core::time::Duration;
 use indicatif::ProgressBar;
 use indicatif::ProgressStyle;
-use std::{
-    collections::BTreeSet,
-    net::{IpAddr, SocketAddr},
-};
+use std::{collections::BTreeSet, net::SocketAddr};
 use tracing::{debug, info};
 
 fn get_progress_bar(msg: String) -> ProgressBar {
@@ -58,7 +56,7 @@ impl ServerNetbenchRussula {
 
         // server coord
         debug!("starting server coordinator");
-        let coord = server_coord(infra.server_ips()).await;
+        let coord = server_coord(infra.public_server_ips()).await;
         ServerNetbenchRussula {
             worker,
             coord,
@@ -155,7 +153,7 @@ impl ClientNetbenchRussula {
         let worker = ssm_utils::client::run_russula_worker(
             ssm_client,
             instance_ids,
-            &infra.server_ips(),
+            infra.private_server_ips(),
             driver,
             scenario,
         )
@@ -166,7 +164,7 @@ impl ClientNetbenchRussula {
 
         // client coord
         debug!("starting client coordinator");
-        let coord = client_coord(infra.client_ips()).await;
+        let coord = client_coord(infra.public_client_ips()).await;
         ClientNetbenchRussula {
             worker,
             coord,
@@ -206,11 +204,11 @@ impl ClientNetbenchRussula {
     }
 }
 
-async fn server_coord(server_ips: Vec<IpAddr>) -> russula::Russula<server::CoordProtocol> {
+async fn server_coord(server_ips: Vec<&PubIp>) -> russula::Russula<server::CoordProtocol> {
     let protocol = server::CoordProtocol::new();
     let server_addr: Vec<SocketAddr> = server_ips
         .iter()
-        .map(|ip| SocketAddr::new(*ip, STATE.russula_port))
+        .map(|ip| SocketAddr::new(ip.0, STATE.russula_port))
         .collect();
     let server_coord = RussulaBuilder::new(
         BTreeSet::from_iter(server_addr),
@@ -223,11 +221,11 @@ async fn server_coord(server_ips: Vec<IpAddr>) -> russula::Russula<server::Coord
     server_coord
 }
 
-async fn client_coord(client_ips: Vec<IpAddr>) -> russula::Russula<client::CoordProtocol> {
+async fn client_coord(client_ips: Vec<&PubIp>) -> russula::Russula<client::CoordProtocol> {
     let protocol = client::CoordProtocol::new();
     let client_addr: Vec<SocketAddr> = client_ips
         .iter()
-        .map(|ip| SocketAddr::new(*ip, STATE.russula_port))
+        .map(|ip| SocketAddr::new(ip.0, STATE.russula_port))
         .collect();
     let client_coord = RussulaBuilder::new(
         BTreeSet::from_iter(client_addr),

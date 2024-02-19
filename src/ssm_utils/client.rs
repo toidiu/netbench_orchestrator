@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::{send_command, Step};
+use crate::PrivIp;
 use crate::{state::STATE, NetbenchDriverType, OrchestratorScenario};
 use aws_sdk_ssm::operation::send_command::SendCommandOutput;
 use std::net::{IpAddr, SocketAddr};
@@ -38,13 +39,13 @@ pub async fn upload_netbench_data(
 pub async fn run_russula_worker(
     ssm_client: &aws_sdk_ssm::Client,
     instance_ids: Vec<String>,
-    server_ips: &Vec<IpAddr>,
+    server_ips: Vec<&PrivIp>,
     driver: &NetbenchDriverType,
     scenario: &OrchestratorScenario,
 ) -> SendCommandOutput {
     let netbench_server_addr = server_ips
         .iter()
-        .map(|ip| SocketAddr::new(*ip, STATE.netbench_port).to_string())
+        .map(|ip| SocketAddr::new(ip.0, STATE.netbench_port).to_string())
         .reduce(|mut accum, item| {
             accum.push(' ');
             accum.push_str(&item);

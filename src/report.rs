@@ -65,7 +65,7 @@ pub async fn orch_generate_report(
 
     let get_logs = true;
     if get_logs {
-        infra.client_ips().iter().for_each(|ip| {
+        infra.public_client_ips().iter().for_each(|ip| {
             let log_folder = format!("./target/logs/{unique_id}/client_{ip}");
             std::fs::create_dir_all(Path::new(&log_folder)).expect("create log dir");
             let out = Command::new("scp")
@@ -79,7 +79,7 @@ pub async fn orch_generate_report(
             debug!("{}", out.status);
             debug!("{:?}", out.stdout);
         });
-        infra.server_ips().iter().for_each(|ip| {
+        infra.public_server_ips().iter().for_each(|ip| {
             let log_folder = format!("./target/logs/{unique_id}/server_{ip}");
             std::fs::create_dir_all(Path::new(&log_folder)).expect("create log dir");
             Command::new("scp")
