@@ -65,7 +65,7 @@ async fn update_instance_running(
     let mut instance_ip_id = String::new();
     instances.iter().for_each(|instance| {
         let id = instance.instance_id().unwrap();
-        let string = format!("{} {}", instance.ip, id);
+        let string = format!("{} {}", instance.host_ips, id);
         instance_ip_id.push_str(&string);
     });
 

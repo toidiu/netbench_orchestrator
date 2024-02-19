@@ -6,7 +6,7 @@ use crate::{
     ec2_utils::instance::delete_instance,
     error::{OrchError, OrchResult},
 };
-use std::{net::IpAddr, str::FromStr, time::Duration};
+use std::{net::IpAddr, time::Duration};
 use tracing::info;
 
 mod cluster;

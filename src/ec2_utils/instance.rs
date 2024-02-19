@@ -12,8 +12,30 @@ use aws_sdk_ec2::types::{
     ShutdownBehavior, Tag, TagSpecification,
 };
 use base64::{engine::general_purpose, Engine as _};
-use std::time::Duration;
+use std::{net::IpAddr, str::FromStr, time::Duration};
 use tracing::info;
+
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
+pub struct HostIps {
+    private_ip: IpAddr,
+    public_ip: IpAddr,
+}
+
+impl HostIps {
+    pub fn public_ip(&self) -> IpAddr {
+        self.public_ip
+    }
+}
+
+impl std::fmt::Display for HostIps {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "public_ip: {}, private_ip: {}",
+            self.public_ip, self.private_ip
+        )
+    }
+}
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum EndpointType {
@@ -34,11 +56,11 @@ impl EndpointType {
 pub struct InstanceDetail {
     pub endpoint_type: EndpointType,
     pub instance_id: String,
-    pub ip: String,
+    pub host_ips: HostIps,
 }
 
 impl InstanceDetail {
-    pub fn new(endpoint_type: EndpointType, instance: Instance, ip: String) -> Self {
+    pub fn new(endpoint_type: EndpointType, instance: Instance, host_ips: HostIps) -> Self {
         let instance_id = instance
             .instance_id()
             .ok_or(OrchError::Ec2 {
@@ -50,7 +72,7 @@ impl InstanceDetail {
         InstanceDetail {
             endpoint_type,
             instance_id,
-            ip,
+            host_ips,
         }
     }
 
@@ -118,7 +140,7 @@ pub async fn launch_instance(
         .dry_run(false)
         .send()
         .await
-        .map_err(|r| crate::error::OrchError::Ec2 {
+        .map_err(|r| OrchError::Ec2 {
             dbg: format!("{:#?}", r),
         })?;
     let instances = run_result.instances().ok_or(OrchError::Ec2 {
@@ -140,17 +162,16 @@ pub async fn delete_instance(ec2_client: &aws_sdk_ec2::Client, ids: Vec<String>)
     Ok(())
 }
 
-pub async fn poll_state(
+pub async fn poll_running(
     enumerate: usize,
     endpoint_type: &EndpointType,
     ec2_client: &aws_sdk_ec2::Client,
     instance: &Instance,
-    desired_state: InstanceStateName,
-) -> OrchResult<String> {
+) -> OrchResult<HostIps> {
     // Wait for running state
     let mut actual_state = InstanceStateName::Pending;
-    let mut ip = None;
-    while actual_state != desired_state {
+    let mut host_ip = None;
+    while actual_state != InstanceStateName::Running {
         tokio::time::sleep(Duration::from_secs(1)).await;
         let result = ec2_client
             .describe_instances()
@@ -168,7 +189,19 @@ pub async fn poll_state(
             .get(0)
             .expect("instances get(0) failed");
 
-        ip = inst.public_ip_address().map(String::from);
+        host_ip = inst
+            .private_ip_address()
+            .and_then(|ip| IpAddr::from_str(ip).ok())
+            .map(|private_ip| {
+                inst.public_ip_address()
+                    .and_then(|ip| IpAddr::from_str(ip).ok())
+                    .map(|public_ip| HostIps {
+                        private_ip,
+                        public_ip,
+                    })
+            })
+            .flatten();
+
         actual_state = inst
             .state()
             .expect("state failed")
@@ -182,7 +215,7 @@ pub async fn poll_state(
         );
     }
 
-    ip.ok_or(crate::error::OrchError::Ec2 {
+    host_ip.ok_or(OrchError::Ec2 {
         dbg: "".to_string(),
     })
 }
