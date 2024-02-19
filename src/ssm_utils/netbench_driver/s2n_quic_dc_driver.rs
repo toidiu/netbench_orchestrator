@@ -25,12 +25,14 @@ pub fn dc_quic_server_driver(unique_id: &str) -> NetbenchDriverType {
             // SSM agent doesn't pick up the newest rustc version installed via rustup`
             // so instead refer to it directly
             format!(
-                "env CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse RUSTFLAGS='--cfg s2n_quic_unstable' {} build",
+                // "env CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse RUSTFLAGS='--cfg s2n_quic_unstable' {} build",
+                "env CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse RUSTFLAGS='--cfg s2n_quic_unstable' {} build --release",
                 STATE.cargo_path()
             ),
             // copy executables to bin directory
             format!(
-                "find target/debug -maxdepth 1 -type f -perm /a+x -exec cp {{}} {} \\;",
+                // "find target/debug -maxdepth 1 -type f -perm /a+x -exec cp {{}} {} \\;",
+                "find target/release -maxdepth 1 -type f -perm /a+x -exec cp {{}} {} \\;",
                 STATE.host_bin_path()
             ),
         ],
@@ -59,12 +61,14 @@ pub fn dc_quic_client_driver(unique_id: &str) -> NetbenchDriverType {
             // SSM agent doesn't pick up the newest rustc version installed via rustup`
             // so instead refer to it directly
             format!(
-                "env CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse RUSTFLAGS='--cfg s2n_quic_unstable' {} build",
+                // "env CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse RUSTFLAGS='--cfg s2n_quic_unstable' {} build",
+                "env CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse RUSTFLAGS='--cfg s2n_quic_unstable' {} build --release",
                 STATE.cargo_path()
             ),
             // copy executables to bin directory
             format!(
-                "find target/debug -maxdepth 1 -type f -perm /a+x -exec cp {{}} {} \\;",
+                // "find target/debug -maxdepth 1 -type f -perm /a+x -exec cp {{}} {} \\;",
+                "find target/release -maxdepth 1 -type f -perm /a+x -exec cp {{}} {} \\;",
                 STATE.host_bin_path()
             ),
         ],

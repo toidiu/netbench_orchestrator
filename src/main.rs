@@ -5,15 +5,10 @@
 use aws_types::region::Region;
 use clap::Parser;
 use error::{OrchError, OrchResult};
-use serde::Deserialize;
-use serde_json::Value;
-use std::{
-    fs::File,
-    path::{Path, PathBuf},
-    process::Command,
-};
+use std::{fs::File, path::Path, process::Command};
 use tracing_subscriber::EnvFilter;
 
+mod cli;
 mod coordination_utils;
 mod dashboard;
 mod duration;
@@ -26,18 +21,12 @@ mod s3_utils;
 mod ssm_utils;
 mod state;
 
+use cli::*;
 use dashboard::*;
 use ec2_utils::*;
 use s3_utils::*;
 use ssm_utils::*;
 use state::*;
-
-#[derive(Parser, Debug)]
-pub struct Args {
-    /// Path to the scenario file
-    #[arg(long)]
-    scenario_file: PathBuf,
-}
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> OrchResult<()> {
@@ -56,20 +45,20 @@ async fn main() -> OrchResult<()> {
         .with_writer(non_blocking)
         .init();
 
-    let args = Args::parse();
+    let cli = Cli::parse();
 
     let region = Region::new(STATE.region);
     let aws_config = aws_config::from_env().region(region).load().await;
-    let scenario = check_requirements(&args, &aws_config).await?;
+    let scenario = check_requirements(&cli, &aws_config).await?;
 
-    orchestrator::run(unique_id, args, scenario, &aws_config).await
+    orchestrator::run(unique_id, cli, scenario, &aws_config).await
 }
 
 async fn check_requirements(
-    args: &Args,
+    cli: &Cli,
     aws_config: &aws_types::SdkConfig,
 ) -> OrchResult<OrchestratorScenario> {
-    let path = Path::new(&args.scenario_file);
+    let path = Path::new(&cli.scenario_file);
     let name = path
         .file_name()
         .and_then(|f| f.to_str())
@@ -84,7 +73,7 @@ async fn check_requirements(
 
     let ctx = OrchestratorScenario {
         netbench_scenario_filename: name,
-        netbench_scenario_filepath: args.scenario_file.clone(),
+        netbench_scenario_filepath: cli.scenario_file.clone(),
         clients: scenario.clients.len(),
         servers: scenario.servers.len(),
     };
@@ -118,38 +107,4 @@ async fn check_requirements(
         })?;
 
     Ok(ctx)
-}
-
-// FIXME get from netbench project
-#[derive(Clone, Debug, Default, Deserialize)]
-struct NetbenchScenario {
-    // pub id: Id,
-    pub clients: Vec<Value>,
-    pub servers: Vec<Value>,
-    // #[serde(skip_serializing_if = "Vec::is_empty", default)]
-    // pub routers: Vec<Arc<Router>>,
-    // #[serde(skip_serializing_if = "Vec::is_empty", default)]
-    // pub traces: Arc<Vec<String>>,
-    // #[serde(skip_serializing_if = "Vec::is_empty", default)]
-    // pub certificates: Vec<Arc<Certificate>>,
-}
-
-/// Captures
-#[derive(Clone, Debug)]
-pub struct OrchestratorScenario {
-    netbench_scenario_filename: String,
-    netbench_scenario_filepath: PathBuf,
-    clients: usize,
-    servers: usize,
-}
-
-impl OrchestratorScenario {
-    pub fn netbench_scenario_file_stem(&self) -> &str {
-        self.netbench_scenario_filepath
-            .as_path()
-            .file_stem()
-            .expect("expect scenario file")
-            .to_str()
-            .unwrap()
-    }
 }

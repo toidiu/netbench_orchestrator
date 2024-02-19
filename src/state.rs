@@ -31,6 +31,9 @@ pub const STATE: State = State {
     poll_delay_russula: Duration::from_secs(5),
 
     // aws
+    placement_group_partition: "pg-0e68f2b9dbce6bb49",
+    placement_group_spread: "pg-0263d1898fe20ec3b",
+    placement_group_cluster: "pg-0263d1898fe20ec3b",
     s3_private_log_bucket: "netbenchrunnerlogs-source",
     s3_log_bucket: "netbenchrunnerlogs",
     s3_resource_folder: "TS",
@@ -76,6 +79,9 @@ pub struct State {
     pub poll_delay_russula: Duration,
 
     // aws
+    pub placement_group_partition: &'static str,
+    pub placement_group_spread: &'static str,
+    pub placement_group_cluster: &'static str,
     pub s3_private_log_bucket: &'static str,
     pub s3_log_bucket: &'static str,
     pub s3_resource_folder: &'static str,

@@ -57,11 +57,25 @@ impl NetbenchDriverType {
     }
 
     pub fn ssm_build_cmd(&self) -> Vec<String> {
-        match self {
+        let build_cmd = match self {
             NetbenchDriverType::GithubRustProj(source) => source.ssm_build_rust_proj(),
             NetbenchDriverType::Local(source) => source.ssm_build_cmd.clone(),
             NetbenchDriverType::CratesIo(source) => source.ssm_build_crates_io_proj(),
-        }
+        };
+        self.ssm_build_collector().into_iter().chain(build_cmd).collect()
+    }
+
+    pub fn ssm_build_collector(&self) -> Vec<String> {
+        vec![
+            format!(
+                "runuser -u ec2-user -- env CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse {} install s2n-netbench-collector",
+                STATE.cargo_path(),
+            ),
+            format!(
+                "ln -s /home/ec2-user/.cargo/bin/s2n-netbench-collector {}/s2n-netbench-collector",
+                STATE.host_bin_path(),
+            )
+        ]
     }
 }
 
@@ -89,14 +103,6 @@ impl GithubSource {
 impl CrateIoSource {
     pub fn ssm_build_crates_io_proj(&self) -> Vec<String> {
         vec![
-            format!(
-                "runuser -u ec2-user -- env CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse {} install s2n-netbench-collector",
-                STATE.cargo_path(),
-            ),
-            format!(
-                "ln -s /home/ec2-user/.cargo/bin/s2n-netbench-collector {}/s2n-netbench-collector",
-                STATE.host_bin_path(),
-            ),
             format!(
                 // "runuser -u ec2-user -- ./.cargo/bin/rustup update".to_string(),
                 "runuser -u ec2-user -- env CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse {} install {}",

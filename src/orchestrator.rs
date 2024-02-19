@@ -6,18 +6,13 @@ use crate::{
     ec2_utils::LaunchPlan,
     error::{OrchError, OrchResult},
     report::orch_generate_report,
-    ssm_utils, update_dashboard, upload_object, Args, OrchestratorScenario, STATE,
+    ssm_utils, update_dashboard, upload_object, Cli, OrchestratorScenario, STATE,
 };
 use aws_sdk_s3::primitives::ByteStream;
 use aws_types::region::Region;
 use tracing::info;
 
 // TODO
-// D- CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse
-// D- configure SG to allow all vpc
-// D- use private ip
-// D- work on dc-quic debug
-//
 // - work on cluster
 // - work on AZ
 // - prod account integration
@@ -65,7 +60,7 @@ use tracing::info;
 
 pub async fn run(
     unique_id: String,
-    _args: Args,
+    cli: Cli,
     scenario: OrchestratorScenario,
     aws_config: &aws_types::SdkConfig,
 ) -> OrchResult<()> {
@@ -96,10 +91,17 @@ pub async fn run(
     update_dashboard(dashboard::Step::UploadIndex, &s3_client, &unique_id).await?;
 
     // Setup instances
-    let infra = LaunchPlan::create(&unique_id, &ec2_client, &iam_client, &ssm_client, &scenario)
-        .await
-        .launch(&ec2_client, &unique_id)
-        .await?;
+    let infra = LaunchPlan::create(
+        &unique_id,
+        &ec2_client,
+        &iam_client,
+        &ssm_client,
+        &scenario,
+        cli.infra,
+    )
+    .await
+    .launch(&ec2_client, &unique_id)
+    .await?;
     let client_ids: Vec<String> = infra
         .clients
         .clone()

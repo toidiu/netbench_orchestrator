@@ -1,6 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::InfraScenario;
 use crate::{
     error::{OrchError, OrchResult},
     state::STATE,
@@ -108,10 +109,12 @@ pub async fn launch_instance(
     unique_id: &str,
     count: usize,
     endpoint_type: EndpointType,
+    infra_scenario: InfraScenario,
 ) -> OrchResult<Vec<Instance>> {
     let instance_type = InstanceType::from(STATE.instance_type);
     let run_result = ec2_client
         .run_instances()
+        .placement(infra_scenario.placement.into())
         .key_name(STATE.ssh_key_name)
         .iam_instance_profile(
             IamInstanceProfileSpecification::builder()
@@ -121,9 +124,6 @@ pub async fn launch_instance(
         .instance_type(instance_type)
         .image_id(&launch_plan.ami_id)
         .instance_initiated_shutdown_behavior(ShutdownBehavior::Terminate)
-        .user_data(
-            general_purpose::STANDARD.encode(format!("sudo shutdown -P +{}", STATE.shutdown_min)),
-        )
         // give the instances human readable names. name is set via tags
         .tag_specifications(
             TagSpecification::builder()
@@ -239,4 +239,39 @@ pub async fn poll_running(
     host_ip.ok_or(OrchError::Ec2 {
         dbg: "".to_string(),
     })
+}
+
+pub async fn get_instance_profile(iam_client: &aws_sdk_iam::Client) -> OrchResult<String> {
+    let instance_profile_arn = iam_client
+        .get_instance_profile()
+        .instance_profile_name(STATE.instance_profile)
+        .send()
+        .await
+        .map_err(|err| OrchError::Iam {
+            dbg: err.to_string(),
+        })?
+        .instance_profile()
+        .expect("instance_profile failed")
+        .arn()
+        .expect("arn failed")
+        .into();
+    Ok(instance_profile_arn)
+}
+
+pub async fn get_latest_ami(ssm_client: &aws_sdk_ssm::Client) -> OrchResult<String> {
+    let ami_id = ssm_client
+        .get_parameter()
+        .name("/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64")
+        .with_decryption(true)
+        .send()
+        .await
+        .map_err(|err| OrchError::Ssm {
+            dbg: err.to_string(),
+        })?
+        .parameter()
+        .expect("expected ami value")
+        .value()
+        .expect("expected ami value")
+        .into();
+    Ok(ami_id)
 }

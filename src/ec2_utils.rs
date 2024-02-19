@@ -11,6 +11,7 @@ use tracing::info;
 mod cluster;
 mod instance;
 mod launch_plan;
+mod networking;
 
 pub use instance::{EndpointType, InstanceDetail, PrivIp, PubIp};
 pub use launch_plan::LaunchPlan;
