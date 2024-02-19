@@ -14,10 +14,10 @@ use tracing::info;
 
 // TODO
 // D- CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse
-// W- configure SG to allow all vpc
-// - use private ip
+// D- configure SG to allow all vpc
+// D- use private ip
+// D- work on dc-quic debug
 //
-// - work on dc-quic debug
 // - work on cluster
 // - work on AZ
 // - prod account integration
@@ -120,13 +120,13 @@ pub async fn run(
         .collect();
 
     update_dashboard(
-        dashboard::Step::ServerHostsRunning(&infra.servers),
+        dashboard::Step::HostsRunning(&infra.servers),
         &s3_client,
         &unique_id,
     )
     .await?;
     update_dashboard(
-        dashboard::Step::ServerHostsRunning(&infra.clients),
+        dashboard::Step::HostsRunning(&infra.clients),
         &s3_client,
         &unique_id,
     )

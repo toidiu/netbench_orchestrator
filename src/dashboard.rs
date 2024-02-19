@@ -8,8 +8,7 @@ use tracing::info;
 
 pub enum Step<'a> {
     UploadIndex,
-    ServerHostsRunning(&'a Vec<InstanceDetail>),
-    ClientHostsRunning(&'a Vec<InstanceDetail>),
+    HostsRunning(&'a Vec<InstanceDetail>),
 }
 
 pub async fn update_dashboard(
@@ -19,10 +18,7 @@ pub async fn update_dashboard(
 ) -> OrchResult<()> {
     match step {
         Step::UploadIndex => upload_index_html(s3_client, unique_id).await,
-        Step::ServerHostsRunning(instances) => {
-            update_instance_running(s3_client, instances, unique_id).await
-        }
-        Step::ClientHostsRunning(instances) => {
+        Step::HostsRunning(instances) => {
             update_instance_running(s3_client, instances, unique_id).await
         }
     }
@@ -62,19 +58,21 @@ async fn update_instance_running(
     unique_id: &str,
 ) -> OrchResult<()> {
     let endpoint_type = &instances[0].endpoint_type.as_str();
-    let mut instance_ip_id = String::new();
-    instances.iter().for_each(|instance| {
-        let id = instance.instance_id().unwrap();
-        let string = format!("{} {}", instance.host_ips, id);
-        instance_ip_id.push_str(&string);
-    });
+    let instance_detail = instances
+        .iter()
+        .map(|instance| {
+            let id = instance.instance_id().unwrap();
+            format!("{} {}", instance.host_ips, id)
+        })
+        .collect::<Vec<String>>()
+        .join(" - ");
 
     upload_object(
         s3_client,
         STATE.s3_log_bucket,
         ByteStream::from(Bytes::from(format!(
             "EC2 {:?} instances up: {}",
-            endpoint_type, instance_ip_id
+            endpoint_type, instance_detail
         ))),
         // example: "unique_id/server-step-0"
         &format!("{unique_id}/{}-step-0", endpoint_type.to_lowercase()),
