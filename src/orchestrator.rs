@@ -13,19 +13,15 @@ use aws_types::region::Region;
 use tracing::info;
 
 // TODO
-// - CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse
+// D- CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse
+// W- configure SG to allow all vpc
 // - use private ip
-// - configure SG to allow all vpc
-// - release dc-quic
 //
-// - add logging for netbench - 2 days
-// - s2n-quic, tcp, dc-quic
-// - TRACE=stdio
 // - work on dc-quic debug
-// - add pcap captures
 // - work on cluster
 // - work on AZ
 // - prod account integration
+// - release dc-quic
 //
 // W- test with large number of hosts
 //   - error with 20 hosts
@@ -57,6 +53,9 @@ use tracing::info;
 //   - add timing data
 // - use release build instead of debug
 // - experiment with uploading and downloading netbench exec
+// - add logging for netbench - 2 days
+//   - TRACE=stdio
+// - add pcap captures
 //
 // # Cleanup
 // - instance::poll_state should take multiple instance_ids

@@ -9,9 +9,7 @@ use std::{
 };
 use tracing::debug;
 
-pub fn dc_quic_server_driver(
-    unique_id: &str,
-) -> NetbenchDriverType {
+pub fn dc_quic_server_driver(unique_id: &str) -> NetbenchDriverType {
     let proj_name = "SaltyLib-Rust".to_string();
 
     let driver = LocalSource {
@@ -44,9 +42,7 @@ pub fn dc_quic_server_driver(
     NetbenchDriverType::Local(driver)
 }
 
-pub fn dc_quic_client_driver(
-    unique_id: &str,
-) -> NetbenchDriverType {
+pub fn dc_quic_client_driver(unique_id: &str) -> NetbenchDriverType {
     let proj_name = "SaltyLib-Rust".to_string();
 
     let driver = LocalSource {

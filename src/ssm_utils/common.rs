@@ -183,7 +183,11 @@ async fn build_russula_cmd(
             )
             .as_str(),
             "cd netbench_orchestrator",
-            format!("env CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse {} build", STATE.cargo_path()).as_str(),
+            format!(
+                "env CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse {} build",
+                STATE.cargo_path()
+            )
+            .as_str(),
         ]
         .into_iter()
         .map(String::from)

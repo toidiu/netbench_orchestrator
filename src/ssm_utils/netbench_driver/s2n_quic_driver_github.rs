@@ -3,8 +3,7 @@
 
 use super::{GithubSource, NetbenchDriverType};
 
-pub fn s2n_quic_server_driver(
-) -> NetbenchDriverType {
+pub fn s2n_quic_server_driver() -> NetbenchDriverType {
     let proj_name = "s2n-netbench".to_string();
 
     let source = GithubSource {
@@ -14,8 +13,7 @@ pub fn s2n_quic_server_driver(
     NetbenchDriverType::GithubRustProj(source)
 }
 
-pub fn s2n_quic_client_driver(
-) -> NetbenchDriverType {
+pub fn s2n_quic_client_driver() -> NetbenchDriverType {
     let proj_name = "s2n-netbench".to_string();
 
     let source = GithubSource {

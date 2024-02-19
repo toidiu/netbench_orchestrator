@@ -1,6 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+use aws_sdk_ec2::types::UserIdGroupPair;
 use crate::{
     ec2_utils::{
         instance::{self, EndpointType, InstanceDetail},
@@ -156,15 +157,17 @@ async fn configure_networking(
     // TODO can we make this more restrictive?
     let russula_ip_range = IpRange::builder().cidr_ip("0.0.0.0/0").build();
 
+    let sg_group = UserIdGroupPair::builder().set_group_id(Some(infra.security_group_id.clone())).build();
     ec2_client
         .authorize_security_group_egress()
         .group_id(infra.security_group_id.clone())
         .ip_permissions(
+            // Authorize SG (all traffic within the same SG)
             IpPermission::builder()
                 .from_port(-1)
                 .to_port(-1)
                 .ip_protocol("-1")
-                .set_ip_ranges(Some(host_ip_ranges.clone()))
+                .user_id_group_pairs(sg_group)
                 .build(),
         )
         .send()
@@ -172,18 +175,21 @@ async fn configure_networking(
         .map_err(|err| OrchError::Ec2 {
             dbg: err.to_string(),
         })?;
+
     ec2_client
         .authorize_security_group_ingress()
         .group_id(infra.security_group_id.clone())
+    //     .ip_permissions(
+    //         // Authorize all host ips
+    //         IpPermission::builder()
+    //             .from_port(-1)
+    //             .to_port(-1)
+    //             .ip_protocol("-1")
+    //             .set_ip_ranges(Some(host_ip_ranges.clone()))
+    //             .build(),
+    //     )
         .ip_permissions(
-            IpPermission::builder()
-                .from_port(-1)
-                .to_port(-1)
-                .ip_protocol("-1")
-                .set_ip_ranges(Some(host_ip_ranges.clone()))
-                .build(),
-        )
-        .ip_permissions(
+            // Authorize port 22 (ssh)
             IpPermission::builder()
                 .from_port(22)
                 .to_port(22)
@@ -192,6 +198,7 @@ async fn configure_networking(
                 .build(),
         )
         .ip_permissions(
+            // Authorize russula ports (Coordinator <-> Workers)
             IpPermission::builder()
                 .from_port(STATE.russula_port.into())
                 .to_port(STATE.russula_port.into())

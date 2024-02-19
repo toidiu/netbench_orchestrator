@@ -73,7 +73,10 @@ impl GithubSource {
                 STATE.netbench_branch, STATE.netbench_repo
             ),
             format!("cd {}", self.repo_name),
-            format!("env CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse {} build --release", STATE.cargo_path()),
+            format!(
+                "env CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse {} build --release",
+                STATE.cargo_path()
+            ),
             // copy netbench executables to ~/bin folder
             format!(
                 "find target/release -maxdepth 1 -type f -perm /a+x -exec cp {{}} {} \\;",

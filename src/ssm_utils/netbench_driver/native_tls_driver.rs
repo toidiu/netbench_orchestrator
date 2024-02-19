@@ -3,8 +3,7 @@
 
 use super::{CrateIoSource, NetbenchDriverType};
 
-pub fn native_tls_server_driver(
-) -> NetbenchDriverType {
+pub fn native_tls_server_driver() -> NetbenchDriverType {
     let source = CrateIoSource {
         krate: "s2n-netbench-driver-native-tls".to_string(),
         driver_name: "s2n-netbench-driver-server-native-tls".to_string(),
@@ -13,8 +12,7 @@ pub fn native_tls_server_driver(
     NetbenchDriverType::CratesIo(source)
 }
 
-pub fn native_tls_client_driver(
-) -> NetbenchDriverType {
+pub fn native_tls_client_driver() -> NetbenchDriverType {
     let source = CrateIoSource {
         krate: "s2n-netbench-driver-native-tls".to_string(),
         driver_name: "s2n-netbench-driver-client-native-tls".to_string(),
