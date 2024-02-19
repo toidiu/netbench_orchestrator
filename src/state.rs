@@ -103,6 +103,10 @@ impl State {
         format!("{}/bin", self.host_home_path)
     }
 
+    pub fn cargo_path(&self) -> String {
+        format!("{}/bin/cargo", self.host_home_path)
+    }
+
     // Create a security group with the following name prefix. Use with `sg_name_with_id`
     // security_group_name_prefix: "netbench_runner",
     pub fn security_group_name(&self, unique_id: &str) -> String {

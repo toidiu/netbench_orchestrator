@@ -73,7 +73,7 @@ impl GithubSource {
                 STATE.netbench_branch, STATE.netbench_repo
             ),
             format!("cd {}", self.repo_name),
-            format!("{}/cargo build --release", STATE.host_bin_path()),
+            format!("env CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse {} build --release", STATE.cargo_path()),
             // copy netbench executables to ~/bin folder
             format!(
                 "find target/release -maxdepth 1 -type f -perm /a+x -exec cp {{}} {} \\;",
@@ -87,8 +87,8 @@ impl CrateIoSource {
     pub fn ssm_build_crates_io_proj(&self) -> Vec<String> {
         vec![
             format!(
-                "runuser -u ec2-user -- {}/cargo install s2n-netbench-collector",
-                STATE.host_bin_path(),
+                "runuser -u ec2-user -- env CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse {} install s2n-netbench-collector",
+                STATE.cargo_path(),
             ),
             format!(
                 "ln -s /home/ec2-user/.cargo/bin/s2n-netbench-collector {}/s2n-netbench-collector",
@@ -96,8 +96,8 @@ impl CrateIoSource {
             ),
             format!(
                 // "runuser -u ec2-user -- ./.cargo/bin/rustup update".to_string(),
-                "runuser -u ec2-user -- {}/cargo install {}",
-                STATE.host_bin_path(),
+                "runuser -u ec2-user -- env CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse {} install {}",
+                STATE.cargo_path(),
                 self.krate,
                 // self.version
             ),

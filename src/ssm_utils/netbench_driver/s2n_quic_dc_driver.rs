@@ -27,8 +27,8 @@ pub fn dc_quic_server_driver(
             // SSM agent doesn't pick up the newest rustc version installed via rustup`
             // so instead refer to it directly
             format!(
-                "env RUSTFLAGS='--cfg s2n_quic_unstable' {}/cargo build",
-                STATE.host_bin_path()
+                "env CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse RUSTFLAGS='--cfg s2n_quic_unstable' {} build",
+                STATE.cargo_path()
             ),
             // copy executables to bin directory
             format!(
@@ -63,8 +63,8 @@ pub fn dc_quic_client_driver(
             // SSM agent doesn't pick up the newest rustc version installed via rustup`
             // so instead refer to it directly
             format!(
-                "env RUSTFLAGS='--cfg s2n_quic_unstable' {}/cargo build",
-                STATE.host_bin_path()
+                "env CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse RUSTFLAGS='--cfg s2n_quic_unstable' {} build",
+                STATE.cargo_path()
             ),
             // copy executables to bin directory
             format!(

@@ -123,7 +123,7 @@ async fn install_deps_cmd(
         "./root/.cargo/bin/rustup update".to_string(),
         "runuser -u ec2-user -- ./.cargo/bin/rustup update".to_string(),
         // TODO sim link rustc from home/ec2-user/bin
-        format!("ln -s /home/ec2-user/.cargo/bin/cargo {}/cargo", STATE.host_bin_path())
+        format!("ln -s /home/ec2-user/.cargo/bin/cargo {}", STATE.cargo_path())
 
 
     ]).await.expect("Timed out")
@@ -183,7 +183,7 @@ async fn build_russula_cmd(
             )
             .as_str(),
             "cd netbench_orchestrator",
-            format!("{}/cargo build", STATE.host_bin_path()).as_str(),
+            format!("env CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse {} build", STATE.cargo_path()).as_str(),
         ]
         .into_iter()
         .map(String::from)
