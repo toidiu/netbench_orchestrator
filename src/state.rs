@@ -8,8 +8,8 @@ pub const STATE: State = State {
     version: "v2.2.0",
 
     // TODO remove `vpc_region` and configure vpc/subnet in same `region`
-    region: "us-west-1",
-    vpc_region: "us-east-1",
+    region: "us-west-2",
+    vpc_region: "us-west-2",
     instance_type: "c5.4xlarge",
     // TODO get from scenario --------------
 
@@ -31,22 +31,24 @@ pub const STATE: State = State {
     poll_delay_russula: Duration::from_secs(5),
 
     // aws
-    placement_group_cluster: "netbench_cluster",
-    placement_group_partition: "netbench_partition",
-    s3_private_log_bucket: "netbenchrunnerlogs-source",
-    s3_log_bucket: "netbenchrunnerlogs",
-    s3_resource_folder: "TS",
-    cloudfront_url: "http://d2jusruq1ilhjs.cloudfront.net",
-    cloud_watch_group: "netbench_runner_logs",
+    placement_group_cluster: "NetbenchInfraPrimaryProd-ClusterEB0386A7-R5EWN2RCJC5L",
+    placement_group_partition: "NetbenchInfraPrimaryProd-Partition9E68ED67-LC9VKTZBNJJ8",
+    s3_private_log_bucket: "netbenchrunner-private-source-prod",
+    // json "NetbenchRunnerS3Bucket"
+    s3_log_bucket: "netbenchrunnerlogs-public-prod",
+    // json "NetbenchCloudfrontDistibution"
+    cloudfront_url: "https://d37mm99fcr6hy4.cloudfront.net",
+    // json "NetbenchRunnerLogGroup"
+    cloud_watch_group: "NetbenchInfraPrimaryProd-NetbenchRunnerLogGroup2B821E01-yfykCkGeMuS4",
     // Used to give permissions to the ec2 instance. Part of the IAM Role `NetbenchRunnerRole`
-    instance_profile: "NetbenchRunnerInstanceProfile",
+    // json "NetbenchRunnerInstanceProfile"
+    instance_profile: "NetbenchInfraPrimaryProd-instanceProfile9C1E1CDD-kVoSXbmUxoBA",
     // Used to find subnets with the following tag/value pair
-    subnet_tag_value: (
-        "tag:aws-cdk:subnet-name",
-        "public-subnet-for-runners-in-us-east-1",
-    ),
+    // json "NetbenchRunnerVPCSubnetTag"
+    subnet_tag_value: ("tag:aws-cdk:netbench-subnet-name", "public-subnet-for-netbench-runners"),
     // create/import a key pair to the account
-    ssh_key_name: "apoorvko_m1",
+    ssh_key_name: None,
+    // ssh_key_name: Some("apoorvko_m1"),
 };
 
 pub struct State {
@@ -82,12 +84,11 @@ pub struct State {
     pub placement_group_partition: &'static str,
     pub s3_private_log_bucket: &'static str,
     pub s3_log_bucket: &'static str,
-    pub s3_resource_folder: &'static str,
     pub cloudfront_url: &'static str,
     pub cloud_watch_group: &'static str,
     pub instance_profile: &'static str,
     pub subnet_tag_value: (&'static str, &'static str),
-    pub ssh_key_name: &'static str,
+    pub ssh_key_name: Option<&'static str>,
 }
 
 impl State {

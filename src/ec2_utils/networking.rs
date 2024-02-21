@@ -159,9 +159,9 @@ pub async fn get_subnet_vpc_ids(ec2_client: &aws_sdk_ec2::Client) -> OrchResult<
         .map_err(|e| OrchError::Ec2 {
             dbg: format!("Couldn't describe subnets: {:#?}", e),
         })?;
-    assert_eq!(
-        describe_subnet_output.subnets().expect("No subnets?").len(),
-        1
+    assert!(
+        describe_subnet_output.subnets().expect("No subnets?").len() >=
+        1, "Couldn't describe subnets"
     );
 
     let subnet = &describe_subnet_output.subnets().expect("subnets failed")[0];

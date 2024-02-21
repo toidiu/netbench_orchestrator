@@ -156,6 +156,7 @@ pub enum PlacementGroup {
     // typically used by large distributed and replicated workloads, such as
     // Hadoop, Cassandra, and Kafka.
     Partition,
+
     // TODO support spread
     // // Strictly places a small group of instances across distinct underlying
     // // hardware to reduce correlated failures.
