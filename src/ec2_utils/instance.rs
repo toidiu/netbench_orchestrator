@@ -12,7 +12,6 @@ use aws_sdk_ec2::types::{
     InstanceNetworkInterfaceSpecification, InstanceStateName, InstanceType, ResourceType,
     ShutdownBehavior, Tag, TagSpecification,
 };
-use base64::{engine::general_purpose, Engine as _};
 use std::{net::IpAddr, str::FromStr, time::Duration};
 use tracing::info;
 

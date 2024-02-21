@@ -5,10 +5,9 @@ use crate::{
     ec2_utils::instance::delete_instance,
     error::{OrchError, OrchResult},
 };
-use std::{net::IpAddr, time::Duration};
+use std::time::Duration;
 use tracing::info;
 
-mod cluster;
 mod instance;
 mod launch_plan;
 mod networking;

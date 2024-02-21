@@ -5,7 +5,7 @@ use super::{send_command, Step};
 use crate::PrivIp;
 use crate::{state::STATE, NetbenchDriverType, OrchestratorScenario};
 use aws_sdk_ssm::operation::send_command::SendCommandOutput;
-use std::net::{IpAddr, SocketAddr};
+use std::net::SocketAddr;
 use tracing::{debug, info};
 
 pub async fn upload_netbench_data(
