@@ -1,7 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::InfraScenario;
+use crate::OrchestratorConfig;
 use crate::{
     error::{OrchError, OrchResult},
     state::STATE,
@@ -106,14 +106,17 @@ pub async fn launch_instances(
     ec2_client: &aws_sdk_ec2::Client,
     launch_plan: &LaunchPlan<'_>,
     unique_id: &str,
-    count: usize,
+    config: &OrchestratorConfig,
     endpoint_type: EndpointType,
-    infra_scenario: InfraScenario,
 ) -> OrchResult<Vec<Instance>> {
+    let host_count = match endpoint_type {
+        EndpointType::Server => config.servers,
+        EndpointType::Client => config.clients,
+    };
     let instance_type = InstanceType::from(STATE.instance_type);
     let run_result = ec2_client
         .run_instances()
-        .placement(infra_scenario.placement.into())
+        .placement(config.infra.to_ec2_placement(&endpoint_type))
         .key_name(STATE.ssh_key_name)
         .iam_instance_profile(
             IamInstanceProfileSpecification::builder()
@@ -155,8 +158,8 @@ pub async fn launch_instances(
                 .groups(&launch_plan.security_group_id)
                 .build(),
         )
-        .min_count(count as i32)
-        .max_count(count as i32)
+        .min_count(host_count as i32)
+        .max_count(host_count as i32)
         .dry_run(false)
         .send()
         .await

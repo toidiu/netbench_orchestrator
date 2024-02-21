@@ -59,9 +59,8 @@ impl<'a> LaunchPlan<'a> {
             ec2_client,
             self,
             unique_id,
-            self.config.servers,
+            &self.config,
             EndpointType::Server,
-            self.config.infra,
         )
         .await
         .map_err(|err| {
@@ -73,9 +72,8 @@ impl<'a> LaunchPlan<'a> {
             ec2_client,
             self,
             unique_id,
-            self.config.clients,
+            self.config,
             EndpointType::Client,
-            self.config.infra,
         )
         .await
         .map_err(|err| {

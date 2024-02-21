@@ -32,6 +32,7 @@ pub const STATE: State = State {
 
     // aws
     placement_group_cluster: "netbench_cluster",
+    placement_group_partition: "netbench_partition",
     s3_private_log_bucket: "netbenchrunnerlogs-source",
     s3_log_bucket: "netbenchrunnerlogs",
     s3_resource_folder: "TS",
@@ -78,6 +79,7 @@ pub struct State {
 
     // aws
     pub placement_group_cluster: &'static str,
+    pub placement_group_partition: &'static str,
     pub s3_private_log_bucket: &'static str,
     pub s3_log_bucket: &'static str,
     pub s3_resource_folder: &'static str,
