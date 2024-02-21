@@ -4,7 +4,7 @@
 use crate::{
     ec2_utils::instance::{self, EndpointType, InstanceDetail},
     ec2_utils::networking,
-    InfraDetail, InfraScenario, OrchResult, OrchestratorConfig,
+    InfraDetail, OrchResult, OrchestratorConfig,
 };
 use std::time::Duration;
 use tracing::debug;
@@ -16,7 +16,6 @@ pub struct LaunchPlan<'a> {
     pub ami_id: String,
     pub instance_profile_arn: String,
     pub config: &'a OrchestratorConfig,
-    pub infra_scenario: InfraScenario,
 }
 
 impl<'a> LaunchPlan<'a> {
@@ -26,7 +25,6 @@ impl<'a> LaunchPlan<'a> {
         iam_client: &aws_sdk_iam::Client,
         ssm_client: &aws_sdk_ssm::Client,
         config: &'a OrchestratorConfig,
-        infra_scenario: InfraScenario,
     ) -> Self {
         let instance_profile_arn = instance::get_instance_profile(iam_client)
             .await
@@ -49,7 +47,6 @@ impl<'a> LaunchPlan<'a> {
             security_group_id,
             instance_profile_arn,
             config,
-            infra_scenario,
         }
     }
 
@@ -64,7 +61,7 @@ impl<'a> LaunchPlan<'a> {
             unique_id,
             self.config.servers,
             EndpointType::Server,
-            self.infra_scenario,
+            self.config.infra,
         )
         .await
         .map_err(|err| {
@@ -78,7 +75,7 @@ impl<'a> LaunchPlan<'a> {
             unique_id,
             self.config.clients,
             EndpointType::Client,
-            self.infra_scenario,
+            self.config.infra,
         )
         .await
         .map_err(|err| {

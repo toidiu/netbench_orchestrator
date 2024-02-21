@@ -6,7 +6,7 @@ use crate::{
     ec2_utils::LaunchPlan,
     error::{OrchError, OrchResult},
     report::orch_generate_report,
-    ssm_utils, update_dashboard, upload_object, Cli, OrchestratorConfig, STATE,
+    ssm_utils, update_dashboard, upload_object, OrchestratorConfig, STATE,
 };
 use aws_sdk_s3::primitives::ByteStream;
 use aws_types::region::Region;
@@ -60,7 +60,6 @@ use tracing::info;
 
 pub async fn run(
     unique_id: String,
-    cli: Cli,
     config: OrchestratorConfig,
     aws_config: &aws_types::SdkConfig,
 ) -> OrchResult<()> {
@@ -91,17 +90,10 @@ pub async fn run(
     update_dashboard(dashboard::Step::UploadIndex, &s3_client, &unique_id).await?;
 
     // Setup instances
-    let infra = LaunchPlan::create(
-        &unique_id,
-        &ec2_client,
-        &iam_client,
-        &ssm_client,
-        &config,
-        cli.infra,
-    )
-    .await
-    .launch(&ec2_client, &unique_id)
-    .await?;
+    let infra = LaunchPlan::create(&unique_id, &ec2_client, &iam_client, &ssm_client, &config)
+        .await
+        .launch(&ec2_client, &unique_id)
+        .await?;
     let client_ids: Vec<String> = infra
         .clients
         .clone()

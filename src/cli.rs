@@ -15,29 +15,10 @@ use std::{fs::File, path::Path, process::Command};
 pub struct Cli {
     /// Path to the scenario file
     #[arg(long)]
-    pub scenario_file: PathBuf,
+    scenario_file: PathBuf,
 
     #[command(flatten)]
-    pub infra: InfraScenario,
-}
-
-#[derive(Clone, Debug)]
-pub struct OrchestratorConfig {
-    pub netbench_scenario_filename: String,
-    pub netbench_scenario_filepath: PathBuf,
-    pub clients: usize,
-    pub servers: usize,
-}
-
-impl OrchestratorConfig {
-    pub fn netbench_scenario_file_stem(&self) -> &str {
-        self.netbench_scenario_filepath
-            .as_path()
-            .file_stem()
-            .expect("expect scenario file")
-            .to_str()
-            .unwrap()
-    }
+    infra: InfraScenario,
 }
 
 #[derive(Copy, Clone, Debug, Default, Args)]
@@ -52,9 +33,29 @@ pub struct InfraScenario {
     // ssh_key_name
 }
 
+#[derive(Clone, Debug)]
+pub struct OrchestratorConfig {
+    pub netbench_scenario_filename: String,
+    pub netbench_scenario_filepath: PathBuf,
+    pub clients: usize,
+    pub servers: usize,
+    pub infra: InfraScenario,
+}
+
+impl OrchestratorConfig {
+    pub fn netbench_scenario_file_stem(&self) -> &str {
+        self.netbench_scenario_filepath
+            .as_path()
+            .file_stem()
+            .expect("expect scenario file")
+            .to_str()
+            .unwrap()
+    }
+}
+
 impl Cli {
     pub async fn check_requirements(
-        &self,
+        self,
         aws_config: &aws_types::SdkConfig,
     ) -> OrchResult<OrchestratorConfig> {
         let path = Path::new(&self.scenario_file);
@@ -75,6 +76,7 @@ impl Cli {
             netbench_scenario_filepath: self.scenario_file.clone(),
             clients: scenario.clients.len(),
             servers: scenario.servers.len(),
+            infra: self.infra,
         };
 
         // export PATH="/home/toidiu/projects/s2n-quic/netbench/target/release/:$PATH"
