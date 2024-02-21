@@ -37,6 +37,7 @@ use tracing::info;
 //
 // # Features
 // - capture driver to run as part of Scenario
+// - fix graph colors in incast reports
 //
 // # Optimization
 // - use release build instead of debug
