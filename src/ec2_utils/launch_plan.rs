@@ -58,7 +58,7 @@ impl<'a> LaunchPlan<'a> {
         ec2_client: &aws_sdk_ec2::Client,
         unique_id: &str,
     ) -> OrchResult<InfraDetail> {
-        let servers = instance::launch_instance(
+        let servers = instance::launch_instances(
             ec2_client,
             self,
             unique_id,
@@ -72,7 +72,7 @@ impl<'a> LaunchPlan<'a> {
             err
         })?;
 
-        let clients = instance::launch_instance(
+        let clients = instance::launch_instances(
             ec2_client,
             self,
             unique_id,

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::STATE;
-use aws_sdk_ec2::types::Placement as AwsPlacementType;
+use aws_sdk_ec2::types::Placement as AwsPlacement;
 use clap::Args;
 use clap::Parser;
 use serde::Deserialize;
@@ -22,8 +22,9 @@ pub struct Cli {
 #[derive(Copy, Clone, Debug, Default, Args)]
 pub struct InfraScenario {
     /// Placement strategy for the netbench hosts
-    #[arg(long)]
+    #[arg(long, default_value="cluster")]
     pub placement: PlacementGroup,
+
     // #[arg(long)]
     // instance_type: String
     // region
@@ -31,11 +32,10 @@ pub struct InfraScenario {
     // ssh_key_name
 }
 
-impl From<PlacementGroup> for AwsPlacementType {
+impl From<PlacementGroup> for AwsPlacement {
     fn from(value: PlacementGroup) -> Self {
-        let mut placement = AwsPlacementType::builder();
+        let mut placement = AwsPlacement::builder();
         placement = match value {
-            PlacementGroup::Partition => placement.group_name(STATE.placement_group_partition),
             PlacementGroup::Cluster => placement.group_name(STATE.placement_group_cluster),
         };
         placement.build()
@@ -46,18 +46,19 @@ impl From<PlacementGroup> for AwsPlacementType {
 #[derive(Copy, Clone, Debug, Default, clap::ValueEnum)]
 pub enum PlacementGroup {
     #[default]
-    // Spreads your instances across logical partitions such that groups of
-    // instances in one partition do not share the underlying hardware with
-    // groups of instances in different partitions. This strategy is
-    // typically used by large distributed and replicated workloads, such as
-    // Hadoop, Cassandra, and Kafka.
-    Partition,
-
     // Packs instances close together inside an Availability Zone. This
     // strategy enables workloads to achieve the low-latency network
     // performance necessary for tightly-coupled node-to-node communication
     // that is typical of high-performance computing (HPC) applications.
     Cluster,
+
+    // support partition
+    // // Spreads your instances across logical partitions such that groups of
+    // // instances in one partition do not share the underlying hardware with
+    // // groups of instances in different partitions. This strategy is
+    // // typically used by large distributed and replicated workloads, such as
+    // // Hadoop, Cassandra, and Kafka.
+    // Partition,
 
     // TODO support spread
     // // Strictly places a small group of instances across distinct underlying
@@ -71,6 +72,7 @@ pub struct NetbenchScenario {
     // pub id: Id,
     pub clients: Vec<Value>,
     pub servers: Vec<Value>,
+
     // #[serde(skip_serializing_if = "Vec::is_empty", default)]
     // pub routers: Vec<Arc<Router>>,
     // #[serde(skip_serializing_if = "Vec::is_empty", default)]
@@ -79,7 +81,6 @@ pub struct NetbenchScenario {
     // pub certificates: Vec<Arc<Certificate>>,
 }
 
-/// Captures
 #[derive(Clone, Debug)]
 pub struct OrchestratorScenario {
     pub netbench_scenario_filename: String,

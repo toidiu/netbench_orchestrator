@@ -102,7 +102,7 @@ impl InstanceDetail {
     }
 }
 
-pub async fn launch_instance(
+pub async fn launch_instances(
     ec2_client: &aws_sdk_ec2::Client,
     launch_plan: &LaunchPlan<'_>,
     unique_id: &str,
