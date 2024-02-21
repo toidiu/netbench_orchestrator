@@ -4,7 +4,7 @@
 use crate::{
     ec2_utils::instance::{self, EndpointType, InstanceDetail},
     ec2_utils::networking,
-    InfraDetail, InfraScenario, OrchResult, OrchestratorScenario,
+    InfraDetail, InfraScenario, OrchResult, OrchestratorConfig,
 };
 use std::time::Duration;
 use tracing::debug;
@@ -15,7 +15,7 @@ pub struct LaunchPlan<'a> {
     pub security_group_id: String,
     pub ami_id: String,
     pub instance_profile_arn: String,
-    pub scenario: &'a OrchestratorScenario,
+    pub scenario: &'a OrchestratorConfig,
     pub infra_scenario: InfraScenario,
 }
 
@@ -25,7 +25,7 @@ impl<'a> LaunchPlan<'a> {
         ec2_client: &aws_sdk_ec2::Client,
         iam_client: &aws_sdk_iam::Client,
         ssm_client: &aws_sdk_ssm::Client,
-        scenario: &'a OrchestratorScenario,
+        scenario: &'a OrchestratorConfig,
         infra_scenario: InfraScenario,
     ) -> Self {
         let instance_profile_arn = instance::get_instance_profile(iam_client)

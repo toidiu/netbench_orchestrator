@@ -62,7 +62,10 @@ impl NetbenchDriverType {
             NetbenchDriverType::Local(source) => source.ssm_build_cmd.clone(),
             NetbenchDriverType::CratesIo(source) => source.ssm_build_crates_io_proj(),
         };
-        self.ssm_build_collector().into_iter().chain(build_cmd).collect()
+        self.ssm_build_collector()
+            .into_iter()
+            .chain(build_cmd)
+            .collect()
     }
 
     pub fn ssm_build_collector(&self) -> Vec<String> {

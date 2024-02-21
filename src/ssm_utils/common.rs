@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::{send_command, Step};
-use crate::OrchestratorScenario;
+use crate::OrchestratorConfig;
 use crate::{poll_ssm_results, state::STATE, NetbenchDriverType};
 use aws_sdk_ssm::operation::send_command::SendCommandOutput;
 use core::time::Duration;
@@ -62,7 +62,7 @@ pub async fn collect_config_cmds(
     host_group: &str,
     ssm_client: &aws_sdk_ssm::Client,
     instance_ids: Vec<String>,
-    scenario: &OrchestratorScenario,
+    scenario: &OrchestratorConfig,
     netbench_drivers: &Vec<NetbenchDriverType>,
     unique_id: &str,
 ) -> Vec<SendCommandOutput> {
@@ -185,7 +185,7 @@ async fn upload_netbench_scenario_file(
     host_group: &str,
     ssm_client: &aws_sdk_ssm::Client,
     instance_ids: Vec<String>,
-    scenario: &OrchestratorScenario,
+    scenario: &OrchestratorConfig,
     unique_id: &str,
 ) -> SendCommandOutput {
     send_command(

@@ -3,7 +3,7 @@
 
 use super::{send_command, Step};
 use crate::PrivIp;
-use crate::{state::STATE, NetbenchDriverType, OrchestratorScenario};
+use crate::{state::STATE, NetbenchDriverType, OrchestratorConfig};
 use aws_sdk_ssm::operation::send_command::SendCommandOutput;
 use std::net::SocketAddr;
 use tracing::{debug, info};
@@ -12,7 +12,7 @@ pub async fn upload_netbench_data(
     ssm_client: &aws_sdk_ssm::Client,
     instance_ids: Vec<String>,
     unique_id: &str,
-    scenario: &OrchestratorScenario,
+    scenario: &OrchestratorConfig,
     driver: &NetbenchDriverType,
 ) -> SendCommandOutput {
     let driver_name = driver.trim_driver_name();
@@ -41,7 +41,7 @@ pub async fn run_russula_worker(
     instance_ids: Vec<String>,
     server_ips: Vec<&PrivIp>,
     driver: &NetbenchDriverType,
-    scenario: &OrchestratorScenario,
+    scenario: &OrchestratorConfig,
 ) -> SendCommandOutput {
     let netbench_server_addr = server_ips
         .iter()

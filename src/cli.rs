@@ -1,6 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::error::{OrchError, OrchResult};
 use crate::STATE;
 use aws_sdk_ec2::types::Placement as AwsPlacement;
 use clap::Args;
@@ -8,6 +9,7 @@ use clap::Parser;
 use serde::Deserialize;
 use serde_json::Value;
 use std::path::PathBuf;
+use std::{fs::File, path::Path, process::Command};
 
 #[derive(Parser, Debug)]
 pub struct Cli {
@@ -19,17 +21,92 @@ pub struct Cli {
     pub infra: InfraScenario,
 }
 
+#[derive(Clone, Debug)]
+pub struct OrchestratorConfig {
+    pub netbench_scenario_filename: String,
+    pub netbench_scenario_filepath: PathBuf,
+    pub clients: usize,
+    pub servers: usize,
+}
+
+impl OrchestratorConfig {
+    pub fn netbench_scenario_file_stem(&self) -> &str {
+        self.netbench_scenario_filepath
+            .as_path()
+            .file_stem()
+            .expect("expect scenario file")
+            .to_str()
+            .unwrap()
+    }
+}
+
 #[derive(Copy, Clone, Debug, Default, Args)]
 pub struct InfraScenario {
     /// Placement strategy for the netbench hosts
-    #[arg(long, default_value="cluster")]
+    #[arg(long, default_value = "cluster")]
     pub placement: PlacementGroup,
-
     // #[arg(long)]
     // instance_type: String
     // region
     // AZ
     // ssh_key_name
+}
+
+impl Cli {
+    pub async fn check_requirements(
+        &self,
+        aws_config: &aws_types::SdkConfig,
+    ) -> OrchResult<OrchestratorConfig> {
+        let path = Path::new(&self.scenario_file);
+        let name = path
+            .file_name()
+            .and_then(|f| f.to_str())
+            .ok_or(OrchError::Init {
+                dbg: "Scenario file not specified".to_string(),
+            })?
+            .to_string();
+        let scenario_file = File::open(path).map_err(|_err| OrchError::Init {
+            dbg: format!("Scenario file not found: {:?}", path),
+        })?;
+        let scenario: NetbenchScenario = serde_json::from_reader(scenario_file).unwrap();
+
+        let ctx = OrchestratorConfig {
+            netbench_scenario_filename: name,
+            netbench_scenario_filepath: self.scenario_file.clone(),
+            clients: scenario.clients.len(),
+            servers: scenario.servers.len(),
+        };
+
+        // export PATH="/home/toidiu/projects/s2n-quic/netbench/target/release/:$PATH"
+        Command::new("s2n-netbench")
+            .output()
+            .map_err(|_err| OrchError::Init {
+                dbg: "Missing `s2n-netbench` cli. Please the Getting started section in the Readme"
+                    .to_string(),
+            })?;
+
+        Command::new("aws")
+            .output()
+            .map_err(|_err| OrchError::Init {
+                dbg: "Missing `aws` cli.".to_string(),
+            })?;
+
+        // report folder
+        std::fs::create_dir_all(STATE.workspace_dir).map_err(|_err| OrchError::Init {
+            dbg: "Failed to create local workspace".to_string(),
+        })?;
+
+        let iam_client = aws_sdk_iam::Client::new(aws_config);
+        iam_client
+            .list_roles()
+            .send()
+            .await
+            .map_err(|_err| OrchError::Init {
+                dbg: "Missing AWS credentials.".to_string(),
+            })?;
+
+        Ok(ctx)
+    }
 }
 
 impl From<PlacementGroup> for AwsPlacement {
@@ -51,7 +128,6 @@ pub enum PlacementGroup {
     // performance necessary for tightly-coupled node-to-node communication
     // that is typical of high-performance computing (HPC) applications.
     Cluster,
-
     // support partition
     // // Spreads your instances across logical partitions such that groups of
     // // instances in one partition do not share the underlying hardware with
@@ -72,30 +148,10 @@ pub struct NetbenchScenario {
     // pub id: Id,
     pub clients: Vec<Value>,
     pub servers: Vec<Value>,
-
     // #[serde(skip_serializing_if = "Vec::is_empty", default)]
     // pub routers: Vec<Arc<Router>>,
     // #[serde(skip_serializing_if = "Vec::is_empty", default)]
     // pub traces: Arc<Vec<String>>,
     // #[serde(skip_serializing_if = "Vec::is_empty", default)]
     // pub certificates: Vec<Arc<Certificate>>,
-}
-
-#[derive(Clone, Debug)]
-pub struct OrchestratorScenario {
-    pub netbench_scenario_filename: String,
-    pub netbench_scenario_filepath: PathBuf,
-    pub clients: usize,
-    pub servers: usize,
-}
-
-impl OrchestratorScenario {
-    pub fn netbench_scenario_file_stem(&self) -> &str {
-        self.netbench_scenario_filepath
-            .as_path()
-            .file_stem()
-            .expect("expect scenario file")
-            .to_str()
-            .unwrap()
-    }
 }

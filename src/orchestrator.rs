@@ -6,7 +6,7 @@ use crate::{
     ec2_utils::LaunchPlan,
     error::{OrchError, OrchResult},
     report::orch_generate_report,
-    ssm_utils, update_dashboard, upload_object, Cli, OrchestratorScenario, STATE,
+    ssm_utils, update_dashboard, upload_object, Cli, OrchestratorConfig, STATE,
 };
 use aws_sdk_s3::primitives::ByteStream;
 use aws_types::region::Region;
@@ -61,7 +61,7 @@ use tracing::info;
 pub async fn run(
     unique_id: String,
     cli: Cli,
-    scenario: OrchestratorScenario,
+    scenario: OrchestratorConfig,
     aws_config: &aws_types::SdkConfig,
 ) -> OrchResult<()> {
     let iam_client = aws_sdk_iam::Client::new(aws_config);
