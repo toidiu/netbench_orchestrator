@@ -47,7 +47,7 @@ async fn main() -> OrchResult<()> {
     let cli = Cli::parse();
     let region = Region::new(STATE.region);
     let aws_config = aws_config::from_env().region(region).load().await;
-    let scenario = cli.check_requirements(&aws_config).await?;
+    let config = cli.check_requirements(&aws_config).await?;
 
-    orchestrator::run(unique_id, cli, scenario, &aws_config).await
+    orchestrator::run(unique_id, cli, config, &aws_config).await
 }

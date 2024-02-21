@@ -61,7 +61,7 @@ use tracing::info;
 pub async fn run(
     unique_id: String,
     cli: Cli,
-    scenario: OrchestratorConfig,
+    config: OrchestratorConfig,
     aws_config: &aws_types::SdkConfig,
 ) -> OrchResult<()> {
     let iam_client = aws_sdk_iam::Client::new(aws_config);
@@ -74,7 +74,7 @@ pub async fn run(
     let ec2_client = aws_sdk_ec2::Client::new(&shared_config_vpc);
     let ssm_client = aws_sdk_ssm::Client::new(&shared_config_vpc);
 
-    let scenario_file = ByteStream::from_path(&scenario.netbench_scenario_filepath)
+    let scenario_file = ByteStream::from_path(&config.netbench_scenario_filepath)
         .await
         .map_err(|err| OrchError::Init {
             dbg: err.to_string(),
@@ -83,7 +83,7 @@ pub async fn run(
         &s3_client,
         STATE.s3_log_bucket,
         scenario_file,
-        &format!("{unique_id}/{}", scenario.netbench_scenario_filename),
+        &format!("{unique_id}/{}", config.netbench_scenario_filename),
     )
     .await
     .unwrap();
@@ -96,7 +96,7 @@ pub async fn run(
         &ec2_client,
         &iam_client,
         &ssm_client,
-        &scenario,
+        &config,
         cli.infra,
     )
     .await
@@ -157,7 +157,7 @@ pub async fn run(
             "server",
             &ssm_client,
             server_ids.clone(),
-            &scenario,
+            &config,
             &server_drivers,
             &unique_id,
         )
@@ -166,7 +166,7 @@ pub async fn run(
             "client",
             &ssm_client,
             client_ids.clone(),
-            &scenario,
+            &config,
             &client_drivers,
             &unique_id,
         )
@@ -201,7 +201,7 @@ pub async fn run(
                 &ssm_client,
                 &infra,
                 server_ids.clone(),
-                &scenario,
+                &config,
                 &server_driver,
             )
             .await;
@@ -210,7 +210,7 @@ pub async fn run(
                 &ssm_client,
                 &infra,
                 client_ids.clone(),
-                &scenario,
+                &config,
                 &client_driver,
             )
             .await;
@@ -227,7 +227,7 @@ pub async fn run(
                 &ssm_client,
                 server_ids.clone(),
                 &unique_id,
-                &scenario,
+                &config,
                 &server_driver,
             )
             .await;
@@ -235,7 +235,7 @@ pub async fn run(
                 &ssm_client,
                 client_ids.clone(),
                 &unique_id,
-                &scenario,
+                &config,
                 &client_driver,
             )
             .await;

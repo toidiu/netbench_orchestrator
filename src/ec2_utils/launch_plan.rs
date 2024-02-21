@@ -15,7 +15,7 @@ pub struct LaunchPlan<'a> {
     pub security_group_id: String,
     pub ami_id: String,
     pub instance_profile_arn: String,
-    pub scenario: &'a OrchestratorConfig,
+    pub config: &'a OrchestratorConfig,
     pub infra_scenario: InfraScenario,
 }
 
@@ -25,7 +25,7 @@ impl<'a> LaunchPlan<'a> {
         ec2_client: &aws_sdk_ec2::Client,
         iam_client: &aws_sdk_iam::Client,
         ssm_client: &aws_sdk_ssm::Client,
-        scenario: &'a OrchestratorConfig,
+        config: &'a OrchestratorConfig,
         infra_scenario: InfraScenario,
     ) -> Self {
         let instance_profile_arn = instance::get_instance_profile(iam_client)
@@ -48,7 +48,7 @@ impl<'a> LaunchPlan<'a> {
             subnet_id,
             security_group_id,
             instance_profile_arn,
-            scenario,
+            config,
             infra_scenario,
         }
     }
@@ -62,7 +62,7 @@ impl<'a> LaunchPlan<'a> {
             ec2_client,
             self,
             unique_id,
-            self.scenario.servers,
+            self.config.servers,
             EndpointType::Server,
             self.infra_scenario,
         )
@@ -76,7 +76,7 @@ impl<'a> LaunchPlan<'a> {
             ec2_client,
             self,
             unique_id,
-            self.scenario.clients,
+            self.config.clients,
             EndpointType::Client,
             self.infra_scenario,
         )
