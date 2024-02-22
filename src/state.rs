@@ -36,21 +36,6 @@ pub const STATE: State = State {
     placement_group_partition: "NetbenchInfraPrimaryProd-Partition9E68ED67-LC9VKTZBNJJ8",
     // json
     s3_private_log_bucket: "netbenchrunner-private-source-prod",
-    // json "NetbenchRunnerS3Bucket"
-    // s3_log_bucket: "netbenchrunnerlogs-public-prod",
-    // json "NetbenchCloudfrontDistibution"
-    // cloudfront_url: "https://d37mm99fcr6hy4.cloudfront.net",
-    // json "NetbenchRunnerLogGroup"
-    // cloud_watch_group: "NetbenchInfraPrimaryProd-NetbenchRunnerLogGroup2B821E01-yfykCkGeMuS4",
-    // Used to give permissions to the ec2 instance. Part of the IAM Role `NetbenchRunnerRole`
-    // json "NetbenchRunnerInstanceProfile"
-    instance_profile: "NetbenchInfraPrimaryProd-instanceProfile9C1E1CDD-kVoSXbmUxoBA",
-    // Used to find subnets with the following tag/value pair
-    // json "NetbenchRunnerVPCSubnetTag"
-    subnet_tag_value: (
-        "tag:aws-cdk:netbench-subnet-name",
-        "public-subnet-for-netbench-runners",
-    ),
     // create/import a key pair to the account
     ssh_key_name: None,
     // ssh_key_name: Some("apoorvko_m1"),
@@ -88,11 +73,6 @@ pub struct State {
     pub placement_group_cluster: &'static str,
     pub placement_group_partition: &'static str,
     pub s3_private_log_bucket: &'static str,
-    // pub s3_log_bucket: &'static str,
-    // pub cloudfront_url: &'static str,
-    // pub cloud_watch_group: &'static str,
-    pub instance_profile: &'static str,
-    pub subnet_tag_value: (&'static str, &'static str),
     pub ssh_key_name: Option<&'static str>,
 }
 

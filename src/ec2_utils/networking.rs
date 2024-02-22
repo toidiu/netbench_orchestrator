@@ -1,6 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::OrchestratorConfig;
 use crate::{
     error::{OrchError, OrchResult},
     InfraDetail, STATE,
@@ -145,13 +146,16 @@ pub async fn create_security_group(
 //      There is some connection between Security Groups and
 //      Subnets such that they have to be "in the same network"
 //       I'm unclear here.
-pub async fn get_subnet_vpc_ids(ec2_client: &aws_sdk_ec2::Client) -> OrchResult<(String, String)> {
+pub async fn get_subnet_vpc_ids(
+    ec2_client: &aws_sdk_ec2::Client,
+    config: &OrchestratorConfig,
+) -> OrchResult<(String, String)> {
     let describe_subnet_output = ec2_client
         .describe_subnets()
         .filters(
             Filter::builder()
-                .name(STATE.subnet_tag_value.0)
-                .values(STATE.subnet_tag_value.1)
+                .name(config.cdk_config.netbench_runner_vpc_subnet_tag_key())
+                .values(config.cdk_config.netbench_runner_vpc_subnet_tag_value())
                 .build(),
         )
         .send()

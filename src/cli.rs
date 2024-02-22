@@ -203,6 +203,18 @@ impl CdkConfig {
     pub fn netbench_runner_log_group(&self) -> &String {
         &self.resources.netbench_runner_log_group
     }
+
+    pub fn netbench_runner_instance_profile(&self) -> &String {
+        &self.resources.netbench_runner_instance_profile
+    }
+
+    pub fn netbench_runner_vpc_subnet_tag_key(&self) -> String {
+        format!("tag:{}", self.resources.netbench_runner_vpc_subnet_tag.key)
+    }
+
+    pub fn netbench_runner_vpc_subnet_tag_value(&self) -> &String {
+        &self.resources.netbench_runner_vpc_subnet_tag.value
+    }
 }
 
 #[derive(Clone, Debug, Default, Deserialize)]
@@ -217,9 +229,9 @@ struct Resources {
 }
 
 #[derive(Clone, Debug, Default, Deserialize)]
-struct SubnetTag {
-    key: String,
-    value: String,
+pub struct SubnetTag {
+    pub key: String,
+    pub value: String,
 }
 
 impl CdkConfig {

@@ -26,14 +26,14 @@ impl<'a> LaunchPlan<'a> {
         ssm_client: &aws_sdk_ssm::Client,
         config: &'a OrchestratorConfig,
     ) -> Self {
-        let instance_profile_arn = instance::get_instance_profile(iam_client)
+        let instance_profile_arn = instance::get_instance_profile(iam_client, config)
             .await
             .expect("get_instance_profile failed");
         let ami_id = instance::get_latest_ami(ssm_client)
             .await
             .expect("get_latest_ami failed");
 
-        let (subnet_id, vpc_id) = networking::get_subnet_vpc_ids(ec2_client)
+        let (subnet_id, vpc_id) = networking::get_subnet_vpc_ids(ec2_client, config)
             .await
             .expect("get_subnet_vpc_ids failed");
         // Create a security group

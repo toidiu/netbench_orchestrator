@@ -243,10 +243,13 @@ pub async fn poll_running(
     })
 }
 
-pub async fn get_instance_profile(iam_client: &aws_sdk_iam::Client) -> OrchResult<String> {
+pub async fn get_instance_profile(
+    iam_client: &aws_sdk_iam::Client,
+    config: &OrchestratorConfig,
+) -> OrchResult<String> {
     let instance_profile_arn = iam_client
         .get_instance_profile()
-        .instance_profile_name(STATE.instance_profile)
+        .instance_profile_name(config.cdk_config.netbench_runner_instance_profile())
         .send()
         .await
         .map_err(|err| OrchError::Iam {
