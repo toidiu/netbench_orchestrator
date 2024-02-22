@@ -2,7 +2,8 @@
 run_orchestrator:
 	RUST_LOG=none,orchestrator::russula=info,orchestrator=debug cargo run --bin orchestrator -- \
 					 --placement cluster \
-					 --scenario-file scripts/request_response_multi_5_incast_1GB_req_resp.json
+					 --netbench-scenario-file scripts/request_response_multi_5_incast_1GB_req_resp.json \
+					 --cdk-config-file output.json
 					 # --server-az us-west-2a \
 					 # --client-az us-west-2b \
 					 # --scenario-file scripts/request_response_multi_20_incast_1GB_req_resp.json

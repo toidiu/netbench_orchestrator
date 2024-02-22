@@ -45,7 +45,10 @@ pub const STATE: State = State {
     instance_profile: "NetbenchInfraPrimaryProd-instanceProfile9C1E1CDD-kVoSXbmUxoBA",
     // Used to find subnets with the following tag/value pair
     // json "NetbenchRunnerVPCSubnetTag"
-    subnet_tag_value: ("tag:aws-cdk:netbench-subnet-name", "public-subnet-for-netbench-runners"),
+    subnet_tag_value: (
+        "tag:aws-cdk:netbench-subnet-name",
+        "public-subnet-for-netbench-runners",
+    ),
     // create/import a key pair to the account
     ssh_key_name: None,
     // ssh_key_name: Some("apoorvko_m1"),
