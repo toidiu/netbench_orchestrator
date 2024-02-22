@@ -31,6 +31,7 @@ pub async fn upload_netbench_data(
         ssm_client,
         instance_ids,
         cmd.into_iter().map(String::from).collect(),
+        config,
     )
     .await
     .expect("Timed out")
@@ -69,6 +70,7 @@ pub async fn run_russula_worker(
             .into_iter()
             .map(String::from)
             .collect(),
+        config,
     )
     .await
     .expect("Timed out")

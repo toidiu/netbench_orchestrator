@@ -1,6 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::OrchestratorConfig;
 use crate::{
     error::{OrchError, OrchResult},
     state::STATE,
@@ -63,6 +64,7 @@ pub async fn send_command(
     ssm_client: &aws_sdk_ssm::Client,
     ids: Vec<String>,
     commands: Vec<String>,
+    config: &OrchestratorConfig,
 ) -> Option<SendCommandOutput> {
     let command = {
         // SSM doesnt have a concept of order. However, we would still
@@ -134,7 +136,7 @@ pub async fn send_command(
             .parameters("commands", command.clone())
             .cloud_watch_output_config(
                 CloudWatchOutputConfig::builder()
-                    .cloud_watch_log_group_name(STATE.cloud_watch_group)
+                    .cloud_watch_log_group_name(config.cdk_config.netbench_runner_log_group())
                     .cloud_watch_output_enabled(true)
                     .build(),
             )

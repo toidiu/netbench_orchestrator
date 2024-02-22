@@ -91,10 +91,12 @@ pub async fn collect_config_cmds(
     let mut build_drivers = Vec::new();
     for driver in netbench_drivers {
         let build_driver_cmd =
-            build_netbench_driver_cmd(host_group, driver, ssm_client, instance_ids.clone()).await;
+            build_netbench_driver_cmd(host_group, driver, ssm_client, instance_ids.clone(), config)
+                .await;
         build_drivers.push(build_driver_cmd);
     }
-    let build_russula = build_russula_cmd(host_group, ssm_client, instance_ids.clone()).await;
+    let build_russula =
+        build_russula_cmd(host_group, ssm_client, instance_ids.clone(), config).await;
 
     vec![install_deps, upload_scenario_file, build_russula]
         .into_iter()
@@ -133,9 +135,7 @@ async fn install_deps_cmd(
         "runuser -u ec2-user -- ./.cargo/bin/rustup update".to_string(),
         // TODO sim link rustc from home/ec2-user/bin
         format!("ln -s /home/ec2-user/.cargo/bin/cargo {}", STATE.cargo_path())
-
-
-    ]).await.expect("Timed out")
+    ], config).await.expect("Timed out")
 }
 
 async fn build_netbench_driver_cmd(
@@ -143,6 +143,7 @@ async fn build_netbench_driver_cmd(
     driver: &NetbenchDriverType,
     ssm_client: &aws_sdk_ssm::Client,
     instance_ids: Vec<String>,
+    config: &OrchestratorConfig,
 ) -> SendCommandOutput {
     send_command(
         vec![Step::UploadScenarioFile, Step::Configure],
@@ -152,6 +153,7 @@ async fn build_netbench_driver_cmd(
         ssm_client,
         instance_ids,
         driver.ssm_build_cmd(),
+        config,
     )
     .await
     .expect("Timed out")
@@ -161,6 +163,7 @@ async fn build_russula_cmd(
     host_group: &str,
     ssm_client: &aws_sdk_ssm::Client,
     instance_ids: Vec<String>,
+    config: &OrchestratorConfig,
 ) -> SendCommandOutput {
     send_command(
         vec![Step::UploadScenarioFile, Step::Configure],
@@ -185,6 +188,7 @@ async fn build_russula_cmd(
         .into_iter()
         .map(String::from)
         .collect(),
+        config,
     )
     .await
     .expect("Timed out")
@@ -220,6 +224,7 @@ async fn upload_netbench_scenario_file(
         .into_iter()
         .map(String::from)
         .collect(),
+        config,
     )
     .await
     .expect("Timed out")

@@ -195,6 +195,14 @@ impl CdkConfig {
     pub fn netbench_runner_s3_bucket(&self) -> &String {
         &self.resources.netbench_runner_s3_bucket
     }
+
+    pub fn netbench_cloudfront_distibution(&self) -> &String {
+        &self.resources.netbench_cloudfront_distibution
+    }
+
+    pub fn netbench_runner_log_group(&self) -> &String {
+        &self.resources.netbench_runner_log_group
+    }
 }
 
 #[derive(Clone, Debug, Default, Deserialize)]

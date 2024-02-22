@@ -69,9 +69,9 @@ pub async fn orch_generate_report(
     update_report_url(s3_client, unique_id, config).await;
 
     println!("Report Finished!: Successful: true");
-    println!("URL: {}/report/index.html", STATE.cf_url(unique_id));
+    println!("URL: {}/report/index.html", STATE.cf_url(unique_id, config));
     info!("Report Finished!: Successful: true");
-    info!("URL: {}/report/index.html", STATE.cf_url(unique_id));
+    info!("URL: {}/report/index.html", STATE.cf_url(unique_id, config));
 
     let get_logs = true;
     if get_logs {
@@ -111,7 +111,7 @@ async fn update_report_url(
 ) {
     let body = ByteStream::new(SdkBody::from(format!(
         "<a href=\"{}/report/index.html\">Final Report</a>",
-        STATE.cf_url(unique_id)
+        STATE.cf_url(unique_id, config)
     )));
     let key = format!("{}/finished-step-0", unique_id);
     let _ = upload_object(

@@ -39,9 +39,9 @@ pub const STATE: State = State {
     // json "NetbenchRunnerS3Bucket"
     // s3_log_bucket: "netbenchrunnerlogs-public-prod",
     // json "NetbenchCloudfrontDistibution"
-    cloudfront_url: "https://d37mm99fcr6hy4.cloudfront.net",
+    // cloudfront_url: "https://d37mm99fcr6hy4.cloudfront.net",
     // json "NetbenchRunnerLogGroup"
-    cloud_watch_group: "NetbenchInfraPrimaryProd-NetbenchRunnerLogGroup2B821E01-yfykCkGeMuS4",
+    // cloud_watch_group: "NetbenchInfraPrimaryProd-NetbenchRunnerLogGroup2B821E01-yfykCkGeMuS4",
     // Used to give permissions to the ec2 instance. Part of the IAM Role `NetbenchRunnerRole`
     // json "NetbenchRunnerInstanceProfile"
     instance_profile: "NetbenchInfraPrimaryProd-instanceProfile9C1E1CDD-kVoSXbmUxoBA",
@@ -89,16 +89,20 @@ pub struct State {
     pub placement_group_partition: &'static str,
     pub s3_private_log_bucket: &'static str,
     // pub s3_log_bucket: &'static str,
-    pub cloudfront_url: &'static str,
-    pub cloud_watch_group: &'static str,
+    // pub cloudfront_url: &'static str,
+    // pub cloud_watch_group: &'static str,
     pub instance_profile: &'static str,
     pub subnet_tag_value: (&'static str, &'static str),
     pub ssh_key_name: Option<&'static str>,
 }
 
 impl State {
-    pub fn cf_url(&self, unique_id: &str) -> String {
-        format!("{}/{}", self.cloudfront_url, unique_id)
+    pub fn cf_url(&self, unique_id: &str, config: &OrchestratorConfig) -> String {
+        format!(
+            "{}/{}",
+            config.cdk_config.netbench_cloudfront_distibution(),
+            unique_id
+        )
     }
 
     pub fn s3_path(&self, unique_id: &str, config: &OrchestratorConfig) -> String {

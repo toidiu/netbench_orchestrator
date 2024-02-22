@@ -31,10 +31,11 @@ async fn upload_index_html(
     unique_id: &str,
     config: &OrchestratorConfig,
 ) -> OrchResult<()> {
-    let status = format!("{}/index.html", STATE.cf_url(unique_id));
-    let template_server_prefix = format!("{}/server-step-", STATE.cf_url(unique_id));
-    let template_client_prefix = format!("{}/client-step-", STATE.cf_url(unique_id));
-    let template_finished_prefix = format!("{}/finished-step-", STATE.cf_url(unique_id));
+    let cf_url = STATE.cf_url(unique_id, config);
+    let status = format!("{}/index.html", cf_url);
+    let template_server_prefix = format!("{}/server-step-", cf_url);
+    let template_client_prefix = format!("{}/client-step-", cf_url);
+    let template_finished_prefix = format!("{}/finished-step-", cf_url);
 
     // Upload a status file to s3:
     let index_file = std::fs::read_to_string("index.html")
