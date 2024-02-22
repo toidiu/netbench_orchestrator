@@ -6,7 +6,7 @@ use crate::OrchestratorConfig;
 use core::time::Duration;
 
 pub const STATE: State = State {
-    version: "v2.2.1",
+    version: "v2.2.2",
 
     // TODO remove `vpc_region` and configure vpc/subnet in same `region`
     region: "us-west-2",
