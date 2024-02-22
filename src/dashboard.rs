@@ -1,8 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::OrchestratorConfig;
-use crate::{error::OrchResult, upload_object, InstanceDetail, STATE};
+use crate::{error::OrchResult, upload_object, InstanceDetail, OrchestratorConfig, STATE};
 use aws_sdk_s3::primitives::ByteStream;
 use bytes::Bytes;
 use tracing::info;

@@ -1,11 +1,10 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::OrchestratorConfig;
 use crate::{
     error::{OrchError, OrchResult},
     state::STATE,
-    LaunchPlan,
+    LaunchPlan, OrchestratorConfig,
 };
 use aws_sdk_ec2::types::{
     BlockDeviceMapping, EbsBlockDevice, IamInstanceProfileSpecification, Instance,

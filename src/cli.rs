@@ -1,15 +1,19 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::error::{OrchError, OrchResult};
-use crate::STATE;
+use crate::{
+    error::{OrchError, OrchResult},
+    STATE,
+};
 use aws_sdk_ec2::types::Placement as AwsPlacement;
-use clap::Args;
-use clap::Parser;
+use clap::{Args, Parser};
 use serde::Deserialize;
 use serde_json::Value;
-use std::path::PathBuf;
-use std::{fs::File, path::Path, process::Command};
+use std::{
+    fs::File,
+    path::{Path, PathBuf},
+    process::Command,
+};
 use tracing::debug;
 
 #[derive(Parser, Debug)]

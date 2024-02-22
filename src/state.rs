@@ -1,8 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::ec2_utils::EndpointType;
-use crate::OrchestratorConfig;
+use crate::{ec2_utils::EndpointType, OrchestratorConfig};
 use core::time::Duration;
 
 pub const STATE: State = State {

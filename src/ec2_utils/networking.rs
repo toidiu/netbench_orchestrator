@@ -1,13 +1,13 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::OrchestratorConfig;
 use crate::{
     error::{OrchError, OrchResult},
-    InfraDetail, STATE,
+    InfraDetail, OrchestratorConfig, STATE,
 };
-use aws_sdk_ec2::types::UserIdGroupPair;
-use aws_sdk_ec2::types::{Filter, IpPermission, IpRange, ResourceType, TagSpecification};
+use aws_sdk_ec2::types::{
+    Filter, IpPermission, IpRange, ResourceType, TagSpecification, UserIdGroupPair,
+};
 use tracing::info;
 
 pub async fn configure_networking(

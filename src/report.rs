@@ -1,12 +1,9 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::InfraDetail;
-use crate::OrchestratorConfig;
-use crate::{s3_utils::*, state::*};
+use crate::{s3_utils::*, state::*, InfraDetail, OrchestratorConfig};
 use aws_sdk_s3::primitives::{ByteStream, SdkBody};
-use std::path::Path;
-use std::process::Command;
+use std::{path::Path, process::Command};
 use tempdir::TempDir;
 use tracing::{debug, info, trace};
 

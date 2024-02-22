@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
-    ec2_utils::instance::{self, EndpointType, InstanceDetail},
-    ec2_utils::networking,
+    ec2_utils::{
+        instance::{self, EndpointType, InstanceDetail},
+        networking,
+    },
     InfraDetail, OrchResult, OrchestratorConfig,
 };
 use std::time::Duration;

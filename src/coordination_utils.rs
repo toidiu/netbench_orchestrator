@@ -1,7 +1,6 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::PubIp;
 use crate::{
     ec2_utils::InfraDetail,
     poll_ssm_results,
@@ -10,12 +9,11 @@ use crate::{
         netbench::{client, server},
         RussulaBuilder,
     },
-    ssm_utils, NetbenchDriverType, OrchestratorConfig, STATE,
+    ssm_utils, NetbenchDriverType, OrchestratorConfig, PubIp, STATE,
 };
 use aws_sdk_ssm::operation::send_command::SendCommandOutput;
 use core::time::Duration;
-use indicatif::ProgressBar;
-use indicatif::ProgressStyle;
+use indicatif::{ProgressBar, ProgressStyle};
 use std::{collections::BTreeSet, net::SocketAddr};
 use tracing::{debug, info};
 
