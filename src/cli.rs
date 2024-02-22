@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::{OrchError, OrchResult};
-use crate::EndpointType;
 use crate::STATE;
 use aws_sdk_ec2::types::Placement as AwsPlacement;
 use clap::Args;
@@ -15,53 +14,18 @@ use tracing::debug;
 
 #[derive(Parser, Debug)]
 pub struct Cli {
-    /// Path to the scenario file
-    #[arg(long)]
-    netbench_scenario_file: PathBuf,
-
     /// Path to cdk parameter file
     #[arg(long, default_value = "output.json")]
     cdk_config_file: PathBuf,
 
+    /// Path to the scenario file
+    #[arg(long)]
+    netbench_scenario_file: PathBuf,
+
+    // An infrastructure overlay for the hosts specified in the
+    // netbench scenario file
     #[command(flatten)]
     infra: InfraScenario,
-}
-
-#[derive(Clone, Debug, Default, Args)]
-pub struct InfraScenario {
-    /// Placement strategy for the netbench hosts
-    #[arg(long, default_value = "cluster")]
-    placement: PlacementGroup,
-
-    #[arg(long)]
-    client_az: Vec<String>,
-
-    #[arg(long)]
-    server_az: Vec<String>,
-    // instance_type: String
-    // region
-    // ssh_key_name
-}
-
-#[derive(Clone, Debug)]
-pub struct OrchestratorConfig {
-    pub netbench_scenario_filename: String,
-    pub netbench_scenario_filepath: PathBuf,
-    pub clients: usize,
-    pub servers: usize,
-    pub cdk_config: CdkConfig,
-    pub infra: InfraScenario,
-}
-
-impl OrchestratorConfig {
-    pub fn netbench_scenario_file_stem(&self) -> &str {
-        self.netbench_scenario_filepath
-            .as_path()
-            .file_stem()
-            .expect("expect scenario file")
-            .to_str()
-            .unwrap()
-    }
 }
 
 impl Cli {
@@ -73,13 +37,23 @@ impl Cli {
             NetbenchScenario::from_file(&self.netbench_scenario_file)?;
         let cdk_config = CdkConfig::from_file(&self.cdk_config_file)?;
         debug!("{:?}", cdk_config);
+        let mut client_config = Vec::with_capacity(scenario.clients.len());
+        for _az in &self.infra.client_az {
+            client_config.push(HostConfig::new());
+        }
+
+        let mut server_config = Vec::with_capacity(scenario.servers.len());
+        for _az in &self.infra.server_az {
+            server_config.push(HostConfig::new());
+        }
+
         let config = OrchestratorConfig {
             netbench_scenario_filename,
             netbench_scenario_filepath: self.netbench_scenario_file.clone(),
-            clients: scenario.clients.len(),
-            servers: scenario.servers.len(),
+            client_config,
+            server_config,
             cdk_config,
-            infra: self.infra,
+            placement: self.infra.placement,
         };
 
         // export PATH="/home/toidiu/projects/s2n-quic/netbench/target/release/:$PATH"
@@ -114,8 +88,30 @@ impl Cli {
     }
 }
 
-impl InfraScenario {
-    pub fn to_ec2_placement(&self, endpoint_type: &EndpointType) -> AwsPlacement {
+#[derive(Clone, Debug)]
+pub struct OrchestratorConfig {
+    // netbench
+    pub netbench_scenario_filename: String,
+    pub netbench_scenario_filepath: PathBuf,
+    // cdk
+    pub cdk_config: CdkConfig,
+    // infra
+    pub client_config: Vec<HostConfig>,
+    pub server_config: Vec<HostConfig>,
+    placement: PlacementGroup,
+}
+
+impl OrchestratorConfig {
+    pub fn netbench_scenario_file_stem(&self) -> &str {
+        self.netbench_scenario_filepath
+            .as_path()
+            .file_stem()
+            .expect("expect scenario file")
+            .to_str()
+            .unwrap()
+    }
+
+    pub fn to_ec2_placement(&self) -> AwsPlacement {
         let mut placement = AwsPlacement::builder();
 
         // set placement group
@@ -135,6 +131,39 @@ impl InfraScenario {
 
         placement.build()
     }
+}
+
+#[derive(Clone, Debug)]
+pub struct HostConfig {
+    region: String,
+    az: String,
+    instance_type: String,
+}
+
+impl HostConfig {
+    fn new() -> Self {
+        HostConfig {
+            region: STATE.region.to_owned(),
+            az: "us-west-2a".to_owned(),
+            instance_type: STATE.instance_type.to_owned(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Default, Args)]
+pub struct InfraScenario {
+    /// Placement strategy for the netbench hosts
+    #[arg(long, default_value = "cluster")]
+    placement: PlacementGroup,
+
+    #[arg(long)]
+    client_az: Vec<String>,
+
+    #[arg(long)]
+    server_az: Vec<String>,
+    // instance_type: String
+    // region
+    // ssh_key_name
 }
 
 // https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/placement-groups.html?icmpid=docs_ec2_console

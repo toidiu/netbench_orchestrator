@@ -110,13 +110,13 @@ pub async fn launch_instances(
     endpoint_type: EndpointType,
 ) -> OrchResult<Vec<Instance>> {
     let host_count = match endpoint_type {
-        EndpointType::Server => config.servers,
-        EndpointType::Client => config.clients,
+        EndpointType::Server => config.server_config.len(),
+        EndpointType::Client => config.client_config.len(),
     };
     let instance_type = InstanceType::from(STATE.instance_type);
     let run_result = ec2_client
         .run_instances()
-        .placement(config.infra.to_ec2_placement(&endpoint_type))
+        .placement(config.to_ec2_placement())
         .set_key_name(STATE.ssh_key_name.map(|s| s.to_string()))
         .iam_instance_profile(
             IamInstanceProfileSpecification::builder()
