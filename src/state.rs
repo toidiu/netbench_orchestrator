@@ -10,7 +10,6 @@ pub const STATE: State = State {
 
     // TODO remove `vpc_region` and configure vpc/subnet in same `region`
     region: "us-west-2",
-    vpc_region: "us-west-2",
     instance_type: "c5.4xlarge",
     // TODO get from scenario --------------
 
@@ -45,10 +44,7 @@ pub struct State {
     pub version: &'static str,
 
     // TODO get from scenario --------------
-    // pub host_count: HostCount,
     pub region: &'static str,
-    // TODO we shouldnt need two different regions. create infra in the single region
-    pub vpc_region: &'static str,
     pub instance_type: &'static str,
     // TODO get from scenario --------------
 

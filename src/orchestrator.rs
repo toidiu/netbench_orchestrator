@@ -66,13 +66,8 @@ pub async fn run(
 ) -> OrchResult<()> {
     let iam_client = aws_sdk_iam::Client::new(aws_config);
     let s3_client = aws_sdk_s3::Client::new(aws_config);
-    let orch_provider_vpc = Region::new(STATE.vpc_region);
-    let shared_config_vpc = aws_config::from_env()
-        .region(orch_provider_vpc)
-        .load()
-        .await;
-    let ec2_client = aws_sdk_ec2::Client::new(&shared_config_vpc);
-    let ssm_client = aws_sdk_ssm::Client::new(&shared_config_vpc);
+    let ec2_client = aws_sdk_ec2::Client::new(&aws_config);
+    let ssm_client = aws_sdk_ssm::Client::new(&aws_config);
 
     let scenario_file = ByteStream::from_path(&config.netbench_scenario_filepath)
         .await
