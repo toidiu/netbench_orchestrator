@@ -34,11 +34,10 @@ pub struct InfraScenario {
     placement: PlacementGroup,
 
     #[arg(long)]
-    client_az: Option<String>,
+    client_az: Vec<String>,
 
     #[arg(long)]
-    server_az: Option<String>,
-    // #[arg(long)]
+    server_az: Vec<String>,
     // instance_type: String
     // region
     // ssh_key_name
@@ -126,13 +125,13 @@ impl InfraScenario {
         };
 
         // set AZ
-        let az = match endpoint_type {
-            EndpointType::Server => &self.server_az,
-            EndpointType::Client => &self.client_az,
-        };
-        if let Some(az) = az {
-            placement = placement.availability_zone(az);
-        }
+        // let az = match endpoint_type {
+        //     EndpointType::Server => &self.server_az,
+        //     EndpointType::Client => &self.client_az,
+        // };
+        // if let Some(az) = az {
+        //     placement = placement.availability_zone(az);
+        // }
 
         placement.build()
     }

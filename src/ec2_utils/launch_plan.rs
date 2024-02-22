@@ -55,6 +55,12 @@ impl<'a> LaunchPlan<'a> {
         ec2_client: &aws_sdk_ec2::Client,
         unique_id: &str,
     ) -> OrchResult<InfraDetail> {
+        let mut infra = InfraDetail {
+            security_group_id: self.security_group_id.clone(),
+            clients: Vec::new(),
+            servers: Vec::new(),
+        };
+
         let servers = instance::launch_instances(
             ec2_client,
             self,
@@ -67,6 +73,12 @@ impl<'a> LaunchPlan<'a> {
             debug!("{}", err);
             err
         })?;
+        for (i, server) in servers.into_iter().enumerate() {
+            let endpoint_type = EndpointType::Server;
+            let server_ip = instance::poll_running(i, &endpoint_type, ec2_client, &server).await?;
+            let server = InstanceDetail::new(endpoint_type, server, server_ip);
+            infra.servers.push(server);
+        }
 
         let clients = instance::launch_instances(
             ec2_client,
@@ -79,20 +91,27 @@ impl<'a> LaunchPlan<'a> {
         .map_err(|err| {
             debug!("{}", err);
             err
-        })?;
+        });
 
-        let mut infra = InfraDetail {
-            security_group_id: self.security_group_id.clone(),
-            clients: Vec::new(),
-            servers: Vec::new(),
-        };
-        for (i, server) in servers.into_iter().enumerate() {
-            let endpoint_type = EndpointType::Server;
-            let server_ip = instance::poll_running(i, &endpoint_type, ec2_client, &server).await?;
-            let server = InstanceDetail::new(endpoint_type, server, server_ip);
-            infra.servers.push(server);
+        // cleanup server instances if client launch failed
+        if let Err(launch_err) = clients {
+            let server_ids = infra
+                .servers
+                .iter()
+                .map(|instance| instance.instance_id().unwrap().to_string())
+                .collect();
+            instance::delete_instance(ec2_client, server_ids)
+                .await
+                .map_err(|delete_err| {
+                    // ignore error on cleanup.. since this is best effort
+                    debug!("{}", delete_err);
+                })
+                .unwrap();
+
+            return Err(launch_err);
         }
 
+        let clients = clients.unwrap();
         for (i, client) in clients.into_iter().enumerate() {
             let endpoint_type = EndpointType::Client;
             let client_ip = instance::poll_running(i, &endpoint_type, ec2_client, &client).await?;
