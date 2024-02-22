@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::InfraDetail;
+use crate::OrchestratorConfig;
 use crate::{s3_utils::*, state::*};
 use aws_sdk_s3::primitives::{ByteStream, SdkBody};
 use std::path::Path;
@@ -13,6 +14,7 @@ pub async fn orch_generate_report(
     s3_client: &aws_sdk_s3::Client,
     unique_id: &str,
     infra: &InfraDetail,
+    config: &OrchestratorConfig,
 ) {
     let tmp_dir = TempDir::new(unique_id).unwrap().into_path();
     let tmp_dir = tmp_dir.to_str().unwrap();
@@ -23,7 +25,11 @@ pub async fn orch_generate_report(
         .args([
             "s3",
             "sync",
-            &format!("s3://{}/{}", STATE.s3_log_bucket, unique_id),
+            &format!(
+                "s3://{}/{}",
+                config.cdk_config.netbench_runner_s3_bucket(),
+                unique_id
+            ),
             tmp_dir,
         ])
         .output()
@@ -48,7 +54,11 @@ pub async fn orch_generate_report(
             "s3",
             "sync",
             tmp_dir,
-            &format!("s3://{}/{}", STATE.s3_log_bucket, unique_id),
+            &format!(
+                "s3://{}/{}",
+                config.cdk_config.netbench_runner_s3_bucket(),
+                unique_id
+            ),
         ])
         .output()
         .unwrap();
@@ -56,7 +66,7 @@ pub async fn orch_generate_report(
     trace!("{:?}", output);
     assert!(cmd.status().expect("aws sync").success(), "aws sync");
 
-    update_report_url(s3_client, unique_id).await;
+    update_report_url(s3_client, unique_id, config).await;
 
     println!("Report Finished!: Successful: true");
     println!("URL: {}/report/index.html", STATE.cf_url(unique_id));
@@ -94,13 +104,22 @@ pub async fn orch_generate_report(
     }
 }
 
-async fn update_report_url(s3_client: &aws_sdk_s3::Client, unique_id: &str) {
+async fn update_report_url(
+    s3_client: &aws_sdk_s3::Client,
+    unique_id: &str,
+    config: &OrchestratorConfig,
+) {
     let body = ByteStream::new(SdkBody::from(format!(
         "<a href=\"{}/report/index.html\">Final Report</a>",
         STATE.cf_url(unique_id)
     )));
     let key = format!("{}/finished-step-0", unique_id);
-    let _ = upload_object(s3_client, STATE.s3_log_bucket, body, &key)
-        .await
-        .unwrap();
+    let _ = upload_object(
+        s3_client,
+        config.cdk_config.netbench_runner_s3_bucket(),
+        body,
+        &key,
+    )
+    .await
+    .unwrap();
 }

@@ -11,6 +11,7 @@ use serde::Deserialize;
 use serde_json::Value;
 use std::path::PathBuf;
 use std::{fs::File, path::Path, process::Command};
+use tracing::debug;
 
 #[derive(Parser, Debug)]
 pub struct Cli {
@@ -72,7 +73,7 @@ impl Cli {
         let (scenario, netbench_scenario_filename) =
             NetbenchScenario::from_file(&self.netbench_scenario_file)?;
         let cdk_config = CdkConfig::from_file(&self.cdk_config_file)?;
-        println!("{:?}", cdk_config);
+        debug!("{:?}", cdk_config);
         let config = OrchestratorConfig {
             netbench_scenario_filename,
             netbench_scenario_filepath: self.netbench_scenario_file.clone(),
@@ -188,6 +189,12 @@ impl NetbenchScenario {
 #[derive(Clone, Debug, Default, Deserialize)]
 pub struct CdkConfig {
     resources: Resources,
+}
+
+impl CdkConfig {
+    pub fn netbench_runner_s3_bucket(&self) -> &String {
+        &self.resources.netbench_runner_s3_bucket
+    }
 }
 
 #[derive(Clone, Debug, Default, Deserialize)]

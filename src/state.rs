@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::ec2_utils::EndpointType;
+use crate::OrchestratorConfig;
 use core::time::Duration;
 
 pub const STATE: State = State {
@@ -33,9 +34,10 @@ pub const STATE: State = State {
     // aws
     placement_group_cluster: "NetbenchInfraPrimaryProd-ClusterEB0386A7-R5EWN2RCJC5L",
     placement_group_partition: "NetbenchInfraPrimaryProd-Partition9E68ED67-LC9VKTZBNJJ8",
+    // json
     s3_private_log_bucket: "netbenchrunner-private-source-prod",
     // json "NetbenchRunnerS3Bucket"
-    s3_log_bucket: "netbenchrunnerlogs-public-prod",
+    // s3_log_bucket: "netbenchrunnerlogs-public-prod",
     // json "NetbenchCloudfrontDistibution"
     cloudfront_url: "https://d37mm99fcr6hy4.cloudfront.net",
     // json "NetbenchRunnerLogGroup"
@@ -86,7 +88,7 @@ pub struct State {
     pub placement_group_cluster: &'static str,
     pub placement_group_partition: &'static str,
     pub s3_private_log_bucket: &'static str,
-    pub s3_log_bucket: &'static str,
+    // pub s3_log_bucket: &'static str,
     pub cloudfront_url: &'static str,
     pub cloud_watch_group: &'static str,
     pub instance_profile: &'static str,
@@ -99,8 +101,12 @@ impl State {
         format!("{}/{}", self.cloudfront_url, unique_id)
     }
 
-    pub fn s3_path(&self, unique_id: &str) -> String {
-        format!("s3://{}/{}", self.s3_log_bucket, unique_id)
+    pub fn s3_path(&self, unique_id: &str, config: &OrchestratorConfig) -> String {
+        format!(
+            "s3://{}/{}",
+            config.cdk_config.netbench_runner_s3_bucket(),
+            unique_id
+        )
     }
 
     pub fn s3_private_path(&self, unique_id: &str) -> String {

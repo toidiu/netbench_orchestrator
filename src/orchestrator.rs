@@ -61,7 +61,7 @@ use tracing::info;
 
 pub async fn run(
     unique_id: String,
-    config: OrchestratorConfig,
+    config: &OrchestratorConfig,
     aws_config: &aws_types::SdkConfig,
 ) -> OrchResult<()> {
     let iam_client = aws_sdk_iam::Client::new(aws_config);
@@ -81,14 +81,20 @@ pub async fn run(
         })?;
     upload_object(
         &s3_client,
-        STATE.s3_log_bucket,
+        config.cdk_config.netbench_runner_s3_bucket(),
         scenario_file,
         &format!("{unique_id}/{}", config.netbench_scenario_filename),
     )
     .await
     .unwrap();
 
-    update_dashboard(dashboard::Step::UploadIndex, &s3_client, &unique_id).await?;
+    update_dashboard(
+        dashboard::Step::UploadIndex,
+        &s3_client,
+        &unique_id,
+        &config,
+    )
+    .await?;
 
     // Setup instances
     let infra = LaunchPlan::create(&unique_id, &ec2_client, &iam_client, &ssm_client, &config)
@@ -118,12 +124,14 @@ pub async fn run(
         dashboard::Step::HostsRunning(&infra.servers),
         &s3_client,
         &unique_id,
+        config,
     )
     .await?;
     update_dashboard(
         dashboard::Step::HostsRunning(&infra.clients),
         &s3_client,
         &unique_id,
+        config,
     )
     .await?;
 
@@ -153,6 +161,7 @@ pub async fn run(
             &config,
             &server_drivers,
             &unique_id,
+            config,
         )
         .await;
         let client_build_cmds = ssm_utils::common::collect_config_cmds(
@@ -162,6 +171,7 @@ pub async fn run(
             &config,
             &client_drivers,
             &unique_id,
+            config,
         )
         .await;
         build_cmds.extend(client_build_cmds);
@@ -248,7 +258,7 @@ pub async fn run(
     }
 
     // Copy results back
-    orch_generate_report(&s3_client, &unique_id, &infra).await;
+    orch_generate_report(&s3_client, &unique_id, &infra, config).await;
 
     // Cleanup
     infra

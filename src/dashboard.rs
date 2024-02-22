@@ -1,6 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::OrchestratorConfig;
 use crate::{error::OrchResult, upload_object, InstanceDetail, STATE};
 use aws_sdk_s3::primitives::ByteStream;
 use bytes::Bytes;
@@ -15,16 +16,21 @@ pub async fn update_dashboard(
     step: Step<'_>,
     s3_client: &aws_sdk_s3::Client,
     unique_id: &str,
+    config: &OrchestratorConfig,
 ) -> OrchResult<()> {
     match step {
-        Step::UploadIndex => upload_index_html(s3_client, unique_id).await,
+        Step::UploadIndex => upload_index_html(s3_client, unique_id, config).await,
         Step::HostsRunning(instances) => {
-            update_instance_running(s3_client, instances, unique_id).await
+            update_instance_running(s3_client, instances, unique_id, config).await
         }
     }
 }
 
-async fn upload_index_html(s3_client: &aws_sdk_s3::Client, unique_id: &str) -> OrchResult<()> {
+async fn upload_index_html(
+    s3_client: &aws_sdk_s3::Client,
+    unique_id: &str,
+    config: &OrchestratorConfig,
+) -> OrchResult<()> {
     let status = format!("{}/index.html", STATE.cf_url(unique_id));
     let template_server_prefix = format!("{}/server-step-", STATE.cf_url(unique_id));
     let template_client_prefix = format!("{}/client-step-", STATE.cf_url(unique_id));
@@ -40,7 +46,7 @@ async fn upload_index_html(s3_client: &aws_sdk_s3::Client, unique_id: &str) -> O
 
     upload_object(
         s3_client,
-        STATE.s3_log_bucket,
+        config.cdk_config.netbench_runner_s3_bucket(),
         ByteStream::from(Bytes::from(index_file)),
         &format!("{unique_id}/index.html"),
     )
@@ -56,6 +62,7 @@ async fn update_instance_running(
     s3_client: &aws_sdk_s3::Client,
     instances: &[InstanceDetail],
     unique_id: &str,
+    config: &OrchestratorConfig,
 ) -> OrchResult<()> {
     let endpoint_type = &instances[0].endpoint_type.as_str();
     let instance_detail = instances
@@ -69,7 +76,7 @@ async fn update_instance_running(
 
     upload_object(
         s3_client,
-        STATE.s3_log_bucket,
+        config.cdk_config.netbench_runner_s3_bucket(),
         ByteStream::from(Bytes::from(format!(
             "EC2 {:?} instances up: {}",
             endpoint_type, instance_detail

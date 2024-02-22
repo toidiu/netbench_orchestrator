@@ -12,14 +12,14 @@ pub async fn upload_netbench_data(
     ssm_client: &aws_sdk_ssm::Client,
     instance_ids: Vec<String>,
     unique_id: &str,
-    scenario: &OrchestratorConfig,
+    config: &OrchestratorConfig,
     driver: &NetbenchDriverType,
 ) -> SendCommandOutput {
     let driver_name = driver.trim_driver_name();
     let s3_command = format!(
         "aws s3 cp *{driver_name}.json {}/results/{}/{driver_name}/",
-        STATE.s3_path(unique_id),
-        scenario.netbench_scenario_file_stem()
+        STATE.s3_path(unique_id, config),
+        config.netbench_scenario_file_stem()
     );
     let cmd = vec!["cd netbench_orchestrator", s3_command.as_str()];
     info!("Copying client results to s3 for driver: {:?}", cmd);
@@ -41,7 +41,7 @@ pub async fn run_russula_worker(
     instance_ids: Vec<String>,
     server_ips: Vec<&PrivIp>,
     driver: &NetbenchDriverType,
-    scenario: &OrchestratorConfig,
+    config: &OrchestratorConfig,
 ) -> SendCommandOutput {
     let netbench_server_addr = server_ips
         .iter()
@@ -55,7 +55,7 @@ pub async fn run_russula_worker(
 
     let netbench_cmd =
         format!("env RUST_LOG=debug ./target/debug/russula_cli netbench-client-worker --russula-port {} --driver {} --scenario {} --netbench-servers {netbench_server_addr}",
-            STATE.russula_port, driver.driver_name(), scenario.netbench_scenario_filename);
+            STATE.russula_port, driver.driver_name(), config.netbench_scenario_filename);
     debug!("{}", netbench_cmd);
 
     send_command(

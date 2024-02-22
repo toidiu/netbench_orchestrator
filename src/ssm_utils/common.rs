@@ -65,10 +65,17 @@ pub async fn collect_config_cmds(
     scenario: &OrchestratorConfig,
     netbench_drivers: &Vec<NetbenchDriverType>,
     unique_id: &str,
+    config: &OrchestratorConfig,
 ) -> Vec<SendCommandOutput> {
     // configure and build
-    let install_deps =
-        install_deps_cmd(host_group, ssm_client, instance_ids.clone(), unique_id).await;
+    let install_deps = install_deps_cmd(
+        host_group,
+        ssm_client,
+        instance_ids.clone(),
+        unique_id,
+        config,
+    )
+    .await;
 
     // upload scenario file
     let upload_scenario_file = upload_netbench_scenario_file(
@@ -77,6 +84,7 @@ pub async fn collect_config_cmds(
         instance_ids.clone(),
         &scenario,
         &unique_id,
+        config,
     )
     .await;
 
@@ -99,17 +107,18 @@ async fn install_deps_cmd(
     ssm_client: &aws_sdk_ssm::Client,
     instance_ids: Vec<String>,
     unique_id: &str,
+    config: &OrchestratorConfig,
 ) -> SendCommandOutput {
     send_command(vec![], Step::Configure, host_group, &format!("configure_host_{}", host_group) ,ssm_client, instance_ids, vec![
         // set instances to shutdown after 1 hour
         format!("shutdown -P +{}", STATE.shutdown_min),
         "mkdir -p /home/ec2-user/bin".to_string(),
 
-        format!("echo ec2 up > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/{}-step-1", STATE.s3_path(unique_id), host_group),
+        format!("echo ec2 up > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/{}-step-1", STATE.s3_path(unique_id, config), host_group),
         "yum upgrade -y".to_string(),
-        format!("echo yum upgrade finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/{}-step-2", STATE.s3_path(unique_id), host_group),
-        format!("timeout 5m bash -c 'until yum install cargo cmake git perl openssl-devel bpftrace perf tree -y; do sleep 10; done' || (echo yum failed > /home/ec2-user/index.html; aws s3 cp /home/ec2-user/index.html {}/{}-step-3; exit 1)", STATE.s3_path(unique_id), host_group),
-        format!("echo yum finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/{}-step-3", STATE.s3_path(unique_id), host_group),
+        format!("echo yum upgrade finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/{}-step-2", STATE.s3_path(unique_id, config), host_group),
+        format!("timeout 5m bash -c 'until yum install cargo cmake git perl openssl-devel bpftrace perf tree -y; do sleep 10; done' || (echo yum failed > /home/ec2-user/index.html; aws s3 cp /home/ec2-user/index.html {}/{}-step-3; exit 1)", STATE.s3_path(unique_id, config), host_group),
+        format!("echo yum finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/{}-step-3", STATE.s3_path(unique_id, config), host_group),
         // rust
         "runuser -u ec2-user -- curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs > rustup.rs".to_string(),
 
@@ -187,6 +196,7 @@ async fn upload_netbench_scenario_file(
     instance_ids: Vec<String>,
     scenario: &OrchestratorConfig,
     unique_id: &str,
+    config: &OrchestratorConfig,
 ) -> SendCommandOutput {
     send_command(
         vec![],
@@ -200,7 +210,7 @@ async fn upload_netbench_scenario_file(
             format!(
                 "aws s3 cp s3://{}/{unique_id}/{} {}/{}",
                 // from
-                STATE.s3_log_bucket,
+                config.cdk_config.netbench_runner_s3_bucket(),
                 scenario.netbench_scenario_filename,
                 // to
                 STATE.host_bin_path(),
