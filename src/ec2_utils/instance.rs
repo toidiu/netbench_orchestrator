@@ -112,7 +112,10 @@ pub async fn launch_instances(
         EndpointType::Server => config.server_config.len(),
         EndpointType::Client => config.client_config.len(),
     };
-    let instance_type = InstanceType::from(STATE.instance_type);
+
+    // FIXME do per instance
+    let instance_type = InstanceType::from(config.instance_type().as_str());
+
     let run_result = ec2_client
         .run_instances()
         .placement(config.to_ec2_placement())

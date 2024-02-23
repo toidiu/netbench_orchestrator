@@ -41,6 +41,7 @@ impl Cli {
             NetbenchScenario::from_file(&self.netbench_scenario_file)?;
         let cdk_config = CdkConfig::from_file(&self.cdk_config_file)?;
 
+        // AZ
         assert_eq!(
             self.infra.server_az.len(),
             scenario.servers.len(),
@@ -51,15 +52,13 @@ impl Cli {
             scenario.clients.len(),
             "AZ overlay should match the number of client hosts in the netbench scenario"
         );
-
         let mut client_config = Vec::with_capacity(self.infra.client_az.len());
-        for _az in &self.infra.client_az {
-            client_config.push(HostConfig::new());
+        for az in self.infra.client_az {
+            client_config.push(HostConfig::new(az));
         }
-
         let mut server_config = Vec::with_capacity(self.infra.server_az.len());
-        for _az in &self.infra.server_az {
-            server_config.push(HostConfig::new());
+        for az in self.infra.server_az {
+            server_config.push(HostConfig::new(az));
         }
 
         let config = OrchestratorConfig {
@@ -147,21 +146,30 @@ impl OrchestratorConfig {
 
         placement.build()
     }
+
+    // FIXME use per instance
+    pub fn instance_type(&self) -> &String {
+        &self.client_config[0].instance_type
+    }
 }
 
 #[derive(Clone, Debug)]
 pub struct HostConfig {
-    region: String,
     az: String,
     instance_type: String,
 }
 
 impl HostConfig {
-    fn new() -> Self {
+    fn new(az: String) -> Self {
+        assert!(
+            az.starts_with(STATE.region),
+            "User specified AZ: {} is not in the region: {}",
+            az,
+            STATE.region
+        );
         HostConfig {
-            region: STATE.region.to_owned(),
-            az: "us-west-2a".to_owned(),
-            instance_type: STATE.instance_type.to_owned(),
+            az,
+            instance_type: "c5.4xlarge".to_owned(),
         }
     }
 }

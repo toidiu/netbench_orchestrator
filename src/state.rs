@@ -9,7 +9,6 @@ pub const STATE: State = State {
 
     // TODO remove `vpc_region` and configure vpc/subnet in same `region`
     region: "us-west-2",
-    instance_type: "c5.4xlarge",
     // TODO get from scenario --------------
 
     // netbench
@@ -44,7 +43,6 @@ pub struct State {
 
     // TODO get from scenario --------------
     pub region: &'static str,
-    pub instance_type: &'static str,
     // TODO get from scenario --------------
 
     // netbench
