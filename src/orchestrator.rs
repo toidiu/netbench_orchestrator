@@ -13,9 +13,9 @@ use tracing::info;
 
 // TODO
 // - work on cluster
-// - work on AZ
-// - clean up client instances on failure
-//
+//   - create placement group
+// D- work on AZ
+// - clean up instances on failure.. maybe wait a bit to cleanup after launch request
 //
 // # Russula/Cli
 //
