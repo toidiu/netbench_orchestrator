@@ -40,13 +40,24 @@ impl Cli {
         let (scenario, netbench_scenario_filename) =
             NetbenchScenario::from_file(&self.netbench_scenario_file)?;
         let cdk_config = CdkConfig::from_file(&self.cdk_config_file)?;
-        debug!("{:?}", cdk_config);
-        let mut client_config = Vec::with_capacity(scenario.clients.len());
+
+        assert_eq!(
+            self.infra.server_az.len(),
+            scenario.servers.len(),
+            "AZ overlay should match the number of server hosts in the netbench scenario"
+        );
+        assert_eq!(
+            self.infra.client_az.len(),
+            scenario.clients.len(),
+            "AZ overlay should match the number of client hosts in the netbench scenario"
+        );
+
+        let mut client_config = Vec::with_capacity(self.infra.client_az.len());
         for _az in &self.infra.client_az {
             client_config.push(HostConfig::new());
         }
 
-        let mut server_config = Vec::with_capacity(scenario.servers.len());
+        let mut server_config = Vec::with_capacity(self.infra.server_az.len());
         for _az in &self.infra.server_az {
             server_config.push(HostConfig::new());
         }
@@ -59,6 +70,7 @@ impl Cli {
             cdk_config,
             placement: self.infra.placement,
         };
+        debug!("{:?}", config);
 
         // export PATH="/home/toidiu/projects/s2n-quic/netbench/target/release/:$PATH"
         Command::new("s2n-netbench")
@@ -160,10 +172,10 @@ pub struct InfraScenario {
     #[arg(long, default_value = "cluster")]
     placement: PlacementGroup,
 
-    #[arg(long)]
+    #[arg(long, value_delimiter = ',')]
     client_az: Vec<String>,
 
-    #[arg(long)]
+    #[arg(long, value_delimiter = ',')]
     server_az: Vec<String>,
     // instance_type: String
     // region

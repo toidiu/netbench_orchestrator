@@ -4,6 +4,6 @@
         "NetbenchRunnerS3Bucket": "netbenchrunnerlogs-public-prod",
         "NetbenchCloudfrontDistibution": "https://d37mm99fcr6hy4.cloudfront.net",
         "NetbenchRunnerInstanceProfile": "NetbenchInfraPrimaryProd-instanceProfile9C1E1CDD-kVoSXbmUxoBA",
-        "NetbenchRunnerVPCSubnetTag": {"key": "aws-cdk:subnet-name", "value":"public-subnet-for-runners"}
+        "NetbenchRunnerVPCSubnetTag": {"key": "aws-cdk:netbench-subnet-name", "value":"public-subnet-for-netbench-runners"}
     }
 }
