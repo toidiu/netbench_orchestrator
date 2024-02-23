@@ -268,7 +268,7 @@ pub async fn get_instance_profile(
 pub async fn get_latest_ami(ssm_client: &aws_sdk_ssm::Client) -> OrchResult<String> {
     let ami_id = ssm_client
         .get_parameter()
-        .name("/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64")
+        .name(STATE.ami_name)
         .with_decryption(true)
         .send()
         .await

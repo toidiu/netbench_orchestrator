@@ -31,6 +31,7 @@ pub const STATE: State = State {
     // aws
     placement_group_cluster: "NetbenchInfraPrimaryProd-ClusterEB0386A7-R5EWN2RCJC5L",
     placement_group_partition: "NetbenchInfraPrimaryProd-Partition9E68ED67-LC9VKTZBNJJ8",
+    ami_name: "/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64",
     // json
     s3_private_log_bucket: "netbenchrunner-private-source-prod",
     // create/import a key pair to the account
@@ -65,6 +66,7 @@ pub struct State {
     // aws
     pub placement_group_cluster: &'static str,
     pub placement_group_partition: &'static str,
+    pub ami_name: &'static str,
     pub s3_private_log_bucket: &'static str,
     pub ssh_key_name: Option<&'static str>,
 }
