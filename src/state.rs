@@ -5,7 +5,7 @@ use crate::{ec2_utils::EndpointType, OrchestratorConfig};
 use core::time::Duration;
 
 pub const STATE: State = State {
-    version: "v2.2.2",
+    version: "v2.2.3",
 
     // TODO remove `vpc_region` and configure vpc/subnet in same `region`
     region: "us-west-2",
