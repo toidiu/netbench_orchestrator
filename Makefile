@@ -2,17 +2,16 @@
 run_orchestrator:
 	RUST_LOG=none,orchestrator::russula=info,orchestrator=debug cargo run --bin orchestrator -- \
 					 --placement cluster \
-					 --netbench-scenario-file scripts/request_response_multi_5_incast_1GB_req_resp.json \
-					 --server-az us-west-2a,us-west-2a,us-west-2a,us-west-2a,us-west-2a \
+					 --server-az us-west-2b,us-west-2a \
 					 --client-az us-west-2a \
-					 --cdk-config-file output.json
-					 # --server-az us-west-2a \
-					 # --client-az us-west-2b \
-					 # --scenario-file scripts/request_response_multi_20_incast_1GB_req_resp.json
-					 # --scenario-file scripts/request_response_multi_2_incast_1GB_req_resp.json
-					 # --scenario-file scripts/request_response_multi_20_incast_3GB_req_resp.json
-					 # --scenario-file scripts/request_response_multi_10_incast_1GB_req_resp.json
-					 # --scenario-file scripts/request_response_multi_11_incast_1GB_req_resp.json
+					 --cdk-config-file output.json \
+					 --netbench-scenario-file scripts/request_response_multi_2_incast_1GB_req_resp.json \
+					 # --server-az us-west-2b,us-west-2a,us-west-2a,us-west-2a,us-west-2a \
+					 # --netbench-scenario-file scripts/request_response_multi_5_incast_1GB_req_resp.json \
+					 # --netbench-scenario-file scripts/request_response_multi_20_incast_1GB_req_resp.json
+					 # --netbench-scenario-file scripts/request_response_multi_20_incast_3GB_req_resp.json
+					 # --netbench-scenario-file scripts/request_response_multi_10_incast_1GB_req_resp.json
+					 # --netbench-scenario-file scripts/request_response_multi_11_incast_1GB_req_resp.json
 					 # --placement partition \
 
 # -------------------- test russula_cli with netbench

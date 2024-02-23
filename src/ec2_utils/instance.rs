@@ -1,6 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::HostConfig;
 use crate::{
     error::{OrchError, OrchResult},
     state::STATE,
@@ -57,7 +58,7 @@ impl std::fmt::Display for HostIps {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum EndpointType {
     Server,
     Client,
@@ -104,21 +105,18 @@ impl InstanceDetail {
 pub async fn launch_instances(
     ec2_client: &aws_sdk_ec2::Client,
     launch_plan: &LaunchPlan<'_>,
+    security_group_id: &str,
     unique_id: &str,
     config: &OrchestratorConfig,
+    host_config: &HostConfig,
     endpoint_type: EndpointType,
-) -> OrchResult<Vec<Instance>> {
-    let host_count = match endpoint_type {
-        EndpointType::Server => config.server_config.len(),
-        EndpointType::Client => config.client_config.len(),
-    };
-
+) -> OrchResult<Instance> {
     // FIXME do per instance
-    let instance_type = InstanceType::from(config.instance_type().as_str());
+    let instance_type = InstanceType::from(host_config.instance_type().as_str());
 
     let run_result = ec2_client
         .run_instances()
-        .placement(config.to_ec2_placement())
+        .placement(host_config.to_ec2_placement(&config.placement))
         .set_key_name(STATE.ssh_key_name.map(|s| s.to_string()))
         .iam_instance_profile(
             IamInstanceProfileSpecification::builder()
@@ -156,12 +154,12 @@ pub async fn launch_instances(
                 .associate_public_ip_address(true)
                 .delete_on_termination(true)
                 .device_index(0)
-                .subnet_id(&launch_plan.subnet_id)
-                .groups(&launch_plan.security_group_id)
+                .subnet_id(launch_plan.networking_detail.subnet_id.clone())
+                .groups(security_group_id)
                 .build(),
         )
-        .min_count(host_count as i32)
-        .max_count(host_count as i32)
+        .min_count(1 as i32)
+        .max_count(1 as i32)
         .dry_run(false)
         .send()
         .await
@@ -172,7 +170,7 @@ pub async fn launch_instances(
         dbg: "Couldn't find instances in run result".to_string(),
     })?;
 
-    Ok(instances.to_vec())
+    Ok(instances.get(0).unwrap().clone())
 }
 
 pub async fn delete_instance(ec2_client: &aws_sdk_ec2::Client, ids: Vec<String>) -> OrchResult<()> {

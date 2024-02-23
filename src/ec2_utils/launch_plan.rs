@@ -1,6 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::ec2_utils::networking::NetworkingInfraDetail;
 use crate::{
     ec2_utils::{
         instance::{self, EndpointType, InstanceDetail},
@@ -11,18 +12,16 @@ use crate::{
 use std::time::Duration;
 use tracing::debug;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct LaunchPlan<'a> {
-    pub subnet_id: String,
-    pub security_group_id: String,
     pub ami_id: String,
+    pub networking_detail: NetworkingInfraDetail,
     pub instance_profile_arn: String,
     pub config: &'a OrchestratorConfig,
 }
 
 impl<'a> LaunchPlan<'a> {
     pub async fn create(
-        unique_id: &str,
         ec2_client: &aws_sdk_ec2::Client,
         iam_client: &aws_sdk_iam::Client,
         ssm_client: &aws_sdk_ssm::Client,
@@ -34,19 +33,12 @@ impl<'a> LaunchPlan<'a> {
         let ami_id = instance::get_latest_ami(ssm_client)
             .await
             .expect("get_latest_ami failed");
-
-        let (subnet_id, vpc_id) = networking::get_subnet_vpc_ids(ec2_client, config)
+        let networking_detail = networking::get_subnet_vpc_ids(ec2_client, config)
             .await
-            .expect("get_subnet_vpc_ids failed");
-        // Create a security group
-        let security_group_id = networking::create_security_group(ec2_client, &vpc_id, unique_id)
-            .await
-            .expect("create_security_group failed");
-
+            .unwrap();
         LaunchPlan {
             ami_id,
-            subnet_id,
-            security_group_id,
+            networking_detail,
             instance_profile_arn,
             config,
         }
@@ -57,71 +49,113 @@ impl<'a> LaunchPlan<'a> {
         ec2_client: &aws_sdk_ec2::Client,
         unique_id: &str,
     ) -> OrchResult<InfraDetail> {
+        // let mut clients = Vec::new();
+        // let mut servers = Vec::new();
+
+        let security_group_id = networking::create_security_group(
+            ec2_client,
+            &self.networking_detail.vpc_id,
+            unique_id,
+        )
+        .await
+        .unwrap();
         let mut infra = InfraDetail {
-            security_group_id: self.security_group_id.clone(),
+            security_group_id,
             clients: Vec::new(),
             servers: Vec::new(),
         };
 
-        let servers = instance::launch_instances(
-            ec2_client,
-            self,
-            unique_id,
-            &self.config,
-            EndpointType::Server,
-        )
-        .await
-        .map_err(|err| {
-            debug!("{}", err);
-            err
-        })?;
-        for (i, server) in servers.into_iter().enumerate() {
+        // TODO the calls for server and client are similar.. dedupe into a function
+        {
             let endpoint_type = EndpointType::Server;
-            let server_ip = instance::poll_running(i, &endpoint_type, ec2_client, &server).await?;
-            let server = InstanceDetail::new(endpoint_type, server, server_ip);
-            infra.servers.push(server);
-        }
-
-        let clients = instance::launch_instances(
-            ec2_client,
-            self,
-            unique_id,
-            self.config,
-            EndpointType::Client,
-        )
-        .await
-        .map_err(|err| {
-            debug!("{}", err);
-            err
-        });
-
-        // cleanup server instances if client launch failed
-        if let Err(launch_err) = clients {
-            let server_ids = infra
-                .servers
-                .iter()
-                .map(|instance| instance.instance_id().unwrap().to_string())
-                .collect();
-            instance::delete_instance(ec2_client, server_ids)
+            let mut launch_request = Vec::with_capacity(self.config.server_config.len());
+            for host_config in &self.config.server_config {
+                let server = instance::launch_instances(
+                    ec2_client,
+                    self,
+                    &infra.security_group_id,
+                    unique_id,
+                    &self.config,
+                    &host_config,
+                    endpoint_type,
+                )
                 .await
-                .map_err(|delete_err| {
-                    // ignore error on cleanup.. since this is best effort
-                    debug!("{}", delete_err);
-                })
-                .unwrap();
+                .map_err(|err| {
+                    debug!("{}", err);
+                    err
+                });
+                launch_request.push(server);
+            }
+            let launch_request: OrchResult<Vec<_>> = launch_request.into_iter().collect();
+            // cleanup server instances if client launch failed
+            if let Err(launch_err) = launch_request {
+                infra
+                    .cleanup(ec2_client)
+                    .await
+                    .map_err(|delete_err| {
+                        // ignore error on cleanup.. since this is best effort
+                        debug!("{}", delete_err);
+                    })
+                    .unwrap();
 
-            return Err(launch_err);
+                return Err(launch_err);
+            }
+
+            let launch_request = launch_request.unwrap();
+            for (i, server) in launch_request.into_iter().enumerate() {
+                let server_ip =
+                    instance::poll_running(i, &endpoint_type, ec2_client, &server).await?;
+                let server = InstanceDetail::new(endpoint_type, server, server_ip);
+                infra.servers.push(server);
+            }
         }
 
-        let clients = clients.unwrap();
-        for (i, client) in clients.into_iter().enumerate() {
+        {
             let endpoint_type = EndpointType::Client;
-            let client_ip = instance::poll_running(i, &endpoint_type, ec2_client, &client).await?;
-            let client = InstanceDetail::new(endpoint_type, client, client_ip);
-            infra.clients.push(client);
+            let mut launch_request = Vec::with_capacity(self.config.client_config.len());
+            for host_config in &self.config.client_config {
+                let client = instance::launch_instances(
+                    ec2_client,
+                    self,
+                    &infra.security_group_id,
+                    &unique_id,
+                    &self.config,
+                    &host_config,
+                    endpoint_type,
+                )
+                .await
+                .map_err(|err| {
+                    debug!("{}", err);
+                    err
+                });
+                launch_request.push(client);
+            }
+
+            let launch_request: OrchResult<Vec<_>> = launch_request.into_iter().collect();
+            // cleanup server instances if client launch failed
+            if let Err(launch_err) = launch_request {
+                infra
+                    .cleanup(ec2_client)
+                    .await
+                    .map_err(|delete_err| {
+                        // ignore error on cleanup.. since this is best effort
+                        debug!("{}", delete_err);
+                    })
+                    .unwrap();
+
+                return Err(launch_err);
+            }
+
+            let launch_request = launch_request.unwrap();
+            for (i, client) in launch_request.into_iter().enumerate() {
+                let client_ip =
+                    instance::poll_running(i, &endpoint_type, ec2_client, &client).await?;
+                let client = InstanceDetail::new(endpoint_type, client, client_ip);
+                infra.clients.push(client);
+            }
         }
 
-        networking::configure_networking(ec2_client, &infra).await?;
+        networking::set_routing_permissions(ec2_client, &infra).await?;
 
         // wait for instance to spawn
         tokio::time::sleep(Duration::from_secs(50)).await;

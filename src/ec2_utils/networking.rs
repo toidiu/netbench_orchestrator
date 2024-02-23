@@ -10,7 +10,7 @@ use aws_sdk_ec2::types::{
 };
 use tracing::info;
 
-pub async fn configure_networking(
+pub async fn set_routing_permissions(
     ec2_client: &aws_sdk_ec2::Client,
     infra: &InfraDetail,
 ) -> OrchResult<()> {
@@ -107,6 +107,12 @@ pub async fn configure_networking(
     Ok(())
 }
 
+#[derive(Clone, Debug)]
+pub struct NetworkingInfraDetail {
+    pub vpc_id: String,
+    pub subnet_id: String,
+}
+
 pub async fn create_security_group(
     ec2_client: &aws_sdk_ec2::Client,
     vpc_id: &str,
@@ -149,7 +155,7 @@ pub async fn create_security_group(
 pub async fn get_subnet_vpc_ids(
     ec2_client: &aws_sdk_ec2::Client,
     config: &OrchestratorConfig,
-) -> OrchResult<(String, String)> {
+) -> OrchResult<NetworkingInfraDetail> {
     let describe_subnet_output = ec2_client
         .describe_subnets()
         .filters(
@@ -168,6 +174,8 @@ pub async fn get_subnet_vpc_ids(
         "Couldn't describe subnets"
     );
 
+    tracing::debug!("{:?}", describe_subnet_output.subnets());
+
     let subnet = &describe_subnet_output.subnets().expect("subnets failed")[0];
     let subnet_id = subnet.subnet_id().ok_or(OrchError::Ec2 {
         dbg: "Couldn't find subnet".into(),
@@ -175,40 +183,8 @@ pub async fn get_subnet_vpc_ids(
     let vpc_id = subnet.vpc_id().ok_or(OrchError::Ec2 {
         dbg: "Couldn't find vpc".into(),
     })?;
-    Ok((subnet_id.into(), vpc_id.into()))
+    Ok(NetworkingInfraDetail {
+        vpc_id: vpc_id.to_owned(),
+        subnet_id: subnet_id.to_owned(),
+    })
 }
-
-// async fn get_instance_profile(iam_client: &aws_sdk_iam::Client) -> OrchResult<String> {
-//     let instance_profile_arn = iam_client
-//         .get_instance_profile()
-//         .instance_profile_name(STATE.instance_profile)
-//         .send()
-//         .await
-//         .map_err(|err| OrchError::Iam {
-//             dbg: err.to_string(),
-//         })?
-//         .instance_profile()
-//         .expect("instance_profile failed")
-//         .arn()
-//         .expect("arn failed")
-//         .into();
-//     Ok(instance_profile_arn)
-// }
-
-// async fn get_latest_ami(ssm_client: &aws_sdk_ssm::Client) -> OrchResult<String> {
-//     let ami_id = ssm_client
-//         .get_parameter()
-//         .name("/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64")
-//         .with_decryption(true)
-//         .send()
-//         .await
-//         .map_err(|err| OrchError::Ssm {
-//             dbg: err.to_string(),
-//         })?
-//         .parameter()
-//         .expect("expected ami value")
-//         .value()
-//         .expect("expected ami value")
-//         .into();
-//     Ok(ami_id)
-// }

@@ -113,7 +113,7 @@ pub struct OrchestratorConfig {
     // infra
     pub client_config: Vec<HostConfig>,
     pub server_config: Vec<HostConfig>,
-    placement: PlacementGroup,
+    pub placement: PlacementGroup,
 }
 
 impl OrchestratorConfig {
@@ -149,7 +149,7 @@ impl OrchestratorConfig {
 
     // FIXME use per instance
     pub fn instance_type(&self) -> &String {
-        &self.client_config[0].instance_type
+        &self.server_config[0].instance_type
     }
 }
 
@@ -171,6 +171,25 @@ impl HostConfig {
             az,
             instance_type: "c5.4xlarge".to_owned(),
         }
+    }
+
+    pub fn instance_type(&self) -> &String {
+        &self.instance_type
+    }
+
+    pub fn to_ec2_placement(&self, placement: &PlacementGroup) -> AwsPlacement {
+        let mut aws_placement = AwsPlacement::builder();
+
+        // set placement group
+        aws_placement = match placement {
+            PlacementGroup::Cluster => aws_placement.group_name(STATE.placement_group_cluster),
+            PlacementGroup::Partition => aws_placement.group_name(STATE.placement_group_partition),
+        };
+
+        // set AZ
+        aws_placement = aws_placement.availability_zone(&self.az);
+
+        aws_placement.build()
     }
 }
 
