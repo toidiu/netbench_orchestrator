@@ -155,14 +155,16 @@ pub async fn create_security_group(
 pub async fn get_subnet_vpc_ids(
     ec2_client: &aws_sdk_ec2::Client,
     config: &OrchestratorConfig,
+    az: String,
 ) -> OrchResult<NetworkingInfraDetail> {
     let describe_subnet_output = ec2_client
         .describe_subnets()
         .filters(
-            Filter::builder()
-                .name(config.cdk_config.netbench_runner_vpc_subnet_tag_key())
-                .values(config.cdk_config.netbench_runner_vpc_subnet_tag_value())
-                .build(),
+            // Filter::builder()
+            // .name(config.cdk_config.netbench_runner_vpc_subnet_tag_key())
+            // .values(config.cdk_config.netbench_runner_vpc_subnet_tag_value())
+            // .build(),
+            Filter::builder().name("subnet-id").values("").build(),
         )
         .send()
         .await
