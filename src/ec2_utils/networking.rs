@@ -8,20 +8,23 @@ use crate::{
 use aws_sdk_ec2::types::{
     Filter, IpPermission, IpRange, ResourceType, TagSpecification, UserIdGroupPair,
 };
+use std::collections::HashMap;
 use tracing::info;
 
 pub async fn set_routing_permissions(
     ec2_client: &aws_sdk_ec2::Client,
     infra: &InfraDetail,
 ) -> OrchResult<()> {
+    let sg_id = infra.security_group_id.clone();
+
     let sg_group = UserIdGroupPair::builder()
-        .set_group_id(Some(infra.security_group_id.clone()))
+        .set_group_id(Some(sg_id.clone()))
         .build();
 
     // Egress
     ec2_client
         .authorize_security_group_egress()
-        .group_id(infra.security_group_id.clone())
+        .group_id(sg_id.clone())
         .ip_permissions(
             // Authorize SG (all traffic within the same SG)
             IpPermission::builder()
@@ -61,7 +64,7 @@ pub async fn set_routing_permissions(
     // Ingress
     ec2_client
         .authorize_security_group_ingress()
-        .group_id(infra.security_group_id.clone())
+        .group_id(sg_id.clone())
         .ip_permissions(
             // Authorize SG (all traffic within the same SG)
             IpPermission::builder()
@@ -107,22 +110,17 @@ pub async fn set_routing_permissions(
     Ok(())
 }
 
-#[derive(Clone, Debug)]
-pub struct NetworkingInfraDetail {
-    pub vpc_id: String,
-    pub subnet_id: String,
-}
-
+// Create one per VPC. There is 1 VPC per region.
 pub async fn create_security_group(
     ec2_client: &aws_sdk_ec2::Client,
-    vpc_id: &str,
+    vpc_id: &VpcId,
     unique_id: &str,
 ) -> OrchResult<String> {
     let security_group_id = ec2_client
         .create_security_group()
         .group_name(STATE.security_group_name(unique_id))
         .description("This is a security group for a single run of netbench.")
-        .vpc_id(vpc_id)
+        .vpc_id(vpc_id.into_string())
         .tag_specifications(
             TagSpecification::builder()
                 .resource_type(ResourceType::SecurityGroup)
@@ -145,26 +143,46 @@ pub async fn create_security_group(
     Ok(security_group_id)
 }
 
-// TODO investigate if we should find a VPC and then its subnet
-// Find or define the Subnet to Launch the Netbench Runners
-//  - Default: Use the one defined by CDK
-// Note: We may need to define more in different regions and AZ
-//      There is some connection between Security Groups and
-//      Subnets such that they have to be "in the same network"
-//       I'm unclear here.
+pub type NetworkingInfraDetail = HashMap<Az, SubnetId>;
+
+#[derive(Clone, Debug, Hash, Eq, PartialEq)]
+pub struct SubnetId(String);
+
+impl SubnetId {
+    pub fn into_string(&self) -> String {
+        self.clone().0
+    }
+}
+
+#[derive(Clone, Debug, Hash, Eq, PartialEq)]
+pub struct Az(String);
+
+impl From<String> for Az {
+    fn from(value: String) -> Self {
+        Az(value)
+    }
+}
+
+#[derive(Clone, Debug, Hash, Eq, PartialEq)]
+pub struct VpcId(String);
+
+impl VpcId {
+    pub fn into_string(&self) -> String {
+        self.clone().0
+    }
+}
+
 pub async fn get_subnet_vpc_ids(
     ec2_client: &aws_sdk_ec2::Client,
     config: &OrchestratorConfig,
-    az: String,
-) -> OrchResult<NetworkingInfraDetail> {
+) -> OrchResult<(NetworkingInfraDetail, VpcId)> {
     let describe_subnet_output = ec2_client
         .describe_subnets()
         .filters(
-            // Filter::builder()
-            // .name(config.cdk_config.netbench_runner_vpc_subnet_tag_key())
-            // .values(config.cdk_config.netbench_runner_vpc_subnet_tag_value())
-            // .build(),
-            Filter::builder().name("subnet-id").values("").build(),
+            Filter::builder()
+                .name(config.cdk_config.netbench_runner_vpc_subnet_tag_key())
+                .values(config.cdk_config.netbench_runner_vpc_subnet_tag_value())
+                .build(),
         )
         .send()
         .await
@@ -178,15 +196,52 @@ pub async fn get_subnet_vpc_ids(
 
     tracing::debug!("{:?}", describe_subnet_output.subnets());
 
-    let subnet = &describe_subnet_output.subnets().expect("subnets failed")[0];
-    let subnet_id = subnet.subnet_id().ok_or(OrchError::Ec2 {
-        dbg: "Couldn't find subnet".into(),
-    })?;
-    let vpc_id = subnet.vpc_id().ok_or(OrchError::Ec2 {
-        dbg: "Couldn't find vpc".into(),
-    })?;
-    Ok(NetworkingInfraDetail {
-        vpc_id: vpc_id.to_owned(),
-        subnet_id: subnet_id.to_owned(),
-    })
+    let mut map = HashMap::new();
+
+    let subnets = &describe_subnet_output.subnets().expect("subnets failed");
+    let mut vpc_id = None;
+    for subnet in subnets.iter() {
+        let az = Az(subnet
+            .availability_zone()
+            .ok_or(OrchError::Ec2 {
+                dbg: "Couldn't find subnet".into(),
+            })?
+            .to_owned());
+        let subnet_id = SubnetId(
+            subnet
+                .subnet_id()
+                .ok_or(OrchError::Ec2 {
+                    dbg: "Couldn't find subnet".into(),
+                })?
+                .to_owned(),
+        );
+        vpc_id = Some(VpcId(
+            subnet
+                .vpc_id()
+                .ok_or(OrchError::Ec2 {
+                    dbg: "Couldn't find vpc".into(),
+                })?
+                .to_owned(),
+        ));
+        map.insert(az, subnet_id);
+    }
+
+    for host_config in config.client_config.iter() {
+        let az = Az(host_config.az.clone());
+        if !map.contains_key(&az) {
+            return Err(OrchError::Ec2 {
+                dbg: "Subnet not found for Az: {az}".into(),
+            });
+        }
+    }
+    for host_config in config.server_config.iter() {
+        let az = Az(host_config.az.clone());
+        if !map.contains_key(&az) {
+            return Err(OrchError::Ec2 {
+                dbg: "Subnet not found for Az: {az}".into(),
+            });
+        }
+    }
+
+    Ok((map, vpc_id.expect("VPC not found")))
 }

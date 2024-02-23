@@ -14,30 +14,15 @@ use tracing::info;
 // TODO
 // - work on cluster
 // - work on AZ
-// W- prod account integration
-// D- release dc-quic
 // - clean up client instances on failure
 //
-// W- test with large number of hosts
-//   - error with 20 hosts
-//      - scenario where client doesnt finish.. presumably it is waiting for data
-//      - openssl hostname mismatch error
-//        - https://gist.github.com/toidiu/a0ff912e1d087608445cf876b9c860cf
-//   - errors with 10 hosts
-//      - s2n-quic driver wasn't installed `ssm: cargo install`
-//   - enable logs on netbench
-//   x- use different ports for driveres
-//
-// - debug dc-quic driver
-// - combine client and server host launch.
-//   - cleanup client if we cant provision servers and vice versa.
-//   - clean up on error..
 //
 // # Russula/Cli
 //
 // # Features
 // - capture driver to run as part of Scenario
 // - fix graph colors in incast reports
+// - enable logs on netbench
 //
 // # Optimization
 // - use release build instead of debug
@@ -55,15 +40,23 @@ use tracing::info;
 //
 // # Cleanup
 // - instance::poll_state should take multiple instance_ids
-// - install netbench drivers from crates.io
 // - cleanup dashboard
 //
+
+pub enum RunMode {
+    // Skip the netbench run.
+    //
+    // Useful for testing infrastructure setup.
+    TestInfra,
+
+    Full
+}
 
 pub async fn run(
     unique_id: String,
     config: &OrchestratorConfig,
     aws_config: &aws_types::SdkConfig,
-    run_netbench: bool,
+    run_mode: RunMode,
 ) -> OrchResult<()> {
     let iam_client = aws_sdk_iam::Client::new(aws_config);
     let s3_client = aws_sdk_s3::Client::new(aws_config);
@@ -112,7 +105,7 @@ pub async fn run(
     )
     .await?;
 
-    if run_netbench {
+    if matches!(run_mode, RunMode::Full) {
         let client_ids: Vec<String> = infra
             .clients
             .clone()
@@ -262,7 +255,7 @@ pub async fn run(
     infra
         .cleanup(&ec2_client)
         .await
-        .map_err(|err| eprintln!("Failed to cleanup resources. {}", err))
+        .map_err(|err| eprintln!("Failed to cleanup all resources. {err} {:?}", infra))
         .unwrap();
 
     Ok(())

@@ -1,6 +1,6 @@
 # -------------------- bin orchestrator
 run_orchestrator:
-	RUST_LOG=none,orchestrator::russula=info,orchestrator=debug cargo run --bin orchestrator -- \
+	RUST_BACKTRACE=1 RUST_LOG=none,orchestrator::russula=info,orchestrator=debug cargo run --bin orchestrator -- \
 					 --placement cluster \
 					 --server-az us-west-2b,us-west-2a \
 					 --client-az us-west-2a \

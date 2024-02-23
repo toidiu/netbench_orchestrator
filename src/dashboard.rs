@@ -1,7 +1,10 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{error::OrchResult, upload_object, InstanceDetail, OrchestratorConfig, STATE};
+use crate::{
+    error::{OrchError, OrchResult},
+    upload_object, InstanceDetail, OrchestratorConfig, STATE,
+};
 use aws_sdk_s3::primitives::ByteStream;
 use bytes::Bytes;
 use tracing::info;
@@ -64,7 +67,13 @@ async fn update_instance_running(
     unique_id: &str,
     config: &OrchestratorConfig,
 ) -> OrchResult<()> {
-    let endpoint_type = &instances[0].endpoint_type.as_str();
+    let endpoint_type = &instances
+        .get(0)
+        .ok_or(OrchError::Ec2 {
+            dbg: "no instances launched".to_owned(),
+        })?
+        .endpoint_type
+        .as_str();
     let instance_detail = instances
         .iter()
         .map(|instance| {

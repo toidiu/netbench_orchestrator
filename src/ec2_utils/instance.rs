@@ -1,11 +1,10 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::HostConfig;
 use crate::{
     error::{OrchError, OrchResult},
     state::STATE,
-    LaunchPlan, OrchestratorConfig,
+    HostConfig, LaunchPlan, OrchestratorConfig,
 };
 use aws_sdk_ec2::types::{
     BlockDeviceMapping, EbsBlockDevice, IamInstanceProfileSpecification, Instance,
@@ -111,12 +110,16 @@ pub async fn launch_instances(
     host_config: &HostConfig,
     endpoint_type: EndpointType,
 ) -> OrchResult<Instance> {
-    // FIXME do per instance
     let instance_type = InstanceType::from(host_config.instance_type().as_str());
+
+    let subnet_id = launch_plan
+        .networking_detail
+        .get(&host_config.az.clone().into())
+        .expect(&format!("subnet not found for AZ {}", host_config.az));
 
     let run_result = ec2_client
         .run_instances()
-        .placement(host_config.to_ec2_placement(&config.placement))
+        // .placement(host_config.to_ec2_placement(&config.placement))
         .set_key_name(STATE.ssh_key_name.map(|s| s.to_string()))
         .iam_instance_profile(
             IamInstanceProfileSpecification::builder()
@@ -154,7 +157,7 @@ pub async fn launch_instances(
                 .associate_public_ip_address(true)
                 .delete_on_termination(true)
                 .device_index(0)
-                .subnet_id(launch_plan.networking_detail.subnet_id.clone())
+                .subnet_id(subnet_id.into_string())
                 .groups(security_group_id)
                 .build(),
         )

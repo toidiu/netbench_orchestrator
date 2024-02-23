@@ -6,7 +6,7 @@ use crate::{
     error::{OrchError, OrchResult},
 };
 use std::time::Duration;
-use tracing::info;
+use tracing::{debug, error, info};
 
 mod instance;
 mod launch_plan;
@@ -15,6 +15,7 @@ mod networking;
 pub use instance::{EndpointType, InstanceDetail, PrivIp, PubIp};
 pub use launch_plan::LaunchPlan;
 
+#[derive(Debug)]
 pub struct InfraDetail {
     pub security_group_id: String,
     pub clients: Vec<InstanceDetail>,
@@ -68,16 +69,18 @@ impl InfraDetail {
     async fn delete_security_group(&self, ec2_client: &aws_sdk_ec2::Client) -> OrchResult<()> {
         info!("Start: deleting security groups");
         println!("Start: deleting security groups");
+        let retry_backoff = Duration::from_secs(5);
         let mut deleted_sec_group = ec2_client
             .delete_security_group()
             .group_id(self.security_group_id.to_string())
             .send()
             .await;
-        tokio::time::sleep(Duration::from_secs(5)).await;
+        tokio::time::sleep(retry_backoff).await;
 
-        let mut retries = 10;
+        let mut retries = 25;
         while deleted_sec_group.is_err() && retries > 0 {
-            tokio::time::sleep(Duration::from_secs(10)).await;
+            debug!("deleting security group. retry {retries}");
+            tokio::time::sleep(retry_backoff).await;
             deleted_sec_group = ec2_client
                 .delete_security_group()
                 .group_id(self.security_group_id.to_string())
@@ -87,8 +90,11 @@ impl InfraDetail {
             retries -= 1;
         }
 
-        deleted_sec_group.map_err(|err| OrchError::Ec2 {
-            dbg: err.to_string(),
+        deleted_sec_group.map_err(|err| {
+            error!("abort deleting security group {}", self.security_group_id);
+            OrchError::Ec2 {
+                dbg: err.to_string(),
+            }
         })?;
 
         Ok(())

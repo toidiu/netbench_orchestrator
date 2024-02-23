@@ -1,11 +1,11 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::ec2_utils::networking::NetworkingInfraDetail;
 use crate::{
     ec2_utils::{
         instance::{self, EndpointType, InstanceDetail},
         networking,
+        networking::{NetworkingInfraDetail, VpcId},
     },
     InfraDetail, OrchResult, OrchestratorConfig,
 };
@@ -16,6 +16,7 @@ use tracing::debug;
 pub struct LaunchPlan<'a> {
     pub ami_id: String,
     pub networking_detail: NetworkingInfraDetail,
+    pub vpc_id: VpcId,
     pub instance_profile_arn: String,
     pub config: &'a OrchestratorConfig,
 }
@@ -33,12 +34,13 @@ impl<'a> LaunchPlan<'a> {
         let ami_id = instance::get_latest_ami(ssm_client)
             .await
             .expect("get_latest_ami failed");
-        let networking_detail = networking::get_subnet_vpc_ids(ec2_client, config)
+        let (networking_detail, vpc_id) = networking::get_subnet_vpc_ids(ec2_client, config)
             .await
             .unwrap();
         LaunchPlan {
             ami_id,
             networking_detail,
+            vpc_id,
             instance_profile_arn,
             config,
         }
@@ -49,16 +51,13 @@ impl<'a> LaunchPlan<'a> {
         ec2_client: &aws_sdk_ec2::Client,
         unique_id: &str,
     ) -> OrchResult<InfraDetail> {
-        // let mut clients = Vec::new();
-        // let mut servers = Vec::new();
+        debug!("{:?}", self);
 
-        let security_group_id = networking::create_security_group(
-            ec2_client,
-            &self.networking_detail.vpc_id,
-            unique_id,
-        )
-        .await
-        .unwrap();
+        let security_group_id =
+            networking::create_security_group(ec2_client, &self.vpc_id, unique_id)
+                .await
+                .unwrap();
+
         let mut infra = InfraDetail {
             security_group_id,
             clients: Vec::new(),
@@ -87,16 +86,15 @@ impl<'a> LaunchPlan<'a> {
                 launch_request.push(server);
             }
             let launch_request: OrchResult<Vec<_>> = launch_request.into_iter().collect();
-            // cleanup server instances if client launch failed
+            // cleanup instances if a launch failed
             if let Err(launch_err) = launch_request {
-                infra
+                let _ = infra
                     .cleanup(ec2_client)
                     .await
                     .map_err(|delete_err| {
                         // ignore error on cleanup.. since this is best effort
                         debug!("{}", delete_err);
-                    })
-                    .unwrap();
+                    });
 
                 return Err(launch_err);
             }
@@ -132,16 +130,15 @@ impl<'a> LaunchPlan<'a> {
             }
 
             let launch_request: OrchResult<Vec<_>> = launch_request.into_iter().collect();
-            // cleanup server instances if client launch failed
+            // cleanup instances if a launch failed
             if let Err(launch_err) = launch_request {
-                infra
+                let _ = infra
                     .cleanup(ec2_client)
                     .await
                     .map_err(|delete_err| {
                         // ignore error on cleanup.. since this is best effort
                         debug!("{}", delete_err);
-                    })
-                    .unwrap();
+                    });
 
                 return Err(launch_err);
             }
@@ -158,7 +155,7 @@ impl<'a> LaunchPlan<'a> {
         networking::set_routing_permissions(ec2_client, &infra).await?;
 
         // wait for instance to spawn
-        tokio::time::sleep(Duration::from_secs(50)).await;
+        tokio::time::sleep(Duration::from_secs(10)).await;
 
         Ok(infra)
     }

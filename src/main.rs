@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #![allow(dead_code)]
+use crate::orchestrator::RunMode;
 use aws_types::region::Region;
 use clap::Parser;
 use error::OrchResult;
@@ -49,5 +50,5 @@ async fn main() -> OrchResult<()> {
     let aws_config = aws_config::from_env().region(region).load().await;
     let config = cli.check_requirements(&aws_config).await?;
 
-    orchestrator::run(unique_id, &config, &aws_config, false).await
+    orchestrator::run(unique_id, &config, &aws_config, RunMode::Full).await
 }

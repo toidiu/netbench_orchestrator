@@ -155,7 +155,7 @@ impl OrchestratorConfig {
 
 #[derive(Clone, Debug)]
 pub struct HostConfig {
-    az: String,
+    pub az: String,
     instance_type: String,
 }
 
