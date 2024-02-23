@@ -48,12 +48,7 @@ pub async fn set_routing_permissions(
         .iter()
         .chain(infra.servers.iter())
         .map(|instance_detail| {
-            info!(
-                "{:?}: {} -- {}",
-                instance_detail.endpoint_type,
-                instance_detail.instance_id().expect("instance_id failed"),
-                instance_detail.host_ips
-            );
+            info!("{}", instance_detail);
 
             IpRange::builder()
                 .cidr_ip(format!("{}/32", instance_detail.host_ips.public_ip()))
@@ -154,8 +149,15 @@ impl SubnetId {
     }
 }
 
-#[derive(Clone, Debug, Hash, Eq, PartialEq)]
+#[derive(Clone, Debug, Hash, Eq, PartialEq, PartialOrd, Ord)]
 pub struct Az(String);
+
+impl std::fmt::Display for Az {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)?;
+        Ok(())
+    }
+}
 
 impl From<String> for Az {
     fn from(value: String) -> Self {

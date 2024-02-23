@@ -49,7 +49,7 @@ pub enum RunMode {
     // Useful for testing infrastructure setup.
     TestInfra,
 
-    Full
+    Full,
 }
 
 pub async fn run(

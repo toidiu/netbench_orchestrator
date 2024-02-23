@@ -35,8 +35,8 @@ pub const STATE: State = State {
     // json
     s3_private_log_bucket: "netbenchrunner-private-source-prod",
     // create/import a key pair to the account
-    ssh_key_name: None,
-    // ssh_key_name: Some("apoorvko_m1"),
+    // ssh_key_name: None,
+    ssh_key_name: Some("apoorvko_m1"),
 };
 
 pub struct State {

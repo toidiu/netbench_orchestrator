@@ -5,7 +5,7 @@ use crate::{
     ec2_utils::{
         instance::{self, EndpointType, InstanceDetail},
         networking,
-        networking::{NetworkingInfraDetail, VpcId},
+        networking::{Az, NetworkingInfraDetail, VpcId},
     },
     InfraDetail, OrchResult, OrchestratorConfig,
 };
@@ -74,7 +74,6 @@ impl<'a> LaunchPlan<'a> {
                     self,
                     &infra.security_group_id,
                     unique_id,
-                    &self.config,
                     &host_config,
                     endpoint_type,
                 )
@@ -88,13 +87,10 @@ impl<'a> LaunchPlan<'a> {
             let launch_request: OrchResult<Vec<_>> = launch_request.into_iter().collect();
             // cleanup instances if a launch failed
             if let Err(launch_err) = launch_request {
-                let _ = infra
-                    .cleanup(ec2_client)
-                    .await
-                    .map_err(|delete_err| {
-                        // ignore error on cleanup.. since this is best effort
-                        debug!("{}", delete_err);
-                    });
+                let _ = infra.cleanup(ec2_client).await.map_err(|delete_err| {
+                    // ignore error on cleanup.. since this is best effort
+                    debug!("{}", delete_err);
+                });
 
                 return Err(launch_err);
             }
@@ -103,7 +99,9 @@ impl<'a> LaunchPlan<'a> {
             for (i, server) in launch_request.into_iter().enumerate() {
                 let server_ip =
                     instance::poll_running(i, &endpoint_type, ec2_client, &server).await?;
-                let server = InstanceDetail::new(endpoint_type, server, server_ip);
+                let az = server.placement().unwrap().availability_zone().unwrap();
+                let server =
+                    InstanceDetail::new(endpoint_type, Az::from(az.to_string()), server, server_ip);
                 infra.servers.push(server);
             }
         }
@@ -117,7 +115,6 @@ impl<'a> LaunchPlan<'a> {
                     self,
                     &infra.security_group_id,
                     &unique_id,
-                    &self.config,
                     &host_config,
                     endpoint_type,
                 )
@@ -132,13 +129,10 @@ impl<'a> LaunchPlan<'a> {
             let launch_request: OrchResult<Vec<_>> = launch_request.into_iter().collect();
             // cleanup instances if a launch failed
             if let Err(launch_err) = launch_request {
-                let _ = infra
-                    .cleanup(ec2_client)
-                    .await
-                    .map_err(|delete_err| {
-                        // ignore error on cleanup.. since this is best effort
-                        debug!("{}", delete_err);
-                    });
+                let _ = infra.cleanup(ec2_client).await.map_err(|delete_err| {
+                    // ignore error on cleanup.. since this is best effort
+                    debug!("{}", delete_err);
+                });
 
                 return Err(launch_err);
             }
@@ -147,7 +141,9 @@ impl<'a> LaunchPlan<'a> {
             for (i, client) in launch_request.into_iter().enumerate() {
                 let client_ip =
                     instance::poll_running(i, &endpoint_type, ec2_client, &client).await?;
-                let client = InstanceDetail::new(endpoint_type, client, client_ip);
+                let az = client.placement().unwrap().availability_zone().unwrap();
+                let client =
+                    InstanceDetail::new(endpoint_type, Az::from(az.to_string()), client, client_ip);
                 infra.clients.push(client);
             }
         }

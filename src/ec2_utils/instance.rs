@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
+    ec2_utils::networking::Az,
     error::{OrchError, OrchResult},
     state::STATE,
     HostConfig, LaunchPlan, OrchestratorConfig,
@@ -75,12 +76,24 @@ impl EndpointType {
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub struct InstanceDetail {
     pub endpoint_type: EndpointType,
+    pub az: Az,
     pub instance_id: String,
     pub host_ips: HostIps,
 }
 
+impl std::fmt::Display for &InstanceDetail {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{:?} ({}): {} -- {}",
+            self.endpoint_type, self.az, self.instance_id, self.host_ips
+        )?;
+        Ok(())
+    }
+}
+
 impl InstanceDetail {
-    pub fn new(endpoint_type: EndpointType, instance: Instance, host_ips: HostIps) -> Self {
+    pub fn new(endpoint_type: EndpointType, az: Az, instance: Instance, host_ips: HostIps) -> Self {
         let instance_id = instance
             .instance_id()
             .ok_or(OrchError::Ec2 {
@@ -91,6 +104,7 @@ impl InstanceDetail {
 
         InstanceDetail {
             endpoint_type,
+            az,
             instance_id,
             host_ips,
         }
@@ -106,7 +120,6 @@ pub async fn launch_instances(
     launch_plan: &LaunchPlan<'_>,
     security_group_id: &str,
     unique_id: &str,
-    config: &OrchestratorConfig,
     host_config: &HostConfig,
     endpoint_type: EndpointType,
 ) -> OrchResult<Instance> {
