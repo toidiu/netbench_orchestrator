@@ -12,9 +12,6 @@ use aws_sdk_s3::primitives::ByteStream;
 use tracing::info;
 
 // TODO
-// - work on cluster
-//   - create placement group
-// D- work on AZ
 // - clean up instances on failure.. maybe wait a bit to cleanup after launch request
 //
 // # Russula/Cli

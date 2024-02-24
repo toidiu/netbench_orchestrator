@@ -7,9 +7,11 @@ use crate::{
         networking,
         networking::{Az, NetworkingInfraDetail, VpcId},
     },
+    error::OrchError,
     InfraDetail, OrchResult, OrchestratorConfig,
 };
-use std::time::Duration;
+use aws_sdk_ec2::types::PlacementStrategy;
+use std::{collections::HashMap, time::Duration};
 use tracing::debug;
 
 #[derive(Clone, Debug)]
@@ -52,16 +54,34 @@ impl<'a> LaunchPlan<'a> {
         unique_id: &str,
     ) -> OrchResult<InfraDetail> {
         debug!("{:?}", self);
-
         let security_group_id =
             networking::create_security_group(ec2_client, &self.vpc_id, unique_id)
                 .await
                 .unwrap();
 
+        // Create placement per az.
+        //
+        // Only cluster placement supported at the moment
+        let mut placement_map = HashMap::new();
+        for az in self.networking_detail.keys() {
+            let placement = ec2_client
+                .create_placement_group()
+                .group_name(format!("cluster-{}-{}", unique_id, az))
+                .strategy(PlacementStrategy::Cluster)
+                .send()
+                .await
+                .map_err(|r| OrchError::Ec2 {
+                    dbg: format!("{:#?}", r),
+                })?;
+            let placement = placement.placement_group().unwrap();
+            placement_map.insert(az.clone(), placement.clone());
+        }
+
         let mut infra = InfraDetail {
             security_group_id,
             clients: Vec::new(),
             servers: Vec::new(),
+            placement_map,
         };
 
         // TODO the calls for server and client are similar.. dedupe into a function
@@ -75,6 +95,7 @@ impl<'a> LaunchPlan<'a> {
                     &infra.security_group_id,
                     unique_id,
                     &host_config,
+                    &infra.placement_map,
                     endpoint_type,
                 )
                 .await
@@ -116,6 +137,7 @@ impl<'a> LaunchPlan<'a> {
                     &infra.security_group_id,
                     &unique_id,
                     &host_config,
+                    &infra.placement_map,
                     endpoint_type,
                 )
                 .await

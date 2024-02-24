@@ -9,10 +9,10 @@ use crate::{
 };
 use aws_sdk_ec2::types::{
     BlockDeviceMapping, EbsBlockDevice, IamInstanceProfileSpecification, Instance,
-    InstanceNetworkInterfaceSpecification, InstanceStateName, InstanceType, ResourceType,
-    ShutdownBehavior, Tag, TagSpecification,
+    InstanceNetworkInterfaceSpecification, InstanceStateName, InstanceType, PlacementGroup,
+    ResourceType, ShutdownBehavior, Tag, TagSpecification,
 };
-use std::{net::IpAddr, str::FromStr, time::Duration};
+use std::{collections::HashMap, net::IpAddr, str::FromStr, time::Duration};
 use tracing::info;
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
@@ -121,6 +121,7 @@ pub async fn launch_instances(
     security_group_id: &str,
     unique_id: &str,
     host_config: &HostConfig,
+    placement_map: &HashMap<Az, PlacementGroup>,
     endpoint_type: EndpointType,
 ) -> OrchResult<Instance> {
     let instance_type = InstanceType::from(host_config.instance_type().as_str());
@@ -130,9 +131,10 @@ pub async fn launch_instances(
         .get(&host_config.az.clone().into())
         .expect(&format!("subnet not found for AZ {}", host_config.az));
 
+    let placement = host_config.to_ec2_placement(placement_map)?;
     let run_result = ec2_client
         .run_instances()
-        .placement(host_config.to_ec2_placement())
+        .placement(placement)
         .set_key_name(STATE.ssh_key_name.map(|s| s.to_string()))
         .iam_instance_profile(
             IamInstanceProfileSpecification::builder()

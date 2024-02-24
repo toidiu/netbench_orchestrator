@@ -3,13 +3,14 @@
 
 use crate::{
     error::{OrchError, OrchResult},
-    STATE,
+    Az, STATE,
 };
-use aws_sdk_ec2::types::Placement as AwsPlacement;
+use aws_sdk_ec2::types::{Placement as AwsPlacement, PlacementGroup};
 use clap::{Args, Parser};
 use serde::Deserialize;
 use serde_json::Value;
 use std::{
+    collections::HashMap,
     fs::File,
     path::{Path, PathBuf},
     process::Command,
@@ -77,7 +78,7 @@ impl Cli {
         for (i, az) in self.infra.server_az.into_iter().enumerate() {
             let placement = self
                 .infra
-                .client_placement
+                .server_placement
                 .get(i)
                 .unwrap_or(&PlacementGroupConfig::Unspecified);
             server_config.push(HostConfig::new(az, placement.clone()));
@@ -143,6 +144,9 @@ struct CliInfraScenario {
     // ssh_key_name
 }
 
+// Placement strategy for a cluster of EC2 hosts.
+//
+// Only cluster placement supported at the moment. Placement groups are created per run.
 // https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/placement-groups.html?icmpid=docs_ec2_console
 #[derive(Clone, Debug, Default, clap::ValueEnum)]
 enum PlacementGroupConfig {
@@ -289,20 +293,34 @@ impl HostConfig {
         &self.instance_type
     }
 
-    pub fn to_ec2_placement(&self) -> AwsPlacement {
+    pub fn to_ec2_placement(
+        &self,
+        placement_map: &HashMap<Az, PlacementGroup>,
+    ) -> OrchResult<AwsPlacement> {
         let mut aws_placement = AwsPlacement::builder();
 
         // set placement group
         match self.placement {
-            PlacementGroupConfig::Unspecified => {}
+            PlacementGroupConfig::Unspecified => {
+                debug!("unspecified placement group");
+            }
             PlacementGroupConfig::Cluster => {
-                aws_placement = aws_placement.group_name(STATE.placement_group_cluster);
+                debug!("cluster placement group specified");
+                let placement_group = placement_map
+                    .get(&Az::from(self.az.clone()))
+                    .expect("placement group not found");
+
+                aws_placement = aws_placement.group_name(
+                    placement_group
+                        .group_name()
+                        .expect("placement group_name not found"),
+                );
             }
         };
 
         // Set AZ. This is also set when chooing the subnet for the instance
         aws_placement = aws_placement.availability_zone(&self.az);
 
-        aws_placement.build()
+        Ok(aws_placement.build())
     }
 }
