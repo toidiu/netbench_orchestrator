@@ -1,10 +1,10 @@
 # -------------------- bin orchestrator
 run_orchestrator:
-	RUST_BACKTRACE=1 RUST_LOG=none,orchestrator::russula=info,orchestrator=debug cargo run --bin orchestrator -- \
-					 --placement cluster \
+	RUST_LOG=none,orchestrator::russula=info,orchestrator=debug cargo run --bin orchestrator -- \
 					 --cdk-config-file output.json \
 					 --client-az us-west-2a \
 					 --server-az us-west-2b,us-west-2b,us-west-2a,us-west-2a,us-west-2a \
+					 --server-placement cluster,cluster,cluster,unspecified,cluster \
 					 --netbench-scenario-file scripts/request_response_multi_5_incast_1GB_req_resp.json \
 					 # --server-az us-west-2b,us-west-2a \
 					 # --netbench-scenario-file scripts/request_response_multi_2_incast_1GB_req_resp.json \

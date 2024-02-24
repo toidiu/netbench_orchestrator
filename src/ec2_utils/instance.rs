@@ -132,7 +132,7 @@ pub async fn launch_instances(
 
     let run_result = ec2_client
         .run_instances()
-        // .placement(host_config.to_ec2_placement(&config.placement))
+        .placement(host_config.to_ec2_placement())
         .set_key_name(STATE.ssh_key_name.map(|s| s.to_string()))
         .iam_instance_profile(
             IamInstanceProfileSpecification::builder()

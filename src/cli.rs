@@ -52,13 +52,35 @@ impl Cli {
             scenario.clients.len(),
             "AZ overlay should match the number of client hosts in the netbench scenario"
         );
+        // Placement
+        assert!(
+            self.infra.server_placement.is_empty()
+                || self.infra.server_placement.len() == scenario.servers.len(),
+            "Placement overlay should be empty or match the number of client hosts in the netbench scenario"
+        );
+        assert!(
+            self.infra.client_placement.is_empty()
+                || self.infra.client_placement.len() == scenario.clients.len(),
+            "Placement overlay should be empty or match the number of client hosts in the netbench scenario"
+        );
+
         let mut client_config = Vec::with_capacity(self.infra.client_az.len());
-        for az in self.infra.client_az {
-            client_config.push(HostConfig::new(az));
+        for (i, az) in self.infra.client_az.into_iter().enumerate() {
+            let placement = self
+                .infra
+                .client_placement
+                .get(i)
+                .unwrap_or(&PlacementGroupConfig::Unspecified);
+            client_config.push(HostConfig::new(az, placement.clone()));
         }
         let mut server_config = Vec::with_capacity(self.infra.server_az.len());
-        for az in self.infra.server_az {
-            server_config.push(HostConfig::new(az));
+        for (i, az) in self.infra.server_az.into_iter().enumerate() {
+            let placement = self
+                .infra
+                .client_placement
+                .get(i)
+                .unwrap_or(&PlacementGroupConfig::Unspecified);
+            server_config.push(HostConfig::new(az, placement.clone()));
         }
 
         let config = OrchestratorConfig {
@@ -67,7 +89,6 @@ impl Cli {
             client_config,
             server_config,
             cdk_config,
-            placement: self.infra.placement,
         };
         debug!("{:?}", config);
 
@@ -106,8 +127,11 @@ impl Cli {
 #[derive(Clone, Debug, Default, Args)]
 struct CliInfraScenario {
     /// Placement strategy for the netbench hosts
-    #[arg(long)]
-    placement: Option<PlacementGroupConfig>,
+    #[arg(long, value_delimiter = ',')]
+    client_placement: Vec<PlacementGroupConfig>,
+
+    #[arg(long, value_delimiter = ',')]
+    server_placement: Vec<PlacementGroupConfig>,
 
     #[arg(long, value_delimiter = ',')]
     client_az: Vec<String>,
@@ -123,6 +147,8 @@ struct CliInfraScenario {
 #[derive(Clone, Debug, Default, clap::ValueEnum)]
 enum PlacementGroupConfig {
     #[default]
+    Unspecified,
+
     // Packs instances close together inside an Availability Zone. This
     // strategy enables workloads to achieve the low-latency network
     // performance necessary for tightly-coupled node-to-node communication
@@ -166,7 +192,6 @@ pub struct OrchestratorConfig {
     // infra
     pub client_config: Vec<HostConfig>,
     pub server_config: Vec<HostConfig>,
-    pub placement: Option<PlacementGroupConfig>,
 }
 
 impl OrchestratorConfig {
@@ -177,34 +202,6 @@ impl OrchestratorConfig {
             .expect("expect scenario file")
             .to_str()
             .unwrap()
-    }
-
-    pub fn to_ec2_placement(&self) -> AwsPlacement {
-        let mut placement = AwsPlacement::builder();
-
-        // set placement group
-        placement = match self.placement {
-            Some(PlacementGroupConfig::Cluster) => {
-                placement.group_name(STATE.placement_group_cluster)
-            }
-            None => todo!(),
-        };
-
-        // set AZ
-        // let az = match endpoint_type {
-        //     EndpointType::Server => &self.server_az,
-        //     EndpointType::Client => &self.client_az,
-        // };
-        // if let Some(az) = az {
-        //     placement = placement.availability_zone(az);
-        // }
-
-        placement.build()
-    }
-
-    // FIXME use per instance
-    pub fn instance_type(&self) -> &String {
-        &self.server_config[0].instance_type
     }
 }
 
@@ -270,10 +267,11 @@ pub struct CdkSubnetTagConfig {
 pub struct HostConfig {
     pub az: String,
     instance_type: String,
+    placement: PlacementGroupConfig,
 }
 
 impl HostConfig {
-    fn new(az: String) -> Self {
+    fn new(az: String, placement: PlacementGroupConfig) -> Self {
         assert!(
             az.starts_with(STATE.region),
             "User specified AZ: {} is not in the region: {}",
@@ -283,6 +281,7 @@ impl HostConfig {
         HostConfig {
             az,
             instance_type: "c5.4xlarge".to_owned(),
+            placement,
         }
     }
 
@@ -290,17 +289,18 @@ impl HostConfig {
         &self.instance_type
     }
 
-    pub fn to_ec2_placement(&self, placement: &PlacementGroupConfig) -> AwsPlacement {
+    pub fn to_ec2_placement(&self) -> AwsPlacement {
         let mut aws_placement = AwsPlacement::builder();
 
         // set placement group
-        aws_placement = match placement {
+        match self.placement {
+            PlacementGroupConfig::Unspecified => {}
             PlacementGroupConfig::Cluster => {
-                aws_placement.group_name(STATE.placement_group_cluster)
+                aws_placement = aws_placement.group_name(STATE.placement_group_cluster);
             }
         };
 
-        // set AZ
+        // Set AZ. This is also set when chooing the subnet for the instance
         aws_placement = aws_placement.availability_zone(&self.az);
 
         aws_placement.build()
