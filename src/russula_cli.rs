@@ -16,7 +16,7 @@ mod russula;
 /// This utility is a convenient CLI wrapper around Russula and can be used to launch
 /// different protocols.
 ///
-/// It currently supports launching server/client Netbench protocols.
+/// It is used by the Orchestrator to launch Russula Workers on remote hosts.
 
 #[derive(StructOpt, Debug)]
 struct Opt {

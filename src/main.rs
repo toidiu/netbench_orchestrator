@@ -9,18 +9,15 @@ use error::OrchResult;
 use tracing_subscriber::EnvFilter;
 
 mod cli;
-mod dashboard;
 mod ec2_utils;
 mod error;
 mod orchestrator;
-mod report;
 mod russula;
 mod s3_utils;
 mod ssm_utils;
 mod state;
 
 use cli::*;
-use dashboard::*;
 use ec2_utils::*;
 use s3_utils::*;
 use ssm_utils::*;

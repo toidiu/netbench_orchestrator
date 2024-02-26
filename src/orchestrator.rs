@@ -2,14 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
-    dashboard,
     ec2_utils::LaunchPlan,
     error::{OrchError, OrchResult},
-    report::orch_generate_report,
-    ssm_utils, update_dashboard, upload_object, OrchestratorConfig,
+    ssm_utils, upload_object, OrchestratorConfig,
 };
 use aws_sdk_s3::primitives::ByteStream;
 use tracing::info;
+
+mod dashboard;
+mod report;
 
 // TODO
 // # Features
@@ -62,7 +63,7 @@ pub async fn run(
     .await
     .unwrap();
 
-    update_dashboard(
+    dashboard::update_dashboard(
         dashboard::Step::UploadIndex,
         &s3_client,
         &unique_id,
@@ -75,14 +76,14 @@ pub async fn run(
         .await
         .launch(&ec2_client, &unique_id)
         .await?;
-    update_dashboard(
+    dashboard::update_dashboard(
         dashboard::Step::HostsRunning(&infra.servers),
         &s3_client,
         &unique_id,
         config,
     )
     .await?;
-    update_dashboard(
+    dashboard::update_dashboard(
         dashboard::Step::HostsRunning(&infra.clients),
         &s3_client,
         &unique_id,
@@ -233,7 +234,7 @@ pub async fn run(
         }
 
         // Copy results back
-        orch_generate_report(&s3_client, &unique_id, &infra, config).await;
+        report::orch_generate_report(&s3_client, &unique_id, &infra, config).await;
     }
 
     // Cleanup
