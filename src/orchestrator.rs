@@ -12,33 +12,21 @@ use aws_sdk_s3::primitives::ByteStream;
 use tracing::info;
 
 // TODO
+// # Features
 // - clean up instances on failure.. maybe wait a bit to cleanup after launch request
 //
 // # Russula/Cli
 //
-// # Features
-// - capture driver to run as part of Scenario
-// - fix graph colors in incast reports
-// - enable logs on netbench
-//
 // # Optimization
-// - use release build instead of debug
-// - experiment with uploading and downloading netbench exec
 // - tar.gz private source
-//   - save hash of private source
-//   - get private src exec from s3
-// - enum for orch steps
-//   - add timing data
-// - use release build instead of debug
-// - experiment with uploading and downloading netbench exec
-// - add logging for netbench - 2 days
+// - add logging for netbench
 //   - TRACE=stdio
 // - add pcap captures
 //
-// # Cleanup
+// # Nits
 // - instance::poll_state should take multiple instance_ids
 // - cleanup dashboard
-//
+// - fix graph colors in incast reports
 
 pub enum RunMode {
     // Skip the netbench run.
