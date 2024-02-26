@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
-    error::{OrchError, OrchResult},
-    Az, STATE,
+    orchestrator::{OrchError, OrchResult, STATE},
+    Az,
 };
 use aws_sdk_ec2::types::{Placement as AwsPlacement, PlacementGroup};
 use clap::{Args, Parser};

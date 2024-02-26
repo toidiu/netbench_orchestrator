@@ -2,24 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #![allow(dead_code)]
-use crate::orchestrator::RunMode;
+use crate::orchestrator::{OrchError, OrchResult, RunMode, STATE};
 use aws_types::region::Region;
 use clap::Parser;
-use error::OrchResult;
 use tracing_subscriber::EnvFilter;
 
 mod ec2_utils;
-mod error;
 mod orchestrator;
 mod russula;
 mod s3_utils;
 mod ssm_utils;
-mod state;
 
 use ec2_utils::*;
 use s3_utils::*;
 use ssm_utils::*;
-use state::*;
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> OrchResult<()> {

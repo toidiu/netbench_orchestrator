@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
-    error::{OrchError, OrchResult},
-    orchestrator::OrchestratorConfig,
-    InfraDetail, STATE,
+    orchestrator::{OrchError, OrchResult, OrchestratorConfig, STATE},
+    InfraDetail,
 };
 use aws_sdk_ec2::types::{
     Filter, IpPermission, IpRange, ResourceType, TagSpecification, UserIdGroupPair,

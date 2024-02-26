@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::{send_command, Step};
-use crate::{orchestrator::OrchestratorConfig, state::STATE, NetbenchDriverType, PrivIp};
+use crate::{orchestrator::OrchestratorConfig, NetbenchDriverType, PrivIp, STATE};
 use aws_sdk_ssm::operation::send_command::SendCommandOutput;
 use std::net::SocketAddr;
 use tracing::{debug, info};

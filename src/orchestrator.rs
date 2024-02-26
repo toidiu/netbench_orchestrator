@@ -1,19 +1,19 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{
-    ec2_utils::LaunchPlan,
-    error::{OrchError, OrchResult},
-    ssm_utils, upload_object,
-};
+use crate::{ec2_utils::LaunchPlan, ssm_utils, upload_object};
 use aws_sdk_s3::primitives::ByteStream;
 use tracing::info;
 
 mod cli;
 mod dashboard;
+mod error;
 mod report;
+mod state;
 
 pub use cli::{Cli, HostConfig, OrchestratorConfig};
+pub use error::*;
+pub use state::*;
 
 // TODO
 // # Features

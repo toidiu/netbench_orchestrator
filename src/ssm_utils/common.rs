@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::{send_command, Step};
-use crate::{orchestrator::OrchestratorConfig, poll_ssm_results, state::STATE, NetbenchDriverType};
+use crate::{orchestrator::OrchestratorConfig, poll_ssm_results, NetbenchDriverType, STATE};
 use aws_sdk_ssm::operation::send_command::SendCommandOutput;
 use core::time::Duration;
 use indicatif::{ProgressBar, ProgressStyle};

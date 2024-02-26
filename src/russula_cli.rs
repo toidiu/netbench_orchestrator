@@ -1,6 +1,5 @@
 use crate::russula::netbench;
 use core::time::Duration;
-use error::OrchResult;
 use russula::{
     netbench::{client, server},
     RussulaBuilder,
@@ -10,7 +9,6 @@ use structopt::StructOpt;
 use tracing::debug;
 use tracing_subscriber::EnvFilter;
 
-mod error;
 mod russula;
 
 /// This utility is a convenient CLI wrapper around Russula and can be used to launch
@@ -61,7 +59,7 @@ enum RussulaProtocol {
 }
 
 #[tokio::main(flavor = "current_thread")]
-async fn main() -> OrchResult<()> {
+async fn main() -> () {
     let opt = Opt::from_args();
 
     let file_appender = tracing_appender::rolling::daily("./target", "russula.log");
@@ -99,7 +97,6 @@ async fn main() -> OrchResult<()> {
     };
 
     println!("cli done");
-    Ok(())
 }
 
 async fn run_server_worker(opt: Opt, netbench_ctx: netbench::ServerContext, russula_port: u16) {

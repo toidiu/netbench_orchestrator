@@ -3,9 +3,7 @@
 
 use crate::{
     ec2_utils::networking::Az,
-    error::{OrchError, OrchResult},
-    orchestrator::{HostConfig, OrchestratorConfig},
-    state::STATE,
+    orchestrator::{HostConfig, OrchError, OrchResult, OrchestratorConfig, STATE},
     LaunchPlan,
 };
 use aws_sdk_ec2::types::{

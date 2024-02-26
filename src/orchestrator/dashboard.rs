@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
-    error::{OrchError, OrchResult},
-    orchestrator::OrchestratorConfig,
-    upload_object, InstanceDetail, STATE,
+    orchestrator::{OrchError, OrchResult, OrchestratorConfig, STATE},
+    upload_object, InstanceDetail,
 };
 use aws_sdk_s3::primitives::ByteStream;
 use bytes::Bytes;

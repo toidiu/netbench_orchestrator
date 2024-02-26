@@ -1,11 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{
-    error::{OrchError, OrchResult},
-    orchestrator::OrchestratorConfig,
-    state::STATE,
-};
+use crate::orchestrator::{OrchError, OrchResult, OrchestratorConfig, STATE};
 use aws_sdk_ssm::{
     operation::send_command::SendCommandOutput,
     types::{CloudWatchOutputConfig, CommandInvocationStatus},
