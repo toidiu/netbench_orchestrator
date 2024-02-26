@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::{LocalSource, NetbenchDriverType};
-use crate::{OrchestratorConfig, STATE};
+use crate::{ssm_utils::OrchestratorConfig, STATE};
 use std::{
     path::PathBuf,
     process::{Command, Stdio},

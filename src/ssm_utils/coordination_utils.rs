@@ -3,13 +3,14 @@
 
 use crate::{
     ec2_utils::InfraDetail,
+    orchestrator::OrchestratorConfig,
     poll_ssm_results,
     russula::{
         self,
         netbench::{client, server},
         RussulaBuilder,
     },
-    ssm_utils, NetbenchDriverType, OrchestratorConfig, PubIp, STATE,
+    ssm_utils, NetbenchDriverType, PubIp, STATE,
 };
 use aws_sdk_ssm::operation::send_command::SendCommandOutput;
 use core::time::Duration;

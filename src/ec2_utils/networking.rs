@@ -3,7 +3,8 @@
 
 use crate::{
     error::{OrchError, OrchResult},
-    InfraDetail, OrchestratorConfig, STATE,
+    orchestrator::OrchestratorConfig,
+    InfraDetail, STATE,
 };
 use aws_sdk_ec2::types::{
     Filter, IpPermission, IpRange, ResourceType, TagSpecification, UserIdGroupPair,

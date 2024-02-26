@@ -8,7 +8,8 @@ use crate::{
         networking::{Az, NetworkingInfraDetail, VpcId},
     },
     error::OrchError,
-    InfraDetail, OrchResult, OrchestratorConfig,
+    orchestrator::OrchestratorConfig,
+    InfraDetail, OrchResult,
 };
 use aws_sdk_ec2::types::PlacementStrategy;
 use std::{collections::HashMap, time::Duration};

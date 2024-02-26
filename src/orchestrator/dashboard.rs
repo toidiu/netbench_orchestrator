@@ -3,7 +3,8 @@
 
 use crate::{
     error::{OrchError, OrchResult},
-    upload_object, InstanceDetail, OrchestratorConfig, STATE,
+    orchestrator::OrchestratorConfig,
+    upload_object, InstanceDetail, STATE,
 };
 use aws_sdk_s3::primitives::ByteStream;
 use bytes::Bytes;

@@ -3,8 +3,8 @@
 
 use crate::{
     error::{OrchError, OrchResult},
+    orchestrator::OrchestratorConfig,
     state::STATE,
-    OrchestratorConfig,
 };
 use aws_sdk_ssm::{
     operation::send_command::SendCommandOutput,
@@ -13,10 +13,10 @@ use aws_sdk_ssm::{
 use core::{task::Poll, time::Duration};
 use tracing::{error, trace};
 
-mod netbench_driver;
-pub mod coordination_utils;
 pub mod client;
 pub mod common;
+pub mod coordination_utils;
+mod netbench_driver;
 pub mod server;
 
 pub use netbench_driver::*;

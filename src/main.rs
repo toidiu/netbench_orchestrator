@@ -8,7 +8,6 @@ use clap::Parser;
 use error::OrchResult;
 use tracing_subscriber::EnvFilter;
 
-mod cli;
 mod ec2_utils;
 mod error;
 mod orchestrator;
@@ -17,7 +16,6 @@ mod s3_utils;
 mod ssm_utils;
 mod state;
 
-use cli::*;
 use ec2_utils::*;
 use s3_utils::*;
 use ssm_utils::*;
@@ -40,7 +38,7 @@ async fn main() -> OrchResult<()> {
         .with_writer(non_blocking)
         .init();
 
-    let cli = Cli::parse().parse_config()?;
+    let cli = orchestrator::Cli::parse().parse_config()?;
     let region = Region::new(cli.region());
     let aws_config = aws_config::from_env().region(region).load().await;
     let config = cli.check_requirements(&aws_config).await?;

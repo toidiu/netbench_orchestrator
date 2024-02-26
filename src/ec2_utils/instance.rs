@@ -4,8 +4,9 @@
 use crate::{
     ec2_utils::networking::Az,
     error::{OrchError, OrchResult},
+    orchestrator::{HostConfig, OrchestratorConfig},
     state::STATE,
-    HostConfig, LaunchPlan, OrchestratorConfig,
+    LaunchPlan,
 };
 use aws_sdk_ec2::types::{
     BlockDeviceMapping, EbsBlockDevice, IamInstanceProfileSpecification, Instance,

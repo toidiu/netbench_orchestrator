@@ -4,13 +4,16 @@
 use crate::{
     ec2_utils::LaunchPlan,
     error::{OrchError, OrchResult},
-    ssm_utils, upload_object, OrchestratorConfig,
+    ssm_utils, upload_object,
 };
 use aws_sdk_s3::primitives::ByteStream;
 use tracing::info;
 
+mod cli;
 mod dashboard;
 mod report;
+
+pub use cli::{Cli, HostConfig, OrchestratorConfig};
 
 // TODO
 // # Features
