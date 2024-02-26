@@ -1,4 +1,4 @@
-use crate::{duration::parse_duration, russula::netbench};
+use crate::russula::netbench;
 use core::time::Duration;
 use error::OrchResult;
 use russula::{
@@ -170,4 +170,8 @@ async fn run_local_client_coordinator(opt: Opt, russula_worker_addrs: Vec<Socket
 
 fn local_listen_addr(russula_port: u16) -> SocketAddr {
     format!("0.0.0.0:{}", russula_port).parse().unwrap()
+}
+
+fn parse_duration(s: &str) -> Result<Duration, humantime::DurationError> {
+    Ok(humantime::parse_duration(s)?)
 }
