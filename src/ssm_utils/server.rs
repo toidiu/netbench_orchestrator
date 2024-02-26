@@ -3,7 +3,7 @@
 
 use super::{send_command, Step};
 use crate::{
-    orchestrator::{OrchError, OrchResult, OrchestratorConfig, STATE},
+    orchestrator::{OrchestratorConfig, STATE},
     NetbenchDriverType,
 };
 use aws_sdk_ssm::operation::send_command::SendCommandOutput;

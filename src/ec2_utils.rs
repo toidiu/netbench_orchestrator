@@ -3,7 +3,7 @@
 
 use crate::{
     ec2_utils::instance::delete_instance,
-    orchestrator::{OrchError, OrchResult, STATE},
+    orchestrator::{OrchError, OrchResult},
 };
 use aws_sdk_ec2::types::PlacementGroup;
 use std::{collections::HashMap, time::Duration};

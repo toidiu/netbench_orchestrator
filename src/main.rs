@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #![allow(dead_code)]
-use crate::orchestrator::{OrchError, OrchResult, RunMode, STATE};
+use crate::orchestrator::{OrchResult, RunMode, STATE};
 use aws_types::region::Region;
 use clap::Parser;
 use tracing_subscriber::EnvFilter;

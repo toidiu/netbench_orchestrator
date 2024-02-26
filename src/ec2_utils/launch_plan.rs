@@ -7,7 +7,7 @@ use crate::{
         networking,
         networking::{Az, NetworkingInfraDetail, VpcId},
     },
-    orchestrator::{OrchError, OrchResult, OrchestratorConfig, STATE},
+    orchestrator::{OrchError, OrchResult, OrchestratorConfig},
     InfraDetail,
 };
 use aws_sdk_ec2::types::PlacementStrategy;
