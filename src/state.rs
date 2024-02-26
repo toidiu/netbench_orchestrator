@@ -5,7 +5,7 @@ use crate::{ec2_utils::EndpointType, OrchestratorConfig};
 use core::time::Duration;
 
 pub const STATE: State = State {
-    version: "v2.3.1",
+    version: "v2.4.0",
 
     // netbench
     netbench_repo: "https://github.com/aws/s2n-netbench.git",
