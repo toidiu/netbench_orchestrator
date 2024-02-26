@@ -24,7 +24,7 @@ pub async fn orch_generate_report(
             "sync",
             &format!(
                 "s3://{}/{}",
-                config.cdk_config.netbench_runner_s3_bucket(),
+                config.cdk_config.netbench_runner_public_s3_bucket(),
                 unique_id
             ),
             tmp_dir,
@@ -53,7 +53,7 @@ pub async fn orch_generate_report(
             tmp_dir,
             &format!(
                 "s3://{}/{}",
-                config.cdk_config.netbench_runner_s3_bucket(),
+                config.cdk_config.netbench_runner_public_s3_bucket(),
                 unique_id
             ),
         ])
@@ -113,7 +113,7 @@ async fn update_report_url(
     let key = format!("{}/finished-step-0", unique_id);
     let _ = upload_object(
         s3_client,
-        config.cdk_config.netbench_runner_s3_bucket(),
+        config.cdk_config.netbench_runner_public_s3_bucket(),
         body,
         &key,
     )

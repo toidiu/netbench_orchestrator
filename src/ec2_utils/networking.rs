@@ -182,8 +182,8 @@ pub async fn get_subnet_vpc_ids(
         .describe_subnets()
         .filters(
             Filter::builder()
-                .name(config.cdk_config.netbench_runner_vpc_subnet_tag_key())
-                .values(config.cdk_config.netbench_runner_vpc_subnet_tag_value())
+                .name(config.cdk_config.netbench_runner_subnet_tag_key())
+                .values(config.cdk_config.netbench_runner_subnet_tag_value())
                 .build(),
         )
         .send()

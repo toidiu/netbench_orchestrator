@@ -213,7 +213,7 @@ async fn upload_netbench_scenario_file(
             format!(
                 "aws s3 cp s3://{}/{unique_id}/{} {}/{}",
                 // from
-                config.cdk_config.netbench_runner_s3_bucket(),
+                config.cdk_config.netbench_runner_public_s3_bucket(),
                 scenario.netbench_scenario_filename,
                 // to
                 STATE.host_bin_path(),

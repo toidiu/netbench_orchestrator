@@ -7,10 +7,6 @@ use core::time::Duration;
 pub const STATE: State = State {
     version: "v2.3.1",
 
-    // TODO remove `vpc_region` and configure vpc/subnet in same `region`
-    region: "us-west-2",
-    // TODO get from scenario --------------
-
     // netbench
     netbench_repo: "https://github.com/aws/s2n-netbench.git",
     netbench_branch: "main",
@@ -30,8 +26,6 @@ pub const STATE: State = State {
 
     // aws
     ami_name: "/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64",
-    // json
-    s3_private_log_bucket: "netbenchrunner-private-source-prod",
     // create/import a key pair to the account
     // ssh_key_name: None,
     ssh_key_name: Some("apoorvko_m1"),
@@ -39,10 +33,6 @@ pub const STATE: State = State {
 
 pub struct State {
     pub version: &'static str,
-
-    // TODO get from scenario --------------
-    pub region: &'static str,
-    // TODO get from scenario --------------
 
     // netbench
     pub netbench_repo: &'static str,
@@ -63,7 +53,6 @@ pub struct State {
 
     // aws
     pub ami_name: &'static str,
-    pub s3_private_log_bucket: &'static str,
     pub ssh_key_name: Option<&'static str>,
 }
 
@@ -79,13 +68,17 @@ impl State {
     pub fn s3_path(&self, unique_id: &str, config: &OrchestratorConfig) -> String {
         format!(
             "s3://{}/{}",
-            config.cdk_config.netbench_runner_s3_bucket(),
+            config.cdk_config.netbench_runner_public_s3_bucket(),
             unique_id
         )
     }
 
-    pub fn s3_private_path(&self, unique_id: &str) -> String {
-        format!("s3://{}/{}", self.s3_private_log_bucket, unique_id)
+    pub fn s3_private_path(&self, unique_id: &str, config: &OrchestratorConfig) -> String {
+        format!(
+            "s3://{}/{}",
+            config.cdk_config.netbench_runner_private_s3_bucket(),
+            unique_id
+        )
     }
 
     pub fn host_bin_path(&self) -> String {

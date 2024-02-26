@@ -49,7 +49,7 @@ async fn upload_index_html(
 
     upload_object(
         s3_client,
-        config.cdk_config.netbench_runner_s3_bucket(),
+        config.cdk_config.netbench_runner_public_s3_bucket(),
         ByteStream::from(Bytes::from(index_file)),
         &format!("{unique_id}/index.html"),
     )
@@ -85,7 +85,7 @@ async fn update_instance_running(
 
     upload_object(
         s3_client,
-        config.cdk_config.netbench_runner_s3_bucket(),
+        config.cdk_config.netbench_runner_public_s3_bucket(),
         ByteStream::from(Bytes::from(format!(
             "EC2 {:?} instances up: {}",
             endpoint_type, instance_detail

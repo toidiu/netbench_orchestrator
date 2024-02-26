@@ -45,8 +45,8 @@ async fn main() -> OrchResult<()> {
         .with_writer(non_blocking)
         .init();
 
-    let cli = Cli::parse();
-    let region = Region::new(STATE.region);
+    let cli = Cli::parse().parse_config()?;
+    let region = Region::new(cli.region());
     let aws_config = aws_config::from_env().region(region).load().await;
     let config = cli.check_requirements(&aws_config).await?;
 

@@ -67,7 +67,7 @@ pub async fn run(
         })?;
     upload_object(
         &s3_client,
-        config.cdk_config.netbench_runner_s3_bucket(),
+        config.cdk_config.netbench_runner_public_s3_bucket(),
         scenario_file,
         &format!("{unique_id}/{}", config.netbench_scenario_filename),
     )
@@ -123,14 +123,14 @@ pub async fn run(
             .collect();
 
         let server_drivers = vec![
-            ssm_utils::s2n_quic_dc_driver::dc_quic_server_driver(&unique_id),
+            ssm_utils::s2n_quic_dc_driver::dc_quic_server_driver(&unique_id, config),
             ssm_utils::tcp_driver_crates::tcp_server_driver(),
             ssm_utils::s2n_quic_driver_crates::s2n_quic_server_driver(),
             ssm_utils::s2n_tls_driver::s2n_tls_server_driver(),
             // ssm_utils::native_tls_driver::native_tls_server_driver(),
         ];
         let client_drivers = vec![
-            ssm_utils::s2n_quic_dc_driver::dc_quic_client_driver(&unique_id),
+            ssm_utils::s2n_quic_dc_driver::dc_quic_client_driver(&unique_id, config),
             ssm_utils::tcp_driver_crates::tcp_client_driver(),
             ssm_utils::s2n_quic_driver_crates::s2n_quic_client_driver(),
             ssm_utils::s2n_tls_driver::s2n_tls_client_driver(),

@@ -1,7 +1,7 @@
 # -------------------- bin orchestrator
 run_orchestrator:
 	RUST_LOG=none,orchestrator::russula=info,orchestrator=debug cargo run --bin orchestrator -- \
-					 --cdk-config-file output.json \
+					 --cdk-config-file cdk_config.json \
 					 --client-az us-west-2a \
 					 --server-az us-west-2b,us-west-2b,us-west-2a,us-west-2a,us-west-2a \
 					 --server-placement cluster,cluster,cluster,unspecified,cluster \
