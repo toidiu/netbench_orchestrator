@@ -106,6 +106,8 @@ impl<'a> LaunchPlan<'a> {
                 launch_request.push(server);
             }
             let launch_request: OrchResult<Vec<_>> = launch_request.into_iter().collect();
+            // TODO Its possible that instances havnt been launched and therefore can't be
+            // cleaned up. Handle cleanup more gracefully.
             // cleanup instances if a launch failed
             if let Err(launch_err) = launch_request {
                 let _ = infra.cleanup(ec2_client).await.map_err(|delete_err| {

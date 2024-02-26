@@ -6,7 +6,7 @@ use crate::russula::{
     event::{EventRecorder, EventType},
     netbench::server_worker::WorkerState,
     network_utils::Msg,
-    protocol::{private, Protocol},
+    protocol::{Protocol},
     StateApi, TransitionStep,
 };
 use async_trait::async_trait;
@@ -41,12 +41,6 @@ impl CoordProtocol {
             worker_state: WorkerState::WaitCoordInit,
             event_recorder: EventRecorder::default(),
         }
-    }
-}
-
-impl private::Protocol for CoordProtocol {
-    fn event_recorder(&mut self) -> &mut EventRecorder {
-        &mut self.event_recorder
     }
 }
 
@@ -132,6 +126,10 @@ impl Protocol for CoordProtocol {
                 Ok(None)
             }
         }
+    }
+
+    fn event_recorder(&mut self) -> &mut EventRecorder {
+        &mut self.event_recorder
     }
 }
 

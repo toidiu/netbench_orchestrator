@@ -1,6 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::russula::{event::EventRecorder};
 use super::{
     error::RussulaError,
     event::EventType,
@@ -41,7 +42,7 @@ macro_rules! state_api {
 }
 
 #[async_trait]
-pub trait Protocol: private::Protocol + Clone {
+pub trait Protocol: Clone {
     type State: StateApi;
 
     // TODO use version and app to negotiate version
@@ -187,16 +188,11 @@ pub trait Protocol: private::Protocol + Clone {
 
         Ok(last_msg)
     }
-}
 
-pub(crate) mod private {
-    use crate::russula::{event::EventRecorder, protocol::EventType};
-
-    pub trait Protocol {
         fn event_recorder(&mut self) -> &mut EventRecorder;
 
         fn on_event(&mut self, event: EventType) {
             self.event_recorder().process(event);
         }
-    }
 }
+
