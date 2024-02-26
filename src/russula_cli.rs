@@ -10,7 +10,6 @@ use structopt::StructOpt;
 use tracing::debug;
 use tracing_subscriber::EnvFilter;
 
-mod duration;
 mod error;
 mod russula;
 

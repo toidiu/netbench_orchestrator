@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
-    coordination_utils, dashboard,
+    dashboard,
     ec2_utils::LaunchPlan,
     error::{OrchError, OrchResult},
     report::orch_generate_report,
@@ -175,7 +175,7 @@ pub async fn run(
 
             // run russula
             {
-                let mut server_russula = coordination_utils::ServerNetbenchRussula::new(
+                let mut server_russula = ssm_utils::coordination_utils::ServerNetbenchRussula::new(
                     &ssm_client,
                     &infra,
                     server_ids.clone(),
@@ -184,7 +184,7 @@ pub async fn run(
                 )
                 .await;
 
-                let mut client_russula = coordination_utils::ClientNetbenchRussula::new(
+                let mut client_russula = ssm_utils::coordination_utils::ClientNetbenchRussula::new(
                     &ssm_client,
                     &infra,
                     client_ids.clone(),

@@ -9,9 +9,7 @@ use error::OrchResult;
 use tracing_subscriber::EnvFilter;
 
 mod cli;
-mod coordination_utils;
 mod dashboard;
-mod duration;
 mod ec2_utils;
 mod error;
 mod orchestrator;

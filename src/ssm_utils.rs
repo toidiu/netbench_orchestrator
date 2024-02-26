@@ -13,9 +13,10 @@ use aws_sdk_ssm::{
 use core::{task::Poll, time::Duration};
 use tracing::{error, trace};
 
+mod netbench_driver;
+pub mod coordination_utils;
 pub mod client;
 pub mod common;
-mod netbench_driver;
 pub mod server;
 
 pub use netbench_driver::*;
