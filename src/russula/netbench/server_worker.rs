@@ -7,7 +7,7 @@ use crate::russula::{
     event::{EventRecorder, EventType},
     netbench::server_coord::CoordState,
     network_utils::Msg,
-    protocol::{Protocol},
+    protocol::Protocol,
     StateApi, TransitionStep,
 };
 use async_trait::async_trait;

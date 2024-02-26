@@ -1,7 +1,6 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::russula::{event::EventRecorder};
 use super::{
     error::RussulaError,
     event::EventType,
@@ -10,6 +9,7 @@ use super::{
     states::{StateApi, TransitionStep},
     RussulaResult,
 };
+use crate::russula::event::EventRecorder;
 use async_trait::async_trait;
 use bytes::Bytes;
 use core::{fmt::Debug, task::Poll, time::Duration};
@@ -189,10 +189,9 @@ pub trait Protocol: Clone {
         Ok(last_msg)
     }
 
-        fn event_recorder(&mut self) -> &mut EventRecorder;
+    fn event_recorder(&mut self) -> &mut EventRecorder;
 
-        fn on_event(&mut self, event: EventType) {
-            self.event_recorder().process(event);
-        }
+    fn on_event(&mut self, event: EventType) {
+        self.event_recorder().process(event);
+    }
 }
-
