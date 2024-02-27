@@ -23,12 +23,6 @@ pub enum TransitionStep {
 }
 
 pub trait StateApi: Clone + Debug + Serialize + for<'a> Deserialize<'a> {
-    fn name_prefix(&self) -> String;
-
-    fn name(&self, stream: &TcpStream) -> String {
-        self.name_prefix().to_string()
-    }
-
     fn transition_step(&self) -> TransitionStep;
     fn next_state(&self) -> Self;
 

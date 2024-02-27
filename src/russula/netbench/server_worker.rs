@@ -141,7 +141,7 @@ impl Protocol for WorkerProtocol {
                             .expect("Failed to start netbench server process")
                     }
                     true => {
-                        info!("{} run task sim_netbench_server", self.state().name(stream));
+                        info!("{} run task sim_netbench_server", self.name());
                         Command::new("sh")
                             .args(["scripts/sim_netbench_server.sh", &self.name()])
                             .spawn()
@@ -152,7 +152,7 @@ impl Protocol for WorkerProtocol {
                 let pid = child.id();
                 debug!(
                     "{}----------------------------child id {}",
-                    self.state().name(stream),
+                    self.name(),
                     pid
                 );
 
@@ -193,10 +193,6 @@ impl Protocol for WorkerProtocol {
 }
 
 impl StateApi for WorkerState {
-    fn name_prefix(&self) -> String {
-        "server-worker".to_string()
-    }
-
     fn transition_step(&self) -> TransitionStep {
         match self {
             WorkerState::WaitCoordInit => {

@@ -225,10 +225,6 @@ impl Protocol for WorkerProtocol {
 }
 
 impl StateApi for WorkerState {
-    fn name_prefix(&self) -> String {
-        "client-worker".to_string()
-    }
-
     fn transition_step(&self) -> TransitionStep {
         match self {
             WorkerState::WaitCoordInit => {

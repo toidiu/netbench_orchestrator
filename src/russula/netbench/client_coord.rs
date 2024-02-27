@@ -113,10 +113,6 @@ impl Protocol for CoordProtocol {
 }
 
 impl StateApi for CoordState {
-    fn name_prefix(&self) -> String {
-        "client-coord".to_string()
-    }
-
     fn transition_step(&self) -> TransitionStep {
         match self {
             CoordState::CheckWorker => TransitionStep::AwaitNext(WorkerState::Ready.as_bytes()),

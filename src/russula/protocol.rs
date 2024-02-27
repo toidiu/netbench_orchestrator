@@ -205,7 +205,7 @@ pub trait Protocol: Clone {
             let should_transition_to_next = expected_msg == recv_msg.as_bytes();
             debug!(
                 "{} expect: {} actual: {}",
-                state.name(stream),
+                self.name(),
                 std::str::from_utf8(&expected_msg).unwrap(),
                 std::str::from_utf8(&recv_msg.data).unwrap()
             );
