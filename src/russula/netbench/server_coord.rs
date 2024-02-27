@@ -121,7 +121,6 @@ impl Protocol for CoordProtocol {
                 Ok(None)
             }
             CoordState::Done => {
-                // panic!("stopped---------------------------------");
                 self.state().notify_peer(stream).await?;
                 Ok(None)
             }

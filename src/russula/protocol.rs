@@ -45,13 +45,13 @@ macro_rules! state_api {
 pub trait Protocol: Clone {
     type State: StateApi;
 
-    // TODO use version and app to negotiate version
-    fn name(&self) -> String;
     async fn connect(&self, addr: &SocketAddr) -> RussulaResult<TcpStream>;
     async fn run(&mut self, stream: &TcpStream) -> RussulaResult<Option<Msg>>;
+    fn name(&self) -> String;
     fn update_peer_state(&mut self, msg: Msg) -> RussulaResult<()>;
     fn state(&self) -> &Self::State;
     fn state_mut(&mut self) -> &mut Self::State;
+    fn event_recorder(&mut self) -> &mut EventRecorder;
 
     // Ready ==============
     state_api!(ready);
@@ -188,8 +188,6 @@ pub trait Protocol: Clone {
 
         Ok(last_msg)
     }
-
-    fn event_recorder(&mut self) -> &mut EventRecorder;
 
     fn on_event(&mut self, event: EventType) {
         self.event_recorder().process(event);
