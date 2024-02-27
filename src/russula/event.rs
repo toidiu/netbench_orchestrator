@@ -17,7 +17,7 @@ use tokio::net::TcpStream;
 use tracing::{debug, info};
 
 pub enum EventType {
-    // SendMsg,
+    SendMsg,
     RecvMsg,
 }
 
@@ -30,7 +30,7 @@ pub struct EventRecorder {
 impl EventRecorder {
     pub fn process(&mut self, event: EventType) {
         match event {
-            // EventType::SendMsg => self.send_msg += 1,
+            EventType::SendMsg => self.send_msg += 1,
             EventType::RecvMsg => self.recv_msg += 1,
         }
     }

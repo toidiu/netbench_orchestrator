@@ -48,7 +48,8 @@ macro_rules! notify_peer {
         $protocol.name(),
         std::str::from_utf8(&msg.data).unwrap()
     );
-    network_utils::send_msg($stream, msg).await?
+    network_utils::send_msg($stream, msg).await?;
+    $protocol.on_event(EventType::SendMsg);
 }
 }
 pub(crate) use notify_peer;
