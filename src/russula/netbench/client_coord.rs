@@ -28,7 +28,7 @@ pub enum CoordState {
 #[derive(Debug, Clone)]
 pub struct CoordProtocol {
     state: CoordState,
-    worker_state: WorkerState,
+    peer_state: WorkerState,
     event_recorder: EventRecorder,
 }
 
@@ -36,7 +36,7 @@ impl CoordProtocol {
     pub fn new() -> Self {
         CoordProtocol {
             state: CoordState::CheckWorker,
-            worker_state: WorkerState::WaitCoordInit,
+            peer_state: WorkerState::WaitCoordInit,
             event_recorder: EventRecorder::default(),
         }
     }
@@ -57,8 +57,8 @@ impl Protocol for CoordProtocol {
     }
 
     fn update_peer_state(&mut self, msg: Msg) -> RussulaResult<()> {
-        self.worker_state = WorkerState::from_msg(msg)?;
-        debug!("{} ... peer_state {:?}", self.name(), self.worker_state);
+        self.peer_state = WorkerState::from_msg(msg)?;
+        debug!("{} ... peer_state {:?}", self.name(), self.peer_state);
 
         Ok(())
     }

@@ -40,7 +40,7 @@ pub enum WorkerState {
 pub struct WorkerProtocol {
     id: String,
     state: WorkerState,
-    coord_state: CoordState,
+    peer_state: CoordState,
     netbench_ctx: ServerContext,
     event_recorder: EventRecorder,
 }
@@ -50,7 +50,7 @@ impl WorkerProtocol {
         WorkerProtocol {
             id,
             state: WorkerState::WaitCoordInit,
-            coord_state: CoordState::CheckWorker,
+            peer_state: CoordState::CheckWorker,
             netbench_ctx,
             event_recorder: EventRecorder::default(),
         }
@@ -76,8 +76,8 @@ impl Protocol for WorkerProtocol {
     }
 
     fn update_peer_state(&mut self, msg: Msg) -> RussulaResult<()> {
-        self.coord_state = CoordState::from_msg(msg)?;
-        debug!("{} ... peer_state {:?}", self.name(), self.coord_state);
+        self.peer_state = CoordState::from_msg(msg)?;
+        debug!("{} ... peer_state {:?}", self.name(), self.peer_state);
 
         Ok(())
     }

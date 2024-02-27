@@ -21,8 +21,6 @@ use tracing::{debug, info};
 
 const NOTIFY_DONE_TIMEOUT: Duration = Duration::from_secs(1);
 
-pub type SockProtocol<P> = (SocketAddr, P);
-
 pub(crate) struct ProtocolInstance<P: Protocol> {
     pub addr: SocketAddr,
     pub stream: TcpStream,
@@ -86,8 +84,7 @@ pub trait Protocol: Clone {
         self.poll_state(stream, &state).await
     }
 
-    // If the peer is not at the desired state then attempt to make progress by invoking the
-    // 'run_current' action
+    // If the peer is not at the desired state then attempt to make progress
     async fn poll_state(
         &mut self,
         stream: &TcpStream,
@@ -103,7 +100,8 @@ pub trait Protocol: Clone {
                 self.state()
             );
         }
-        // Notify the peer that the protocol has reached a terminal state
+
+        // Notify the peer that we have reached a terminal state
         if self.is_done_state() {
             tracing::info!("{}", self.event_recorder());
 
@@ -133,6 +131,7 @@ pub trait Protocol: Clone {
         Ok(poll)
     }
 
+    // run action for the current state and update the peer state
     async fn run_current(&mut self, stream: &TcpStream) -> RussulaResult<()> {
         if let Some(msg) = self.run(stream).await? {
             self.update_peer_state(msg)?;
@@ -174,11 +173,10 @@ pub trait Protocol: Clone {
                     }
                 }
                 Err(RussulaError::NetworkBlocked { dbg }) => {
-                    // TODO this might not be necessary but is nice way to confirm the
-                    // system makes progress. Test and figure out if its possible to
-                    // rename this.
+                    // This might not be extra since a protocol needs to be polled
+                    // to make progress
                     //
-                    // notify the peer to that we continue to make progress
+                    // notify the peer and make progress
                     self.state().notify_peer(stream).await?;
                     break;
                 }

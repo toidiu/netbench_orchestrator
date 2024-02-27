@@ -169,5 +169,5 @@ fn local_listen_addr(russula_port: u16) -> SocketAddr {
 }
 
 fn parse_duration(s: &str) -> Result<Duration, humantime::DurationError> {
-    Ok(humantime::parse_duration(s)?)
+    humantime::parse_duration(s)
 }

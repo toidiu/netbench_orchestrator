@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #![allow(unused)]
-use crate::russula::protocol::{ProtocolInstance, SockProtocol};
+use crate::russula::protocol::ProtocolInstance;
 use core::{task::Poll, time::Duration};
 use paste::paste;
 use std::{collections::BTreeSet, net::SocketAddr};
@@ -84,6 +84,7 @@ impl<P: Protocol + Send> Russula<P> {
     state_api!(worker_running);
 }
 
+pub type SockProtocol<P> = (SocketAddr, P);
 pub struct RussulaBuilder<P: Protocol> {
     // Address for the Coordinator and Worker to communicate on.
     //
