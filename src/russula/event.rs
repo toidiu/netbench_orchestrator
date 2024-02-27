@@ -1,19 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-use super::{
-    error::RussulaError,
-    network_utils,
-    network_utils::Msg,
-    states::{StateApi, TransitionStep},
-    RussulaResult,
-};
-use bytes::Bytes;
-use core::{fmt::Debug, task::Poll, time::Duration};
-use serde::{Deserialize, Serialize};
-use std::{fmt::Display, net::SocketAddr};
-use tokio::net::TcpStream;
-use tracing::{debug, info};
+use core::fmt::{Debug, Display};
 
 pub enum EventType {
     SendMsg,
@@ -41,7 +29,6 @@ impl Display for EventRecorder {
             f,
             "send_cnt: {}, recv_cnt: {}",
             self.send_msg, self.recv_msg
-        );
-        Ok(())
+        )
     }
 }

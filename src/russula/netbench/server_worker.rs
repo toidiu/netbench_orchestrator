@@ -12,11 +12,7 @@ use crate::russula::{
 };
 use core::fmt::Debug;
 use serde::{Deserialize, Serialize};
-use std::{
-    fs::File,
-    net::SocketAddr,
-    process::{Command, Stdio},
-};
+use std::{fs::File, net::SocketAddr, process::Command};
 use sysinfo::{Pid, PidExt, ProcessExt, SystemExt};
 use tokio::net::{TcpListener, TcpStream};
 use tracing::{debug, info};
@@ -172,7 +168,6 @@ impl Protocol for WorkerProtocol {
                     debug!("did KILL pid: {} {}----------------------------", pid, kill);
                 }
 
-                let name = self.name();
                 self.transition_self_or_user_driven(stream).await?;
                 Ok(None)
             }

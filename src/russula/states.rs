@@ -2,13 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::{error::RussulaError, network_utils::Msg};
-use crate::russula::{network_utils, RussulaResult};
+use crate::russula::RussulaResult;
 use bytes::Bytes;
-use core::{fmt::Debug, task::Poll, time::Duration};
+use core::fmt::Debug;
 use serde::{Deserialize, Serialize};
-use std::net::SocketAddr;
-use tokio::net::TcpStream;
-use tracing::{debug, info};
 
 #[derive(Debug)]
 pub enum TransitionStep {

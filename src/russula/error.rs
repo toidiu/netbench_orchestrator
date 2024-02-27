@@ -11,7 +11,6 @@ pub enum RussulaError {
     NetworkFail { dbg: String },
     NetworkBlocked { dbg: String },
     BadMsg { dbg: String },
-    Usage { dbg: String },
 }
 
 impl std::fmt::Display for RussulaError {
@@ -23,7 +22,6 @@ impl std::fmt::Display for RussulaError {
             RussulaError::NetworkFail { dbg } => write!(f, "NetworkFail {}", dbg),
             RussulaError::NetworkBlocked { dbg } => write!(f, "NetworkBlocked {}", dbg),
             RussulaError::BadMsg { dbg } => write!(f, "BadMsg {}", dbg),
-            RussulaError::Usage { dbg } => write!(f, "Usage {}", dbg),
         }
     }
 }

@@ -1,12 +1,11 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-#![allow(unused)]
-use crate::russula::protocol::ProtocolInstance;
 use core::{task::Poll, time::Duration};
 use paste::paste;
 use std::{collections::BTreeSet, net::SocketAddr};
-use tracing::{debug, error, info, warn};
+use tokio::net::TcpStream;
+use tracing::{error, info};
 
 mod error;
 mod event;
@@ -23,6 +22,12 @@ use states::{StateApi, TransitionStep};
 // - separate Russula struct for Coord/Worker since they have different APIs
 // - look at NTP for synchronization: start_at(time)
 
+struct ProtocolInstance<P: Protocol> {
+    pub addr: SocketAddr,
+    pub stream: TcpStream,
+    pub protocol: P,
+}
+
 pub struct Russula<P: Protocol> {
     // Protocol instances part of this Russula Coordinator/Worker.
     //
@@ -33,7 +38,12 @@ pub struct Russula<P: Protocol> {
 }
 
 macro_rules! state_api {
-{$state:ident} => {paste!{
+{
+    $(#[$meta:meta])*
+    $state:ident
+} => {paste!{
+
+    $(#[$meta])*
     pub async fn [<run_till_ $state>](&mut self) -> RussulaResult<()> {
         while self.[<poll_ $state>]().await?.is_pending() {
             tokio::time::sleep(self.poll_delay).await;
@@ -42,6 +52,7 @@ macro_rules! state_api {
         Ok(())
     }
 
+    $(#[$meta])*
     pub async fn [<poll_ $state>](&mut self) -> RussulaResult<Poll<()>> {
         for peer in self.instance_list.iter_mut() {
             if let Err(err) = peer.protocol.[<poll_ $state>](&peer.stream).await {
@@ -62,12 +73,10 @@ macro_rules! state_api {
     /// Check if all instances are at the desired state
     fn [< is_ $state _state>](&self) -> bool {
         for peer in self.instance_list.iter() {
-            let protocol_state = peer.protocol.state();
             // All instance must be at the desired state
             if !peer.protocol.[< is_ $state _state>]() {
                 return false;
             }
-            // info!("{:?} {:?} {}", protocol_state, state, matches);
         }
         true
     }
@@ -77,8 +86,11 @@ macro_rules! state_api {
 impl<P: Protocol + Send> Russula<P> {
     state_api!(ready);
     state_api!(done);
-    /// Should only be called by Coordinators
-    state_api!(worker_running);
+
+    state_api!(
+        /// Should only be called by Coordinators
+        worker_running
+    );
 }
 
 pub type SockProtocol<P> = (SocketAddr, P);
@@ -89,7 +101,6 @@ pub struct RussulaBuilder<P: Protocol> {
     // The Worker gets its own addr to 'listen' on.
     russula_pair_addr_list: Vec<SockProtocol<P>>,
     poll_delay: Duration,
-    protocol: P,
 }
 
 impl<P: Protocol> RussulaBuilder<P> {
@@ -102,7 +113,6 @@ impl<P: Protocol> RussulaBuilder<P> {
         Self {
             russula_pair_addr_list: peer_list,
             poll_delay,
-            protocol,
         }
     }
 

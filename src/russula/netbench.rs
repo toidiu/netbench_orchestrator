@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use std::{net::SocketAddr, path::PathBuf};
-use structopt::{clap::arg_enum, StructOpt};
+use structopt::StructOpt;
 
 mod client_coord;
 mod client_worker;
@@ -136,7 +136,10 @@ impl ClientContext {
 //                              v
 //                           Done
 pub mod server {
-    pub use super::{server_coord::*, server_worker::*};
+    pub use super::server_coord::CoordProtocol;
+    // clippy complains about unused import since its used by the russula_cli bin
+    #[allow(unused_imports)]
+    pub use super::server_worker::WorkerProtocol;
 }
 
 // CheckWorker   --------->  WaitCoordInit
@@ -171,5 +174,8 @@ pub mod server {
 //                              v
 //                           Done
 pub mod client {
-    pub use super::{client_coord::*, client_worker::*};
+    pub use super::client_coord::{CoordProtocol, CoordState};
+    // clippy complains about unused import since its used by the russula_cli bin
+    #[allow(unused_imports)]
+    pub use super::client_worker::{WorkerProtocol, WorkerState};
 }

@@ -10,7 +10,7 @@ macro_rules! to_russula_err {
     {$error:ident} => {{
         let russula_err = RussulaError::from($error);
         match &russula_err {
-            RussulaError::NetworkBlocked{ dbg } => (),
+            RussulaError::NetworkBlocked{ dbg: _ } => (),
             dbg => tracing::error!("{}", dbg),
         }
         russula_err
@@ -49,7 +49,7 @@ async fn read_msg(stream: &TcpStream) -> RussulaResult<Msg> {
     if o == 0 {
         error!("read len 0");
         return Err(RussulaError::NetworkBlocked {
-            dbg: format!("read 0 data.. read socket closed?"),
+            dbg: "read 0 data.. read socket closed?".to_string(),
         });
     }
     let len = u16::from_be_bytes(len_buf);

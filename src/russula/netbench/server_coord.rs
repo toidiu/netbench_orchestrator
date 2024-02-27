@@ -90,7 +90,6 @@ impl Protocol for CoordProtocol {
                 self.await_next_msg(stream).await
             }
             CoordState::Ready => {
-                let name = self.name();
                 self.transition_self_or_user_driven(stream).await?;
                 Ok(None)
             }
@@ -99,7 +98,6 @@ impl Protocol for CoordProtocol {
                 self.await_next_msg(stream).await
             }
             CoordState::WorkersRunning => {
-                let name = self.name();
                 self.transition_self_or_user_driven(stream).await?;
                 Ok(None)
             }
@@ -108,7 +106,6 @@ impl Protocol for CoordProtocol {
                 self.await_next_msg(stream).await
             }
             CoordState::WorkerKilled => {
-                let name = self.name();
                 self.transition_self_or_user_driven(stream).await?;
                 Ok(None)
             }

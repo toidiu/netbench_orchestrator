@@ -166,7 +166,7 @@ impl Protocol for WorkerProtocol {
                 notify_peer!(self, stream);
 
                 let pid = Pid::from_u32(pid);
-                let mut system = sysinfo::System::new_all();
+                let system = sysinfo::System::new_all();
 
                 let process = system.process(pid);
                 // let is_process_complete = !system.refresh_process(pid);
@@ -193,7 +193,6 @@ impl Protocol for WorkerProtocol {
                             "Process pid: {} is a Zombie.. ignoring and continuing",
                             process.pid()
                         );
-                        let name = self.name();
                         self.transition_self_or_user_driven(stream).await?;
                     }
                 } else {
@@ -202,7 +201,6 @@ impl Protocol for WorkerProtocol {
                         pid
                     );
 
-                    let name = self.name();
                     self.transition_self_or_user_driven(stream).await?;
                 }
 

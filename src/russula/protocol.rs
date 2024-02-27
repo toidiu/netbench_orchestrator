@@ -10,30 +10,28 @@ use super::{
     RussulaResult,
 };
 use crate::russula::event::EventRecorder;
-use bytes::Bytes;
-use core::{fmt::Debug, task::Poll, time::Duration};
+use core::{task::Poll, time::Duration};
 use paste::paste;
-use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 use tokio::net::TcpStream;
 use tracing::{debug, info};
 
 const NOTIFY_DONE_TIMEOUT: Duration = Duration::from_secs(1);
 
-pub(crate) struct ProtocolInstance<P: Protocol> {
-    pub addr: SocketAddr,
-    pub stream: TcpStream,
-    pub protocol: P,
-}
-
 macro_rules! state_api {
-{$state:ident} => {paste!{
+{
+    $(#[$meta:meta])*
+    $state:ident
+} => {paste!{
+
+    $(#[$meta])*
     fn [<$state _state>](&self) -> Self::State;
 
+    $(#[$meta])*
     /// Check if the Instance is at the desired state
     fn [<is_ $state _state>](&self) -> bool {
         let state = self.[<$state _state>]();
-        matches!(self.state(), state)
+        self.state().eq(&state)
     }
 }};
 }
@@ -89,8 +87,10 @@ pub trait Protocol: Clone {
     }
 
     // Running ==============
-    /// Should only be called by Coordinators
-    state_api!(worker_running);
+    state_api!(
+        /// Should only be called by Coordinators
+        worker_running
+    );
     /// Check if worker the Instance is Running
     async fn poll_worker_running(&mut self, stream: &TcpStream) -> RussulaResult<Poll<()>> {
         let state = self.worker_running_state();
@@ -125,9 +125,9 @@ pub trait Protocol: Clone {
                     // We notify the peer of the Done state multiple times. Since the peer could
                     // have killed the connection in the meantime, its better to ignore network
                     // failures
-                    Err(RussulaError::NetworkConnectionRefused { dbg })
-                    | Err(RussulaError::NetworkBlocked { dbg })
-                    | Err(RussulaError::NetworkFail { dbg }) => {
+                    Err(RussulaError::NetworkConnectionRefused { dbg: _ })
+                    | Err(RussulaError::NetworkBlocked { dbg: _ })
+                    | Err(RussulaError::NetworkFail { dbg: _ }) => {
                         debug!("Ignore network failure since coordination is Done.")
                     }
                     Err(err) => return Err(err),
@@ -176,15 +176,14 @@ pub trait Protocol: Clone {
                         std::str::from_utf8(&msg.data).unwrap()
                     );
 
-                    let should_transition = self.matches_transition_msg(stream, &msg)?;
+                    let should_transition = self.matches_transition_msg(&msg)?;
                     last_msg = Some(msg);
                     if should_transition {
-                        let name = self.name();
-                        self.transition_next(stream).await;
+                        self.transition_next(stream).await?;
                         break;
                     }
                 }
-                Err(RussulaError::NetworkBlocked { dbg }) => {
+                Err(RussulaError::NetworkBlocked { dbg: _ }) => {
                     // This might not be extra since a protocol needs to be polled
                     // to make progress
                     //
@@ -199,7 +198,7 @@ pub trait Protocol: Clone {
         Ok(last_msg)
     }
 
-    fn matches_transition_msg(&self, stream: &TcpStream, recv_msg: &Msg) -> RussulaResult<bool> {
+    fn matches_transition_msg(&self, recv_msg: &Msg) -> RussulaResult<bool> {
         let state = self.state();
         if let TransitionStep::AwaitNext(expected_msg) = state.transition_step() {
             let should_transition_to_next = expected_msg == recv_msg.as_bytes();
