@@ -181,7 +181,8 @@ pub trait Protocol: Clone {
                     last_msg = Some(msg);
                     if should_transition {
                         let name = self.name();
-                        self.state_mut().transition_next(stream, name).await?;
+                        self.transition_next(stream);
+                        notify_peer!(self, stream);
                         break;
                     }
                 }
@@ -214,6 +215,18 @@ pub trait Protocol: Clone {
         } else {
             Ok(false)
         }
+    }
+
+    fn transition_next(&mut self, stream: &TcpStream) {
+        let nxt = self.state().next_state();
+        info!(
+            "{:?} MOVING TO NEXT STATE. {:?} ===> {:?}",
+            self.name(),
+            self.state(),
+            nxt
+        );
+
+        *self.state_mut() = nxt;
     }
 
     fn on_event(&mut self, event: EventType) {

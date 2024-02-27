@@ -65,18 +65,6 @@ pub trait StateApi: Send + Sync + Clone + Debug + Serialize + for<'a> Deserializ
         self.notify_peer(stream).await.map(|_| ())
     }
 
-    async fn transition_next(&mut self, stream: &TcpStream, id: String) -> RussulaResult<()> {
-        info!(
-            "{} MOVING TO NEXT STATE. {:?} ===> {:?}",
-            id,
-            self,
-            self.next_state()
-        );
-
-        *self = self.next_state();
-        self.notify_peer(stream).await.map(|_| ())
-    }
-
     fn eq(&self, other: &Self) -> bool {
         self.as_bytes() == other.as_bytes()
     }
