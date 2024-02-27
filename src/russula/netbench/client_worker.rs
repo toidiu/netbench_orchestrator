@@ -196,9 +196,7 @@ impl Protocol for WorkerProtocol {
                             process.pid()
                         );
                         let name = self.name();
-                        self.state_mut()
-                            .transition_self_or_user_driven(stream, name)
-                            .await?;
+                        self.transition_self_or_user_driven(stream).await?;
                     }
                 } else {
                     info!(
@@ -207,9 +205,7 @@ impl Protocol for WorkerProtocol {
                     );
 
                     let name = self.name();
-                    self.state_mut()
-                        .transition_self_or_user_driven(stream, name)
-                        .await?;
+                    self.transition_self_or_user_driven(stream).await?;
                 }
 
                 Ok(None)

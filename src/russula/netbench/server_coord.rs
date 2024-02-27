@@ -93,9 +93,7 @@ impl Protocol for CoordProtocol {
             }
             CoordState::Ready => {
                 let name = self.name();
-                self.state_mut()
-                    .transition_self_or_user_driven(stream, name)
-                    .await?;
+                self.transition_self_or_user_driven(stream).await?;
                 Ok(None)
             }
             CoordState::RunWorker => {
@@ -104,9 +102,7 @@ impl Protocol for CoordProtocol {
             }
             CoordState::WorkersRunning => {
                 let name = self.name();
-                self.state_mut()
-                    .transition_self_or_user_driven(stream, name)
-                    .await?;
+                self.transition_self_or_user_driven(stream).await?;
                 Ok(None)
             }
             CoordState::KillWorker => {
@@ -115,9 +111,7 @@ impl Protocol for CoordProtocol {
             }
             CoordState::WorkerKilled => {
                 let name = self.name();
-                self.state_mut()
-                    .transition_self_or_user_driven(stream, name)
-                    .await?;
+                self.transition_self_or_user_driven(stream).await?;
                 Ok(None)
             }
             CoordState::Done => {

@@ -175,9 +175,7 @@ impl Protocol for WorkerProtocol {
                 }
 
                 let name = self.name();
-                self.state_mut()
-                    .transition_self_or_user_driven(stream, name)
-                    .await?;
+                self.transition_self_or_user_driven(stream).await?;
                 Ok(None)
             }
             WorkerState::Stopped => {

@@ -34,37 +34,6 @@ pub trait StateApi: Send + Sync + Clone + Debug + Serialize + for<'a> Deserializ
     fn transition_step(&self) -> TransitionStep;
     fn next_state(&self) -> Self;
 
-    async fn notify_peer(&self, stream: &TcpStream) -> RussulaResult<usize> {
-        let msg = Msg::new(self.as_bytes());
-        debug!(
-            "{} ----> send msg {}",
-            self.name(stream),
-            std::str::from_utf8(&msg.data).unwrap()
-        );
-        network_utils::send_msg(stream, msg).await
-    }
-
-    async fn transition_self_or_user_driven(
-        &mut self,
-        stream: &TcpStream,
-        id: String,
-    ) -> RussulaResult<()> {
-        // TODO add some extra TransitionStep validation
-        assert!(
-            matches!(self.transition_step(), TransitionStep::SelfDriven)
-                || matches!(self.transition_step(), TransitionStep::UserDriven)
-        );
-        info!(
-            "{} MOVING TO NEXT STATE. {:?} ===> {:?}",
-            id,
-            self,
-            self.next_state()
-        );
-
-        *self = self.next_state();
-        self.notify_peer(stream).await.map(|_| ())
-    }
-
     fn eq(&self, other: &Self) -> bool {
         self.as_bytes() == other.as_bytes()
     }

@@ -48,7 +48,7 @@ macro_rules! notify_peer {
         $protocol.name(),
         std::str::from_utf8(&msg.data).unwrap()
     );
-    network_utils::send_msg($stream, msg).await
+    network_utils::send_msg($stream, msg).await?
 }
 }
 pub(crate) use notify_peer;
@@ -181,8 +181,7 @@ pub trait Protocol: Clone {
                     last_msg = Some(msg);
                     if should_transition {
                         let name = self.name();
-                        self.transition_next(stream);
-                        notify_peer!(self, stream);
+                        self.transition_next(stream).await;
                         break;
                     }
                 }
@@ -217,7 +216,7 @@ pub trait Protocol: Clone {
         }
     }
 
-    fn transition_next(&mut self, stream: &TcpStream) {
+    async fn transition_next(&mut self, stream: &TcpStream) -> RussulaResult<()> {
         let nxt = self.state().next_state();
         info!(
             "{:?} MOVING TO NEXT STATE. {:?} ===> {:?}",
@@ -227,6 +226,18 @@ pub trait Protocol: Clone {
         );
 
         *self.state_mut() = nxt;
+        notify_peer!(self, stream);
+        Ok(())
+    }
+
+    async fn transition_self_or_user_driven(&mut self, stream: &TcpStream) -> RussulaResult<()> {
+        let state = self.state();
+        assert!(
+            matches!(state.transition_step(), TransitionStep::SelfDriven)
+                || matches!(state.transition_step(), TransitionStep::UserDriven)
+        );
+
+        self.transition_next(stream).await
     }
 
     fn on_event(&mut self, event: EventType) {
