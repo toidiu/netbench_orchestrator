@@ -10,7 +10,6 @@ use crate::russula::{
     protocol::{notify_peer, Protocol},
     StateApi, TransitionStep,
 };
-use async_trait::async_trait;
 use core::fmt::Debug;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -57,7 +56,6 @@ impl WorkerProtocol {
     }
 }
 
-#[async_trait]
 impl Protocol for WorkerProtocol {
     type State = WorkerState;
 
@@ -194,7 +192,6 @@ impl Protocol for WorkerProtocol {
     }
 }
 
-#[async_trait]
 impl StateApi for WorkerState {
     fn name_prefix(&self) -> String {
         "server-worker".to_string()

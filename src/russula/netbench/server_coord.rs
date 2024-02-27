@@ -9,7 +9,6 @@ use crate::russula::{
     protocol::{notify_peer, Protocol},
     StateApi, TransitionStep,
 };
-use async_trait::async_trait;
 use core::fmt::Debug;
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
@@ -44,7 +43,6 @@ impl CoordProtocol {
     }
 }
 
-#[async_trait]
 impl Protocol for CoordProtocol {
     type State = CoordState;
     fn name(&self) -> String {
@@ -126,7 +124,6 @@ impl Protocol for CoordProtocol {
     }
 }
 
-#[async_trait]
 impl StateApi for CoordState {
     fn name_prefix(&self) -> String {
         "server-coord".to_string()

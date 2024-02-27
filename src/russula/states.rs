@@ -3,7 +3,6 @@
 
 use super::{error::RussulaError, network_utils::Msg};
 use crate::russula::{network_utils, RussulaResult};
-use async_trait::async_trait;
 use bytes::Bytes;
 use core::{fmt::Debug, task::Poll, time::Duration};
 use serde::{Deserialize, Serialize};
@@ -23,8 +22,7 @@ pub enum TransitionStep {
     Finished,
 }
 
-#[async_trait]
-pub trait StateApi: Send + Sync + Clone + Debug + Serialize + for<'a> Deserialize<'a> {
+pub trait StateApi: Clone + Debug + Serialize + for<'a> Deserialize<'a> {
     fn name_prefix(&self) -> String;
 
     fn name(&self, stream: &TcpStream) -> String {

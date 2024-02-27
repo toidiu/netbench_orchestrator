@@ -8,7 +8,6 @@ use super::{
     states::{StateApi, TransitionStep},
     RussulaResult,
 };
-use async_trait::async_trait;
 use bytes::Bytes;
 use core::{fmt::Debug, task::Poll, time::Duration};
 use serde::{Deserialize, Serialize};

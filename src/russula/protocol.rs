@@ -10,7 +10,6 @@ use super::{
     RussulaResult,
 };
 use crate::russula::event::EventRecorder;
-use async_trait::async_trait;
 use bytes::Bytes;
 use core::{fmt::Debug, task::Poll, time::Duration};
 use paste::paste;
@@ -54,7 +53,6 @@ macro_rules! notify_peer {
 }
 pub(crate) use notify_peer;
 
-#[async_trait]
 pub trait Protocol: Clone {
     type State: StateApi;
 
