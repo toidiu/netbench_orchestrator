@@ -7,7 +7,7 @@ use crate::russula::{
     event::{EventRecorder, EventType},
     netbench::server_coord::CoordState,
     network_utils::Msg,
-    protocol::Protocol,
+    protocol::{notify_peer, Protocol},
     StateApi, TransitionStep,
 };
 use async_trait::async_trait;
@@ -109,7 +109,7 @@ impl Protocol for WorkerProtocol {
                 self.await_next_msg(stream).await
             }
             WorkerState::Ready => {
-                self.state().notify_peer(stream).await?;
+                notify_peer!(self, stream);
                 self.await_next_msg(stream).await
             }
             WorkerState::Run => {
@@ -162,7 +162,7 @@ impl Protocol for WorkerProtocol {
                 Ok(None)
             }
             WorkerState::RunningAwaitKill(_pid) => {
-                self.state().notify_peer(stream).await?;
+                notify_peer!(self, stream);
                 self.await_next_msg(stream).await
             }
             WorkerState::Killing(pid) => {
@@ -181,11 +181,11 @@ impl Protocol for WorkerProtocol {
                 Ok(None)
             }
             WorkerState::Stopped => {
-                self.state().notify_peer(stream).await?;
+                notify_peer!(self, stream);
                 self.await_next_msg(stream).await
             }
             WorkerState::Done => {
-                self.state().notify_peer(stream).await?;
+                notify_peer!(self, stream);
                 Ok(None)
             }
         }

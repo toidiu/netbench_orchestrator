@@ -39,6 +39,20 @@ macro_rules! state_api {
 }};
 }
 
+macro_rules! notify_peer {
+{$protocol:ident, $stream:ident} => {
+    use crate::russula::network_utils;
+    let msg = Msg::new($protocol.state().as_bytes());
+    debug!(
+        "{} ----> send msg {}",
+        $protocol.name(),
+        std::str::from_utf8(&msg.data).unwrap()
+    );
+    network_utils::send_msg($stream, msg).await
+}
+}
+pub(crate) use notify_peer;
+
 #[async_trait]
 pub trait Protocol: Clone {
     type State: StateApi;
@@ -176,7 +190,7 @@ pub trait Protocol: Clone {
                     // to make progress
                     //
                     // notify the peer and make progress
-                    self.state().notify_peer(stream).await?;
+                    notify_peer!(self, stream);
                     break;
                 }
                 Err(err) => return Err(err),

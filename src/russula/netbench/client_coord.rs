@@ -6,7 +6,7 @@ use crate::russula::{
     event::{EventRecorder, EventType},
     netbench::client::WorkerState,
     network_utils::Msg,
-    protocol::Protocol,
+    protocol::{notify_peer, Protocol},
     StateApi, TransitionStep,
 };
 use async_trait::async_trait;
@@ -86,7 +86,7 @@ impl Protocol for CoordProtocol {
     async fn run(&mut self, stream: &TcpStream) -> RussulaResult<Option<Msg>> {
         match self.state_mut() {
             CoordState::CheckWorker => {
-                self.state().notify_peer(stream).await?;
+                notify_peer!(self, stream);
                 self.await_next_msg(stream).await
             }
             CoordState::Ready => {
@@ -97,15 +97,15 @@ impl Protocol for CoordProtocol {
                 Ok(None)
             }
             CoordState::RunWorker => {
-                self.state().notify_peer(stream).await?;
+                notify_peer!(self, stream);
                 self.await_next_msg(stream).await
             }
             CoordState::WorkersRunning => {
-                self.state().notify_peer(stream).await?;
+                notify_peer!(self, stream);
                 self.await_next_msg(stream).await
             }
             CoordState::Done => {
-                self.state().notify_peer(stream).await?;
+                notify_peer!(self, stream);
                 Ok(None)
             }
         }
