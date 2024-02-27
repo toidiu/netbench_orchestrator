@@ -77,25 +77,6 @@ pub trait StateApi: Send + Sync + Clone + Debug + Serialize + for<'a> Deserializ
         self.notify_peer(stream).await.map(|_| ())
     }
 
-    async fn matches_transition_msg(
-        &self,
-        stream: &TcpStream,
-        recv_msg: &Msg,
-    ) -> RussulaResult<bool> {
-        if let TransitionStep::AwaitNext(expected_msg) = self.transition_step() {
-            let should_transition_to_next = expected_msg == recv_msg.as_bytes();
-            debug!(
-                "{} expect: {} actual: {}",
-                self.name(stream),
-                std::str::from_utf8(&expected_msg).unwrap(),
-                std::str::from_utf8(&recv_msg.data).unwrap()
-            );
-            Ok(should_transition_to_next)
-        } else {
-            Ok(false)
-        }
-    }
-
     fn eq(&self, other: &Self) -> bool {
         self.as_bytes() == other.as_bytes()
     }

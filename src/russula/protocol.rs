@@ -163,8 +163,7 @@ pub trait Protocol: Clone {
                         std::str::from_utf8(&msg.data).unwrap()
                     );
 
-                    let state = self.state();
-                    let should_transition = state.matches_transition_msg(stream, &msg).await?;
+                    let should_transition = self.matches_transition_msg(stream, &msg)?;
                     last_msg = Some(msg);
                     if should_transition {
                         let name = self.name();
@@ -185,6 +184,22 @@ pub trait Protocol: Clone {
         }
 
         Ok(last_msg)
+    }
+
+    fn matches_transition_msg(&self, stream: &TcpStream, recv_msg: &Msg) -> RussulaResult<bool> {
+        let state = self.state();
+        if let TransitionStep::AwaitNext(expected_msg) = state.transition_step() {
+            let should_transition_to_next = expected_msg == recv_msg.as_bytes();
+            debug!(
+                "{} expect: {} actual: {}",
+                state.name(stream),
+                std::str::from_utf8(&expected_msg).unwrap(),
+                std::str::from_utf8(&recv_msg.data).unwrap()
+            );
+            Ok(should_transition_to_next)
+        } else {
+            Ok(false)
+        }
     }
 
     fn on_event(&mut self, event: EventType) {
