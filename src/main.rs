@@ -39,5 +39,6 @@ async fn main() -> OrchResult<()> {
     let aws_config = aws_config::from_env().region(region).load().await;
     let config = cli.check_requirements(&aws_config).await?;
 
-    orchestrator::run(unique_id, &config, &aws_config, RunMode::Full).await
+    orchestrator::run(unique_id, &config, &aws_config, RunMode::TestInfra).await
+    // orchestrator::run(unique_id, &config, &aws_config, RunMode::Full).await
 }

@@ -67,14 +67,7 @@ pub async fn collect_config_cmds(
     config: &OrchestratorConfig,
 ) -> Vec<SendCommandOutput> {
     // configure and build
-    let install_deps = install_deps_cmd(
-        host_group,
-        ssm_client,
-        instance_ids.clone(),
-        unique_id,
-        config,
-    )
-    .await;
+    let install_deps = install_deps_cmd(host_group, ssm_client, instance_ids.clone(), config).await;
 
     // upload scenario file
     let upload_scenario_file = upload_netbench_scenario_file(
@@ -107,7 +100,6 @@ async fn install_deps_cmd(
     host_group: &str,
     ssm_client: &aws_sdk_ssm::Client,
     instance_ids: Vec<String>,
-    unique_id: &str,
     config: &OrchestratorConfig,
 ) -> SendCommandOutput {
     send_command(vec![], Step::Configure, host_group, &format!("configure_host_{}", host_group) ,ssm_client, instance_ids, vec![
@@ -115,11 +107,8 @@ async fn install_deps_cmd(
         format!("shutdown -P +{}", STATE.shutdown_min),
         "mkdir -p /home/ec2-user/bin".to_string(),
 
-        format!("echo ec2 up > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/{}-step-1", STATE.s3_path(unique_id, config), host_group),
         "yum upgrade -y".to_string(),
-        format!("echo yum upgrade finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/{}-step-2", STATE.s3_path(unique_id, config), host_group),
-        format!("timeout 5m bash -c 'until yum install cargo cmake git perl openssl-devel bpftrace perf tree -y; do sleep 10; done' || (echo yum failed > /home/ec2-user/index.html; aws s3 cp /home/ec2-user/index.html {}/{}-step-3; exit 1)", STATE.s3_path(unique_id, config), host_group),
-        format!("echo yum finished > /home/ec2-user/index.html && aws s3 cp /home/ec2-user/index.html {}/{}-step-3", STATE.s3_path(unique_id, config), host_group),
+        "timeout 5m bash -c 'until yum install cargo cmake git perl openssl-devel bpftrace perf tree -y; do sleep 10; done'".to_string(),
         // rust
         "runuser -u ec2-user -- curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs > rustup.rs".to_string(),
 

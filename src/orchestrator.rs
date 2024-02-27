@@ -29,7 +29,6 @@ pub use state::*;
 //
 // # Nits
 // - instance::poll_state should take multiple instance_ids
-// - cleanup dashboard
 // - fix graph colors in incast reports
 
 pub enum RunMode {
