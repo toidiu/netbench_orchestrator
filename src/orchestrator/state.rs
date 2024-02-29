@@ -1,7 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{ec2_utils::EndpointType, orchestrator::OrchestratorConfig};
+use crate::orchestrator::OrchestratorConfig;
 use core::time::Duration;
 
 pub const STATE: State = State {
@@ -93,9 +93,5 @@ impl State {
     // security_group_name_prefix: "netbench_runner",
     pub fn security_group_name(&self, unique_id: &str) -> String {
         format!("netbench_{}", unique_id)
-    }
-
-    pub fn instance_name(&self, unique_id: &str, endpoint_type: EndpointType) -> String {
-        format!("{}_{}", endpoint_type.as_str().to_lowercase(), unique_id)
     }
 }

@@ -150,7 +150,7 @@ pub async fn launch_instances(
                 .tags(
                     Tag::builder()
                         .key("Name")
-                        .value(STATE.instance_name(unique_id, endpoint_type))
+                        .value(instance_name(unique_id, endpoint_type))
                         .build(),
                 )
                 .build(),
@@ -188,6 +188,10 @@ pub async fn launch_instances(
     })?;
 
     Ok(instances.get(0).unwrap().clone())
+}
+
+fn instance_name(unique_id: &str, endpoint_type: EndpointType) -> String {
+    format!("{}_{}", endpoint_type.as_str().to_lowercase(), unique_id)
 }
 
 pub async fn delete_instance(ec2_client: &aws_sdk_ec2::Client, ids: Vec<String>) -> OrchResult<()> {
